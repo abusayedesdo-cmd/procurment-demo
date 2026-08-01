@@ -8,12 +8,16 @@ use App\Models\Quotation;
 use App\Models\Rfq;
 use App\Models\TenderOpening;
 use App\Models\VendorDocument;
+<<<<<<< HEAD
 use App\Models\ProcurementAnnualPlan;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+=======
+use Barryvdh\DomPDF\Facade\Pdf;
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
 
 /**
  * Generates the RFQ, Tender Schedule, and Tender Opening documents as
@@ -136,6 +140,7 @@ class DocumentDownloadController extends Controller
 
         return ['[Member Secretary Name]', 'Member Secretary/Convener'];
     }
+<<<<<<< HEAD
 
     public function annualPlanPdf(ProcurementAnnualPlan $procurementAnnualPlan)
     {
@@ -347,4 +352,6 @@ class DocumentDownloadController extends Controller
 
         return $groups;
     }
+=======
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
 }

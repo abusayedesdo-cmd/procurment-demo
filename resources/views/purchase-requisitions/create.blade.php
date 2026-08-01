@@ -22,6 +22,7 @@
                 <select id="category_id" required></select>
             </div>
             <div>
+<<<<<<< HEAD
                 <label for="budget_line_id">Budget Line</label>
                 <select id="budget_line_id"></select>
             </div>
@@ -30,6 +31,8 @@
                 <select id="package_id"></select>
             </div>
             <div>
+=======
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
                 <label for="requisition_date">Requisition Date</label>
                 <input type="date" id="requisition_date" required>
             </div>
@@ -112,6 +115,7 @@
 
     async function init() {
         try {
+<<<<<<< HEAD
             const [categoriesRes, itemsRes, unitsRes, budgetLinesRes, packagesRes] = await Promise.all([
             api.get('/procurement-categories?per_page=200'),
             api.get('/items?per_page=500'),
@@ -134,6 +138,20 @@
 
         items = itemsRes.data;
         units = unitsRes.data;
+=======
+            const [categoriesRes, itemsRes, unitsRes] = await Promise.all([
+                api.get('/procurement-categories?per_page=200'),
+                api.get('/items?per_page=500'),
+                api.get('/units?per_page=200'),
+            ]);
+
+            document.getElementById('category_id').innerHTML =
+                '<option value="">-- বাছাই করুন --</option>' +
+                categoriesRes.data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+            items = itemsRes.data;
+            units = unitsRes.data;
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
             addRow();
         } catch (err) {
             errorBox.textContent = err.message;
@@ -164,8 +182,11 @@
             const { data } = await api.post('/purchase-requisitions', {
                 window_type: document.getElementById('window_type').value,
                 category_id: document.getElementById('category_id').value,
+<<<<<<< HEAD
                 budget_line_id: document.getElementById('budget_line_id').value || null,
                 procurement_plan_package_id: document.getElementById('package_id').value || null,
+=======
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
                 requisition_date: document.getElementById('requisition_date').value,
                 estimated_delivery_date: document.getElementById('estimated_delivery_date').value || null,
                 remarks: document.getElementById('remarks').value || null,

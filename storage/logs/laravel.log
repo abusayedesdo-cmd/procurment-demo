@@ -6701,6 +6701,7 @@ Did you mean one of these?
 #59 D:/New Poject/New folder/procurment/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php(16): require_once('D://New Poject//N...')
 #60 {main}
 "} 
+<<<<<<< HEAD
 [2026-07-23 05:39:44] local.ERROR: Command "make:maigration" is not defined.
 
 Did you mean one of these?
@@ -10717,3 +10718,5 @@ Did you mean one of these?
 #76 D:/New Poject/Project_procrument/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php(16): require_once('D://New Poject//P...')
 #77 {main}
 "} 
+=======
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc

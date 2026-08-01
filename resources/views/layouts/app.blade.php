@@ -1,5 +1,9 @@
 <!DOCTYPE html>
+<<<<<<< HEAD
 <html lang="en">
+=======
+<html lang="bn">
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,6 +24,7 @@
         th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid #eef0f3; font-size: .9rem; }
         th { color: #6b7280; font-weight: 600; font-size: .8rem; text-transform: uppercase; }
         .btn { display: inline-block; background: #1f2937; color: #fff; border: none; border-radius: 6px; padding: .5rem 1rem; cursor: pointer; text-decoration: none; font-size: .9rem; }
+<<<<<<< HEAD
         .topbar .btn.secondary {
             background: #374151;
             color: #ffffff;
@@ -29,6 +34,9 @@
         .topbar .btn.secondary:hover {
             background: #4b5563;
         }
+=======
+        .btn.secondary { background: #e5e7eb; color: #1f2937; }
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
         .btn.danger { background: #b91c1c; }
         label { display: block; font-size: .85rem; color: #6b7280; margin: 0 0 .3rem; }
         input, select, textarea { width: 100%; padding: .5rem .6rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .9rem; font-family: inherit; }
@@ -54,7 +62,10 @@
         .error-box { background: #fee2e2; color: #991b1b; padding: .75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: .9rem; }
         .muted { color: #6b7280; font-size: .85rem; }
     </style>
+<<<<<<< HEAD
     @yield('styles')
+=======
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
 </head>
 <body>
     <div class="topbar">
@@ -62,17 +73,26 @@
         <div class="nav">
             <a href="{{ route('dashboard') }}">Dashboard</a>
             <a href="{{ route('purchase-requisitions.index') }}">Purchase Requisitions</a>
+<<<<<<< HEAD
             @if (in_array(auth()->user()->roleName(), [\App\Models\User::BUDGET_CHECKER, \App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN]))
                 <a href="{{ route('budget-dashboard') }}">Budget Dashboard</a>
                  <a href="{{ route('annual-plans.index') }}">Annual Plan</a>
             @endif
             @if (in_array(auth()->user()->roleName(), [\App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN]))
                 <a href="{{ route('modules.index') }}">All Modules</a>
+=======
+            @if (in_array(auth()->user()->roleName(), [\App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN]))
+                <a href="{{ route('modules.index') }}">সব মডিউল</a>
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
             @endif
             <span class="muted">{{ auth()->user()->name ?? '' }}</span>
             <form method="POST" action="{{ route('logout') }}" style="display:inline">
                 @csrf
+<<<<<<< HEAD
                 <button type="submit" class="btn secondary">Sign out</button>
+=======
+                <button type="submit" class="btn secondary" style="padding:.3rem .7rem;">লগ-আউট</button>
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
             </form>
         </div>
     </div>
@@ -84,4 +104,8 @@
     <script src="{{ asset('js/api.js') }}"></script>
     @yield('scripts')
 </body>
+<<<<<<< HEAD
 </html>
+=======
+</html>
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc

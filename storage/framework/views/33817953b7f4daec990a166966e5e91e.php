@@ -53,9 +53,12 @@
         <div class="nav">
             <a href="<?php echo e(route('dashboard')); ?>">Dashboard</a>
             <a href="<?php echo e(route('purchase-requisitions.index')); ?>">Purchase Requisitions</a>
+<<<<<<< HEAD
             <?php if(in_array(auth()->user()->roleName(), [\App\Models\User::BUDGET_CHECKER, \App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN])): ?>
                 <a href="<?php echo e(route('budget-dashboard')); ?>">Budget Dashboard</a>
             <?php endif; ?>
+=======
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
             <?php if(in_array(auth()->user()->roleName(), [\App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN])): ?>
                 <a href="<?php echo e(route('modules.index')); ?>">সব মডিউল</a>
             <?php endif; ?>

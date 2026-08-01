@@ -1,8 +1,11 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+<<<<<<< HEAD
 use App\Http\Controllers\AnnualPlanPageController;
 use App\Http\Controllers\BudgetDashboardPageController;
+=======
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ModulePageController;
 use App\Http\Controllers\PurchaseRequisitionPageController;
@@ -28,9 +31,12 @@ Route::post('/logout', [LoginController::class, 'logout'])
 
 Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+<<<<<<< HEAD
     Route::get('/budget-dashboard', [BudgetDashboardPageController::class, 'index'])->name('budget-dashboard');
     Route::get('/annual-plans', [AnnualPlanPageController::class, 'index'])->name('annual-plans.index');
     Route::get('/annual-plans/{id}', [AnnualPlanPageController::class, 'show'])->name('annual-plans.show');
+=======
+>>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
 
     Route::prefix('purchase-requisitions')->name('purchase-requisitions.')->group(function () {
         Route::get('/', [PurchaseRequisitionPageController::class, 'index'])->name('index');
