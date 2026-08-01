@@ -10,10 +10,7 @@
 @section('scripts')
 <script>
     const prId = {{ (int) $id }};
-<<<<<<< HEAD
     const currentUserRole = @json(auth()->user()->roleName());
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
     const errorBox = document.getElementById('errorBox');
     const detail = document.getElementById('prDetail');
 
@@ -21,7 +18,6 @@
         return `<span class="badge ${status}">${status}</span>`;
     }
 
-<<<<<<< HEAD
     function money(n) {
         return Number(n || 0).toLocaleString('en-BD', { minimumFractionDigits: 2 });
     }
@@ -31,16 +27,11 @@
             && ['budget_checker', 'admin'].includes(currentUserRole);
     }
 
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
     async function load() {
         try {
             const { data: pr } = await api.get(`/purchase-requisitions/${prId}`);
             render(pr);
-<<<<<<< HEAD
             renderActionArea(pr);
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
         } catch (err) {
             errorBox.textContent = err.message;
             errorBox.style.display = 'block';
@@ -78,17 +69,11 @@
             <div class="card row">
                 <div><span class="muted">Window</span><br>${pr.window_type}</div>
                 <div><span class="muted">Category</span><br>${pr.category?.name ?? '-'}</div>
-<<<<<<< HEAD
                 <div><span class="muted">Budget Line</span><br>${pr.budget_line ? pr.budget_line.item_code + ' — ' + pr.budget_line.item_name : '<span class="muted">এখনো ঠিক করা হয়নি</span>'}</div>
                 <div><span class="muted">Annual Plan Package</span><br>${pr.package ? pr.package.package_number + ' — ' + pr.package.budgeted_head : '<span class="muted">লিংক করা নেই</span>'}</div>
                 <div><span class="muted">Requisition Date</span><br>${pr.requisition_date}</div>
                 <div><span class="muted">Est. Delivery</span><br>${pr.estimated_delivery_date ?? '-'}</div>
                 <div><span class="muted">Total (৳)</span><br><strong>${money(pr.total_estimated_amount)}</strong></div>
-=======
-                <div><span class="muted">Requisition Date</span><br>${pr.requisition_date}</div>
-                <div><span class="muted">Est. Delivery</span><br>${pr.estimated_delivery_date ?? '-'}</div>
-                <div><span class="muted">Total (৳)</span><br><strong>${Number(pr.total_estimated_amount).toLocaleString('en-BD', {minimumFractionDigits: 2})}</strong></div>
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
                 <div><span class="muted">Raised By</span><br>${pr.raised_by_user?.name ?? pr.raisedBy?.name ?? '-'}</div>
             </div>
 
@@ -108,7 +93,6 @@
                 </table>
             </div>
 
-<<<<<<< HEAD
             <div id="actionArea"></div>
         `;
     }
@@ -205,19 +189,12 @@
 
     function renderGenericActionCard(area) {
         area.innerHTML = `
-=======
-            ${pr.status !== 'approved' && pr.status !== 'rejected' ? `
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
             <div class="card">
                 <h3>Action নিন</h3>
                 <div class="row">
                     <div>
                         <label for="roleAtAction">আপনার ভূমিকা (এই action-এ)</label>
-<<<<<<< HEAD
                         <input type="text" id="roleAtAction" placeholder="যেমন: Reviewer, Approver">
-=======
-                        <input type="text" id="roleAtAction" placeholder="যেমন: Reviewer, Budget Checker, Approver">
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
                     </div>
                 </div>
                 <label for="actionRemarks">মন্তব্য</label>
@@ -228,10 +205,6 @@
                     <button class="btn danger" onclick="submitAction('rejected')">Reject</button>
                 </div>
             </div>
-<<<<<<< HEAD
-=======
-            ` : ''}
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
         `;
     }
 
@@ -239,11 +212,7 @@
         errorBox.style.display = 'none';
         const roleAtAction = document.getElementById('roleAtAction').value;
         if (!roleAtAction) {
-<<<<<<< HEAD
             errorBox.textContent = 'আপনার ভূমিকা লিখুন (Reviewer/Approver)।';
-=======
-            errorBox.textContent = 'আপনার ভূমিকা লিখুন (Reviewer/Budget Checker/Approver)।';
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
             errorBox.style.display = 'block';
             return;
         }
@@ -261,7 +230,6 @@
         }
     }
 
-<<<<<<< HEAD
     async function submitBudgetCheck(decision) {
         errorBox.style.display = 'none';
         const select = document.getElementById('budgetLineSelect');
@@ -291,8 +259,3 @@
     load();
 </script>
 @endsection
-=======
-    load();
-</script>
-@endsection
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc

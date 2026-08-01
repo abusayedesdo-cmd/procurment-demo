@@ -49,17 +49,12 @@ class PurchaseRequisitionController extends Controller
 
     public function show(PurchaseRequisition $purchaseRequisition)
     {
-<<<<<<< HEAD
         // $purchaseRequisition->load([
         //     'category', 'raisedBy', 'items.item', 'items.unit',
         //     'approvals.user', 'boqDetail', 'torDetail', 'designDrawing', 'procurementPlan',
         // ]);
         $purchaseRequisition->load([
             'category', 'raisedBy', 'budgetLine', 'package.plan', 'items.item', 'items.unit',
-=======
-        $purchaseRequisition->load([
-            'category', 'raisedBy', 'items.item', 'items.unit',
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
             'approvals.user', 'boqDetail', 'torDetail', 'designDrawing', 'procurementPlan',
         ]);
 
@@ -79,11 +74,8 @@ class PurchaseRequisitionController extends Controller
         $validated = $request->validate([
             'window_type' => 'required|in:PR,BOQ,TOR,Design_Drawing',
             'category_id' => 'required|exists:procurement_categories,id',
-<<<<<<< HEAD
             'budget_line_id' => 'nullable|exists:budget_lines,id',
             'procurement_plan_package_id' => 'nullable|exists:procurement_plan_packages,id',
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
             'requisition_date' => 'required|date',
             'estimated_delivery_date' => 'nullable|date|after_or_equal:requisition_date',
             'remarks' => 'nullable|string',
@@ -105,11 +97,8 @@ class PurchaseRequisitionController extends Controller
                 'pr_number' => $this->numberGenerator->next('pr', 'PR-'),
                 'window_type' => $validated['window_type'],
                 'category_id' => $validated['category_id'],
-<<<<<<< HEAD
                 'budget_line_id' => $validated['budget_line_id'] ?? null,
                 'procurement_plan_package_id' => $validated['procurement_plan_package_id'] ?? null,
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
                 'requisition_date' => $validated['requisition_date'],
                 'estimated_delivery_date' => $validated['estimated_delivery_date'] ?? null,
                 'total_estimated_amount' => $total,
@@ -147,10 +136,7 @@ class PurchaseRequisitionController extends Controller
     {
         $validated = $request->validate([
             'category_id' => 'sometimes|required|exists:procurement_categories,id',
-<<<<<<< HEAD
             'budget_line_id' => 'sometimes|nullable|exists:budget_lines,id',
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
             'requisition_date' => 'sometimes|required|date',
             'estimated_delivery_date' => 'nullable|date',
             'remarks' => 'nullable|string',

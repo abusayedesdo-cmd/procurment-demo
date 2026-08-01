@@ -13,11 +13,8 @@ class PurchaseRequisition extends Model
         'pr_number',
         'window_type',
         'category_id',
-<<<<<<< HEAD
         'budget_line_id',
         'procurement_plan_package_id',
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
         'requisition_date',
         'estimated_delivery_date',
         'total_estimated_amount',
@@ -36,7 +33,6 @@ class PurchaseRequisition extends Model
     {
         return $this->belongsTo(ProcurementCategory::class, 'category_id');
     }
-<<<<<<< HEAD
     public function budgetLine()
     {
         return $this->belongsTo(BudgetLine::class);
@@ -51,8 +47,6 @@ class PurchaseRequisition extends Model
     {
         return $this->hasMany(PrBudgetCheck::class, 'pr_id');
     }
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
 
     public function raisedBy()
     {

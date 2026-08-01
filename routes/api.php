@@ -2,10 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BoqDetailController;
-<<<<<<< HEAD
 use App\Http\Controllers\Api\BudgetCategoryController;
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
 use App\Http\Controllers\Api\ChartOfAccountController;
 use App\Http\Controllers\Api\CommitteeMemberController;
 use App\Http\Controllers\Api\ComparativeStatementController;
@@ -27,11 +24,8 @@ use App\Http\Controllers\Api\MeetingMinuteController;
 use App\Http\Controllers\Api\PayOrderController;
 use App\Http\Controllers\Api\PrApprovalController;
 use App\Http\Controllers\Api\PrItemController;
-<<<<<<< HEAD
 use App\Http\Controllers\Api\ProcurementAnnualPlanController;
 use App\Http\Controllers\Api\ProcurementPlanPackageController;
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
 use App\Http\Controllers\Api\ProcurementCategoryController;
 use App\Http\Controllers\Api\ProcurementPlanController;
 use App\Http\Controllers\Api\PurchaseCommitteeController;
@@ -53,11 +47,8 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VendorController;
 use App\Http\Controllers\Api\VendorDocumentController;
 use App\Http\Controllers\Api\WorkOrderController;
-<<<<<<< HEAD
 use App\Http\Controllers\Api\BudgetLineController;
 use App\Http\Controllers\Api\PrBudgetCheckController;
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -102,7 +93,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('tor-details', TorDetailController::class);
     Route::apiResource('design-drawings', DesignDrawingController::class);
 
-<<<<<<< HEAD
     Route::apiResource('vendor-documents', VendorDocumentController::class);
 
     // Budget dashboard — readable by everyone logged in, same as other masters.
@@ -141,11 +131,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('procurement-plan-packages/{procurementPlanPackage}', [ProcurementPlanPackageController::class, 'destroy']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf', [DocumentDownloadController::class, 'annualPlanPdf']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/excel', [DocumentDownloadController::class, 'annualPlanExcel']);
-=======
-    // B, C, D, E — Procurement Officer's desk.
-    Route::middleware('role:procurement_officer,admin')->group(function () {
-        Route::apiResource('procurement-plans', ProcurementPlanController::class)->except(['destroy']);
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
 
         Route::apiResource('meetings', MeetingController::class);
         Route::apiResource('meeting-attendances', MeetingAttendanceController::class);
@@ -180,8 +165,4 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('rfqs/{rfq}/tender-schedule-document', [DocumentDownloadController::class, 'tenderSchedule']);
         Route::get('tender-openings/{tenderOpening}/document', [DocumentDownloadController::class, 'tenderOpening']);
     });
-<<<<<<< HEAD
 });
-=======
-});
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc

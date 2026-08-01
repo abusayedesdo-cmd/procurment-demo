@@ -84,4 +84,5 @@
     <script src="<?php echo e(asset('js/api.js')); ?>"></script>
     <?php echo $__env->yieldContent('scripts'); ?>
 </body>
-</html><?php /**PATH D:\New Poject\Project_procrument\resources\views/layouts/app.blade.php ENDPATH**/ ?>
+</html>
+<?php /**PATH D:\New Poject\Project_procrument\resources\views/layouts/app.blade.php ENDPATH**/ ?>
