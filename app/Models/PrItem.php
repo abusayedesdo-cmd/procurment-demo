@@ -13,6 +13,9 @@ class PrItem extends Model
         'pr_id',
         'serial_no',
         'item_id',
+        'specification',
+        'ac_code',
+        'is_fixed_asset',
         'unit_id',
         'quantity',
         'rate_bdt',
@@ -24,6 +27,7 @@ class PrItem extends Model
         'quantity' => 'decimal:2',
         'rate_bdt' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'is_fixed_asset' => 'boolean',
     ];
 
     public function purchaseRequisition()

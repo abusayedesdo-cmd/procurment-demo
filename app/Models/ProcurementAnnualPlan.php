@@ -10,7 +10,7 @@ class ProcurementAnnualPlan extends Model
     use HasFactory;
 
     protected $fillable = [
-        'plan_type', 'title', 'project_name', 'district', 'project_location', 'working_area',
+        'plan_type', 'title', 'project_name', 'district_id', 'upazila_id', 'project_location', 'working_area',
         'activity_summary', 'fiscal_year_start', 'fiscal_year_end', 'project_duration', 'agreement_date',
         'donor_name', 'funding_source', 'prepared_by', 'approved_by', 'status',
     ];
@@ -24,6 +24,16 @@ class ProcurementAnnualPlan extends Model
     public function packages()
     {
         return $this->hasMany(ProcurementPlanPackage::class);
+    }
+
+    public function district()
+    {
+        return $this->belongsTo(ProcurementDistrict::class, 'district_id');
+    }
+
+    public function upazila()
+    {
+        return $this->belongsTo(ProcurementUpazila::class, 'upazila_id');
     }
 
     public function preparedBy()

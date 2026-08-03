@@ -22,6 +22,39 @@
         return Number(n || 0).toLocaleString('en-BD', { minimumFractionDigits: 2 });
     }
 
+    function amountInWords(n) {
+        const num = Math.round(Number(n || 0));
+        if (num === 0) return 'Zero Taka Only';
+
+        const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+        const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+        function twoDigits(x) {
+            if (x < 20) return ones[x];
+            return tens[Math.floor(x / 10)] + (x % 10 ? ' ' + ones[x % 10] : '');
+        }
+        function threeDigits(x) {
+            if (x < 100) return twoDigits(x);
+            return ones[Math.floor(x / 100)] + ' Hundred' + (x % 100 ? ' ' + twoDigits(x % 100) : '');
+        }
+
+        // Bangladeshi grouping: Crore (1,00,00,000) / Lakh (1,00,000) / Thousand / Hundred
+        let rem = num;
+        const crore = Math.floor(rem / 10000000); rem %= 10000000;
+        const lakh = Math.floor(rem / 100000); rem %= 100000;
+        const thousand = Math.floor(rem / 1000); rem %= 1000;
+        const hundred = rem;
+
+        const parts = [];
+        if (crore) parts.push(threeDigits(crore) + ' Crore');
+        if (lakh) parts.push(threeDigits(lakh) + ' Lakh');
+        if (thousand) parts.push(threeDigits(thousand) + ' Thousand');
+        if (hundred) parts.push(threeDigits(hundred));
+
+        return parts.join(' ') + ' Taka Only';
+    }
+
     function isBudgetCheckStage(pr) {
         return pr.window_type === 'PR' && pr.status === 'reviewed'
             && ['budget_checker', 'admin'].includes(currentUserRole);
@@ -43,10 +76,22 @@
             <tr>
                 <td>${li.serial_no}</td>
                 <td>${li.item?.name ?? ''}</td>
+                <td>${li.specification ?? li.item?.specification ?? '-'}</td>
                 <td>${li.unit?.name ?? ''}</td>
                 <td>${Number(li.quantity).toLocaleString()}</td>
                 <td>${Number(li.rate_bdt).toLocaleString('en-BD', {minimumFractionDigits: 2})}</td>
                 <td>${Number(li.total_amount).toLocaleString('en-BD', {minimumFractionDigits: 2})}</td>
+                <td>${li.ac_code ?? '-'}</td>
+                <td>${li.is_fixed_asset ? 'হ্যাঁ' : 'না'}</td>
+            </tr>
+        `).join('');
+
+        const classificationRows = (pr.items || []).map(li => `
+            <tr>
+                <td>${pr.category?.name ?? '-'}</td>
+                <td>${li.item?.chart_of_account?.name ?? '-'}</td>
+                <td>${li.is_fixed_asset ? 'হ্যাঁ' : 'না'}</td>
+                <td>${li.item?.name ?? ''}</td>
             </tr>
         `).join('');
 
@@ -63,25 +108,47 @@
         detail.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                 <h1 style="margin:0;">${pr.pr_number} ${badge(pr.status)}</h1>
-                <a href="{{ route('purchase-requisitions.index') }}" class="btn secondary">← তালিকায় ফিরুন</a>
+                <div style="display:flex; gap:.5rem;">
+                    <a href="/api/purchase-requisitions/${pr.id}/pdf" class="btn secondary" target="_blank">PDF ডাউনলোড করুন</a>
+                    <a href="{{ route('purchase-requisitions.index') }}" class="btn secondary">← তালিকায় ফিরুন</a>
+                </div>
             </div>
 
             <div class="card row">
                 <div><span class="muted">Window</span><br>${pr.window_type}</div>
                 <div><span class="muted">Category</span><br>${pr.category?.name ?? '-'}</div>
+                <div><span class="muted">Project/Program Name</span><br>${pr.project_name ?? '-'}</div>
                 <div><span class="muted">Budget Line</span><br>${pr.budget_line ? pr.budget_line.item_code + ' — ' + pr.budget_line.item_name : '<span class="muted">এখনো ঠিক করা হয়নি</span>'}</div>
                 <div><span class="muted">Annual Plan Package</span><br>${pr.package ? pr.package.package_number + ' — ' + pr.package.budgeted_head : '<span class="muted">লিংক করা নেই</span>'}</div>
                 <div><span class="muted">Requisition Date</span><br>${pr.requisition_date}</div>
-                <div><span class="muted">Est. Delivery</span><br>${pr.estimated_delivery_date ?? '-'}</div>
+                <div><span class="muted">Est. Delivery Date</span><br>${pr.estimated_delivery_date ?? '-'}</div>
+                <div><span class="muted">Est. Delivery Time</span><br>${pr.estimated_delivery_time ?? '-'}</div>
+                <div><span class="muted">Delivery Location</span><br>${pr.delivery_location ?? '-'}</div>
                 <div><span class="muted">Total (৳)</span><br><strong>${money(pr.total_estimated_amount)}</strong></div>
                 <div><span class="muted">Raised By</span><br>${pr.raised_by_user?.name ?? pr.raisedBy?.name ?? '-'}</div>
+                <div><span class="muted">Name of Requestor</span><br>${pr.requestor_name ?? '-'}</div>
+                <div><span class="muted">Designation</span><br>${pr.requestor_designation ?? '-'}</div>
+                ${pr.attachment_url ? `<div><span class="muted">Attachment</span><br><a href="${pr.attachment_url}" target="_blank" rel="noopener">দেখুন / ডাউনলোড করুন</a></div>` : ''}
+            </div>
+
+            <div class="card">
+                <p class="muted" style="margin:0;">In-word</p>
+                <p style="margin:.25rem 0 0; font-weight:600;">৳ ${amountInWords(pr.total_estimated_amount)}</p>
             </div>
 
             <div class="card">
                 <h3>আইটেম সমূহ</h3>
                 <table>
-                    <thead><tr><th>#</th><th>Item</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
+                    <thead><tr><th>#</th><th>Item</th><th>Specification</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Total</th><th>A/C Code</th><th>Fixed Asset</th></tr></thead>
                     <tbody>${itemsRows}</tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h3>Item Category / Sub Category / Fixed Asset</h3>
+                <table>
+                    <thead><tr><th>Item Category</th><th>Sub Category</th><th>Fixed Asset</th><th>Item Name</th></tr></thead>
+                    <tbody>${classificationRows}</tbody>
                 </table>
             </div>
 

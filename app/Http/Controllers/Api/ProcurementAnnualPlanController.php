@@ -10,7 +10,7 @@ class ProcurementAnnualPlanController extends Controller
 {
     public function index()
     {
-        return response()->json(['success' => true, 'data' => ProcurementAnnualPlan::orderByDesc('id')->get()]);
+        return response()->json(['success' => true, 'data' => ProcurementAnnualPlan::with('district', 'upazila')->orderByDesc('id')->get()]);
     }
 
     public function store(Request $request)
@@ -19,7 +19,8 @@ class ProcurementAnnualPlanController extends Controller
             'plan_type' => 'required|in:annual,project',
             'title' => 'required|string|max:255',
             'project_name' => 'nullable|string|max:255',
-            'district' => 'nullable|string|max:255',
+            'district_id' => 'nullable|exists:procurement_districts,id',
+            'upazila_id' => 'nullable|exists:procurement_upazilas,id',
             'project_location' => 'nullable|string',
             'working_area' => 'nullable|string',
             'activity_summary' => 'nullable|string',
@@ -41,7 +42,7 @@ class ProcurementAnnualPlanController extends Controller
 
     public function show(ProcurementAnnualPlan $procurementAnnualPlan)
     {
-        $procurementAnnualPlan->load('packages.periods.entries', 'packages.category', 'packages.item');
+        $procurementAnnualPlan->load('district', 'upazila', 'packages.periods.entries', 'packages.category', 'packages.item');
 
         return response()->json(['success' => true, 'data' => $procurementAnnualPlan]);
     }
@@ -51,7 +52,8 @@ class ProcurementAnnualPlanController extends Controller
         $validated = $request->validate([
             'title' => 'sometimes|string|max:255',
             'project_name' => 'nullable|string|max:255',
-            'district' => 'nullable|string|max:255',
+            'district_id' => 'nullable|exists:procurement_districts,id',
+            'upazila_id' => 'nullable|exists:procurement_upazilas,id',
             'project_location' => 'nullable|string',
             'working_area' => 'nullable|string',
             'activity_summary' => 'nullable|string',

@@ -13,14 +13,20 @@ class PurchaseRequisition extends Model
         'pr_number',
         'window_type',
         'category_id',
+        'project_name',
         'budget_line_id',
         'procurement_plan_package_id',
         'requisition_date',
         'estimated_delivery_date',
+        'delivery_location',
+        'estimated_delivery_time',
         'total_estimated_amount',
         'status',
         'raised_by',
+        'requestor_name',
+        'requestor_designation',
         'remarks',
+        'attachment_path',
     ];
 
     protected $casts = [
@@ -28,6 +34,13 @@ class PurchaseRequisition extends Model
         'estimated_delivery_date' => 'date',
         'total_estimated_amount' => 'decimal:2',
     ];
+
+    protected $appends = ['attachment_url'];
+
+    public function getAttachmentUrlAttribute(): ?string
+    {
+        return $this->attachment_path ? asset($this->attachment_path) : null;
+    }
 
     public function category()
     {

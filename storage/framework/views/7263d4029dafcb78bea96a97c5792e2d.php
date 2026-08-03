@@ -15,7 +15,15 @@
             </div>
             <div>
                 <label for="w_district">District</label>
-                <input type="text" id="w_district">
+                <select id="w_district">
+                    <option value="">Select District</option>
+                </select>
+            </div>
+            <div>
+                <label for="w_upazila">Upazila</label>
+                <select id="w_upazila">
+                    <option value="">Select Upazila</option>
+                </select>
             </div>
         </div>
 
@@ -119,7 +127,8 @@
 
         const data = {
             project_name: document.getElementById('w_project_name').value.trim(),
-            district: document.getElementById('w_district').value.trim(),
+            district_id: document.getElementById('w_district').value || null,
+            upazila_id: document.getElementById('w_upazila').value || null,
             project_location: document.getElementById('w_project_location').value.trim(),
             working_area: document.getElementById('w_working_area').value.trim(),
             agreement_date: document.getElementById('w_agreement_date').value,
@@ -143,7 +152,8 @@
                 plan_type: data.plan_type,
                 title: data.project_name, // no separate Title field — reuses Project Name
                 project_name: data.project_name || null,
-                district: data.district || null,
+                district_id: data.district_id || null,
+                upazila_id: data.upazila_id || null,
                 project_location: data.project_location || null,
                 working_area: data.working_area || null,
                 activity_summary: data.activity_summary || null,
@@ -166,7 +176,7 @@
             const { data } = await api.get('/procurement-annual-plans');
             document.getElementById('plansList').innerHTML = data.map(p => `
                 <div class="card row" style="align-items:center;">
-                    <div><strong>${p.title}</strong><br><span class="muted">${p.plan_type} · ${p.donor_name ?? ''} · ${p.fiscal_year_start} → ${p.fiscal_year_end}</span></div>
+                    <div><strong>${p.title}</strong><br><span class="muted">${p.plan_type} · ${p.donor_name ?? ''} · ${p.district?.name ?? ''}${p.upazila ? ', ' + p.upazila.name : ''} · ${p.fiscal_year_start} → ${p.fiscal_year_end}</span></div>
                     <div><span class="badge ${p.status}">${p.status}</span></div>
                     <div><a class="btn secondary" href="/annual-plans/${p.id}">Open</a></div>
                 </div>
@@ -177,7 +187,53 @@
         }
     }
 
+    let allUpazilas = [];
+
+    function populateUpazilaOptions(districtId) {
+        const select = document.getElementById('w_upazila');
+        select.innerHTML = '<option value="">Select Upazila</option>';
+        const filtered = districtId
+            ? allUpazilas.filter(u => String(u.district_id) === String(districtId))
+            : allUpazilas;
+        filtered.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            opt.textContent = u.name;
+            select.appendChild(opt);
+        });
+    }
+
+    async function loadDistricts() {
+        try {
+            const { data } = await api.get('/procurement-districts');
+            const select = document.getElementById('w_district');
+            data.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.id;
+                opt.textContent = d.name;
+                select.appendChild(opt);
+            });
+            select.addEventListener('change', () => populateUpazilaOptions(select.value));
+        } catch (err) {
+            errorBox.textContent = err.message;
+            errorBox.style.display = 'block';
+        }
+    }
+
+    async function loadUpazilas() {
+        try {
+            const { data } = await api.get('/procurement-upazilas');
+            allUpazilas = data;
+            populateUpazilaOptions(document.getElementById('w_district').value);
+        } catch (err) {
+            errorBox.textContent = err.message;
+            errorBox.style.display = 'block';
+        }
+    }
+
     loadPlans();
+    loadDistricts();
+    loadUpazilas();
 </script>
 <?php $__env->stopSection(); ?>
 <?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/annual-plan/index.blade.php ENDPATH**/ ?>

@@ -25,6 +25,8 @@ use App\Http\Controllers\Api\PayOrderController;
 use App\Http\Controllers\Api\PrApprovalController;
 use App\Http\Controllers\Api\PrItemController;
 use App\Http\Controllers\Api\ProcurementAnnualPlanController;
+use App\Http\Controllers\Api\ProcurementDistrictController;
+use App\Http\Controllers\Api\ProcurementUpazilaController;
 use App\Http\Controllers\Api\ProcurementPlanPackageController;
 use App\Http\Controllers\Api\ProcurementCategoryController;
 use App\Http\Controllers\Api\ProcurementPlanController;
@@ -87,6 +89,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('role:requester');
 
     Route::apiResource('pr-items', PrItemController::class)->except(['store']);
+    Route::post('purchase-requisitions/{purchaseRequisition}/attachment', [PurchaseRequisitionController::class, 'uploadAttachment']);
+    Route::get('purchase-requisitions/{purchaseRequisition}/pdf', [DocumentDownloadController::class, 'purchaseRequisitionPdf']);
     Route::get('purchase-requisitions/{purchaseRequisition}/approvals', [PrApprovalController::class, 'index']);
     Route::post('purchase-requisitions/{purchaseRequisition}/approvals', [PrApprovalController::class, 'store']);
     Route::apiResource('boq-details', BoqDetailController::class);
@@ -99,6 +103,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('budget-dashboard', [BudgetLineController::class, 'dashboard']);
     Route::get('budget-lines', [BudgetLineController::class, 'index']);
     Route::get('budget-categories', [BudgetCategoryController::class, 'index']);
+    Route::get('procurement-plan-packages', [ProcurementPlanPackageController::class, 'all']);
 
      Route::middleware('role:budget_checker,admin')->group(function () {
         Route::post('budget-categories', [BudgetCategoryController::class, 'store']);
@@ -124,13 +129,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:procurement_officer,admin')->group(function () {
     Route::apiResource('procurement-plans', ProcurementPlanController::class)->except(['destroy']);
     Route::apiResource('procurement-annual-plans', ProcurementAnnualPlanController::class);
-    Route::get('procurement-plan-packages', [ProcurementPlanPackageController::class, 'all']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/packages', [ProcurementPlanPackageController::class, 'index']);
     Route::post('procurement-annual-plans/{procurementAnnualPlan}/packages', [ProcurementPlanPackageController::class, 'store']);
     Route::put('procurement-plan-packages/{procurementPlanPackage}', [ProcurementPlanPackageController::class, 'update']);
     Route::delete('procurement-plan-packages/{procurementPlanPackage}', [ProcurementPlanPackageController::class, 'destroy']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf', [DocumentDownloadController::class, 'annualPlanPdf']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/excel', [DocumentDownloadController::class, 'annualPlanExcel']);
+    Route::get('procurement-districts', [ProcurementDistrictController::class, 'index']);
+    Route::get('procurement-upazilas', [ProcurementUpazilaController::class, 'index']);
 
         Route::apiResource('meetings', MeetingController::class);
         Route::apiResource('meeting-attendances', MeetingAttendanceController::class);

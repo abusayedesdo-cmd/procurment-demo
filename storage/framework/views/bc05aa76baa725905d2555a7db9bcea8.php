@@ -26,4 +26,4 @@
     <?php echo $__env->yieldContent('content'); ?>
 </body>
 </html>
-<?php /**PATH D:\New Poject\New folder\procurment\resources\views/documents/layout.blade.php ENDPATH**/ ?>
+<?php /**PATH D:\New Poject\Project_procrument\resources\views/documents/layout.blade.php ENDPATH**/ ?>

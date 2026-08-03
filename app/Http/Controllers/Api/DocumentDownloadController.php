@@ -9,6 +9,7 @@ use App\Models\Rfq;
 use App\Models\TenderOpening;
 use App\Models\VendorDocument;
 use App\Models\ProcurementAnnualPlan;
+use App\Models\PurchaseRequisition;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -109,6 +110,67 @@ class DocumentDownloadController extends Controller
         $rfqNumber = $rfq->rfq_number ?? $tenderOpening->id;
 
         return $pdf->download("Tender-Opening-{$this->safe($rfqNumber)}.pdf");
+    }
+
+    /**
+     * The paper "Purchase Requisition" form — Sl.No/Item/Specification/
+     * Unit/Qty/Unit Price/Total/A-C Code table, delivery block, amount
+     * in words, Budgetary Check block, and the signature lines. The
+     * budgetary check and all signature lines are left blank on purpose
+     * (printed, signed by hand) except "Requested by" which we know.
+     */
+    public function purchaseRequisitionPdf(PurchaseRequisition $purchaseRequisition)
+    {
+        $purchaseRequisition->loadMissing('items.item', 'items.unit', 'raisedBy');
+
+        $pdf = Pdf::loadView('documents.purchase-requisition', [
+            'pr' => $purchaseRequisition,
+            'amountInWords' => $this->amountInWords((float) $purchaseRequisition->total_estimated_amount),
+        ]);
+
+        return $pdf->download("PR-{$this->safe($purchaseRequisition->pr_number)}.pdf");
+    }
+
+    /** Bangladeshi grouping (Crore / Lakh / Thousand), for the "In-word" line. */
+    protected function amountInWords(float $amount): string
+    {
+        $num = (int) round($amount);
+        if ($num === 0) {
+            return 'Zero Taka Only';
+        }
+
+        $ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+        $tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+        $twoDigits = function (int $x) use ($ones, $tens) {
+            if ($x < 20) {
+                return $ones[$x];
+            }
+
+            return trim($tens[intdiv($x, 10)].($x % 10 ? ' '.$ones[$x % 10] : ''));
+        };
+        $threeDigits = function (int $x) use ($ones, $twoDigits) {
+            if ($x < 100) {
+                return $twoDigits($x);
+            }
+
+            return trim($ones[intdiv($x, 100)].' Hundred'.($x % 100 ? ' '.$twoDigits($x % 100) : ''));
+        };
+
+        $rem = $num;
+        $crore = intdiv($rem, 10000000); $rem %= 10000000;
+        $lakh = intdiv($rem, 100000); $rem %= 100000;
+        $thousand = intdiv($rem, 1000); $rem %= 1000;
+        $hundred = $rem;
+
+        $parts = [];
+        if ($crore) $parts[] = $threeDigits($crore).' Crore';
+        if ($lakh) $parts[] = $threeDigits($lakh).' Lakh';
+        if ($thousand) $parts[] = $threeDigits($thousand).' Thousand';
+        if ($hundred) $parts[] = $threeDigits($hundred);
+
+        return implode(' ', $parts).' Taka Only';
     }
 
     /** Filenames can't contain "/" or "\" — memo numbers like "126/731/2026-2027" do. */
