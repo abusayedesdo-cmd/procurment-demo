@@ -115,17 +115,25 @@ class DocumentDownloadController extends Controller
     /**
      * The paper "Purchase Requisition" form — Sl.No/Item/Specification/
      * Unit/Qty/Unit Price/Total/A-C Code table, delivery block, amount
-     * in words, Budgetary Check block, and the signature lines. The
-     * budgetary check and all signature lines are left blank on purpose
-     * (printed, signed by hand) except "Requested by" which we know.
+     * in words, Budgetary Check block, and the signature lines. Once an
+     * Accountant has recorded a budget check (pr_budget_checks), those
+     * figures print in the Budgetary Check box; otherwise it prints
+     * blank for hand signing, as before.
      */
     public function purchaseRequisitionPdf(PurchaseRequisition $purchaseRequisition)
     {
         $purchaseRequisition->loadMissing('items.item', 'items.unit', 'raisedBy');
 
+        $budgetCheck = $purchaseRequisition->budgetChecks()
+            ->with(['budgetLine', 'checkedBy'])
+            ->latest('checked_at')
+            ->latest('id')
+            ->first();
+
         $pdf = Pdf::loadView('documents.purchase-requisition', [
             'pr' => $purchaseRequisition,
             'amountInWords' => $this->amountInWords((float) $purchaseRequisition->total_estimated_amount),
+            'budgetCheck' => $budgetCheck,
         ]);
 
         return $pdf->download("PR-{$this->safe($purchaseRequisition->pr_number)}.pdf");

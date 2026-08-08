@@ -28,7 +28,8 @@ class PurchaseRequisitionController extends Controller
         $query = PurchaseRequisition::query()->with(['category', 'raisedBy']);
 
         if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
+            $statuses = array_filter(explode(',', $request->string('status')));
+            $query->whereIn('status', $statuses);
         }
         if ($request->filled('window_type')) {
             $query->where('window_type', $request->string('window_type'));

@@ -1,8 +1,6 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Budget Dashboard'); ?>
 
-@section('title', 'Budget Dashboard')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
     <div id="errorBox" class="error-box" style="display:none;"></div>
 
     <div id="checkQueue" style="margin-bottom:1.5rem;"></div>
@@ -12,11 +10,11 @@
     <div id="inputArea"></div>
 
     <div id="categories" style="margin-top:1rem;">Loading...</div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('scripts')
+<?php $__env->startSection('scripts'); ?>
 <script>
-    const currentUserRole = @json(auth()->user()->roleName());
+    const currentUserRole = <?php echo json_encode(auth()->user()->roleName(), 15, 512) ?>;
     const canEdit = ['budget_checker', 'admin'].includes(currentUserRole);
 
     const errorBox = document.getElementById('errorBox');
@@ -429,4 +427,5 @@
 
     load();
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/budget/dashboard.blade.php ENDPATH**/ ?>

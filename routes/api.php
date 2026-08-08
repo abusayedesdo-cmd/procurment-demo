@@ -74,6 +74,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // Masters — readable by everyone logged in.
     Route::get('users', [UserController::class, 'index']);
     Route::apiResource('roles', RoleController::class);
+
+    // Super Admin — User Management (create/edit/deactivate/delete users,
+    // assign role, reset password). Everything else in this file stays
+    // untouched; this is purely additive.
+    Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('users', [UserController::class, 'adminIndex']);
+        Route::get('users/{user}', [UserController::class, 'show']);
+        Route::post('users', [UserController::class, 'store']);
+        Route::put('users/{user}', [UserController::class, 'update']);
+        Route::delete('users/{user}', [UserController::class, 'destroy']);
+        Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
+    });
     Route::apiResource('procurement-categories', ProcurementCategoryController::class);
     Route::apiResource('chart-of-accounts', ChartOfAccountController::class);
     Route::apiResource('items', ItemController::class);

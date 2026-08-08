@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\AdminUserPageController;
 use App\Http\Controllers\AnnualPlanPageController;
 use App\Http\Controllers\BudgetDashboardPageController;
 use App\Http\Controllers\DashboardController;
@@ -49,5 +50,10 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:procurement_officer,admin')->group(function () {
         Route::get('/modules', [ModulePageController::class, 'index'])->name('modules.index');
         Route::get('/modules/{slug}', [ModulePageController::class, 'show'])->name('modules.show');
+    });
+
+    // Super Admin — User Management dashboard.
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/admin/users', [AdminUserPageController::class, 'index'])->name('admin.users.index');
     });
 });

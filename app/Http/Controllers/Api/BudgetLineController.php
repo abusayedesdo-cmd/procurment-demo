@@ -60,6 +60,7 @@ class BudgetLineController extends Controller
             'code' => $l->item_code,
             'name' => $l->item_name,
             'category' => $l->category->name,
+            'approved_budget' => (float) $l->approved_budget,
             'balance' => $l->balance(),
         ]);
 

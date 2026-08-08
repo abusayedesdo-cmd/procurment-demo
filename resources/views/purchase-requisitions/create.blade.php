@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'নতুন Purchase Requisition')
+@section('title', 'New Purchase Requisition')
 
 @section('content')
-    <h1>নতুন Purchase Requisition</h1>
+    <h1>New Purchase Requisition</h1>
 
     <div id="errorBox" class="error-box" style="display:none;"></div>
 
@@ -59,6 +59,14 @@
                 <input type="text" id="requestor_designation">
             </div>
             <div>
+                <label for="receiver_name">Name of Receiver</label>
+                <input type="text" id="receiver_name">
+            </div>
+            <div>
+                <label for="receiver_contact">Contact</label>
+                <input type="text" id="receiver_contact">
+            </div>
+            <div>
                 <label for="attachment">Attachment (Photo, Drawing, BOQ, ToR, etc. — Optional)</label>
                 <input type="file" id="attachment" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx">
             </div>
@@ -67,17 +75,17 @@
         <label>Remarks</label>
         <textarea id="remarks" rows="2"></textarea>
 
-        <h3 style="margin-top:1.5rem;">আইটেম সমূহ</h3>
+        <h3 style="margin-top:1.5rem;">Items</h3>
         <div id="itemRows"></div>
-        <button type="button" class="btn secondary" id="addRowBtn" style="margin-top:.5rem;">+ আইটেম যোগ করুন</button>
+        <button type="button" class="btn secondary" id="addRowBtn" style="margin-top:.5rem;">+ Add Item</button>
 
         <div style="margin-top:1rem; text-align:right; font-weight:700;">
-            মোট আনুমানিক পরিমাণ: ৳ <span id="grandTotal">0.00</span>
+            Total Estimated Amount: ৳ <span id="grandTotal">0.00</span>
         </div>
 
         <div style="margin-top:1.5rem; display:flex; gap:.5rem;">
-            <button type="submit" class="btn">PR তৈরি করুন</button>
-            <a href="{{ route('purchase-requisitions.index') }}" class="btn secondary">বাতিল</a>
+            <button type="submit" class="btn" id="submitBtn">Create PR</button>
+            <a href="{{ route('purchase-requisitions.index') }}" class="btn secondary">Cancel</a>
         </div>
     </form>
 @endsection
@@ -92,6 +100,8 @@
     const itemRows = document.getElementById('itemRows');
     const grandTotal = document.getElementById('grandTotal');
     const errorBox = document.getElementById('errorBox');
+    const submitBtn = document.getElementById('submitBtn');
+    let submitting = false;
 
     function itemOptions() {
         return items.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
@@ -113,19 +123,19 @@
             <div style="min-width:160px;">
                 <label style="font-size:.75rem;">Item</label>
                 <select class="row-item" required style="width:100%;">
-                    <option value="">-- বাছাই করুন --</option>
-                    <option value="__new__">-- নতুন আইটেম যোগ করুন --</option>
+                    <option value="">-- Select --</option>
+                    <option value="__new__">-- Add New Item --</option>
                     ${itemOptions()}
                 </select>
             </div>
             <div class="row-new-item-wrap" style="display:none; min-width:160px;">
-                <label style="font-size:.75rem;">নতুন Item Name</label>
+                <label style="font-size:.75rem;">New Item Name</label>
                 <input type="text" class="row-new-item-name" style="width:100%;">
             </div>
             <div class="row-account-wrap" style="display:none; min-width:180px;">
                 <label style="font-size:.75rem;">Chart of Account</label>
                 <select class="row-account" style="width:100%;">
-                    <option value="">-- বাছাই করুন --</option>
+                    <option value="">-- Select --</option>
                     ${chartOfAccountOptions()}
                 </select>
             </div>
@@ -136,7 +146,7 @@
             <div style="min-width:130px;">
                 <label style="font-size:.75rem;">Unit</label>
                 <select class="row-unit" required style="width:100%;">
-                    <option value="">-- বাছাই করুন --</option>${unitOptions()}
+                    <option value="">-- Select --</option>${unitOptions()}
                 </select>
             </div>
             <div style="width:90px;">
@@ -199,15 +209,15 @@
             ]);
 
             document.getElementById('category_id').innerHTML =
-                '<option value="">-- বাছাই করুন --</option>' +
+                '<option value="">-- Select --</option>' +
                 categoriesRes.data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
             document.getElementById('budget_line_id').innerHTML =
-                '<option value="">-- (পরে বাজেট চেকার ঠিক করবে) --</option>' +
+                '<option value="">-- (Budget checker will assign later) --</option>' +
                 budgetLinesRes.data.map(l => `<option value="${l.id}">${l.code} — ${l.name}</option>`).join('');
 
             document.getElementById('package_id').innerHTML =
-                '<option value="">-- কোনোটা নয় --</option>' +
+                '<option value="">-- None --</option>' +
                 packagesRes.data.map(p => `<option value="${p.id}">${p.package_number ?? ''} — ${p.budgeted_head} (${p.plan_title})</option>`).join('');
 
             const me = meRes.data ?? meRes;
@@ -228,11 +238,20 @@
 
     document.getElementById('prForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        if (submitting) return; // guards against a double/triple click firing this handler again mid-flight
+        submitting = true;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processing...';
+
         errorBox.style.display = 'none';
 
         if (![...itemRows.children].length) {
-            errorBox.textContent = 'অন্তত একটা আইটেম যোগ করুন।';
+            errorBox.textContent = 'Please add at least one item.';
             errorBox.style.display = 'block';
+            submitting = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create PR';
             return;
         }
 
@@ -246,15 +265,27 @@
                     const chartOfAccountId = div.querySelector('.row-account').value;
 
                     if (!name || !chartOfAccountId) {
-                        throw new Error('নতুন আইটেমের জন্য Item Name ও Chart of Account দিন।');
+                        throw new Error('Please provide an Item Name and Chart of Account for the new item.');
                     }
 
-                    const { data: newItem } = await api.post('/items', {
-                        chart_of_account_id: chartOfAccountId,
-                        name,
-                        specification: div.querySelector('.row-spec').value.trim() || null,
-                    });
-                    itemId = newItem.id;
+                    // Reuse an existing item with the same name under the same account
+                    // instead of always creating a new row — case-insensitive match.
+                    const existing = items.find(i =>
+                        String(i.chart_of_account_id ?? i.chart_of_account?.id) === String(chartOfAccountId) &&
+                        i.name.trim().toLowerCase() === name.toLowerCase()
+                    );
+
+                    if (existing) {
+                        itemId = existing.id;
+                    } else {
+                        const { data: newItem } = await api.post('/items', {
+                            chart_of_account_id: chartOfAccountId,
+                            name,
+                            specification: div.querySelector('.row-spec').value.trim() || null,
+                        });
+                        itemId = newItem.id;
+                        items.push(newItem); // so a second "__new__" row in this same PR with the same name reuses it too
+                    }
                 }
 
                 return {
@@ -270,6 +301,9 @@
         } catch (err) {
             errorBox.textContent = err.message;
             errorBox.style.display = 'block';
+            submitting = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create PR';
             return;
         }
 
@@ -286,6 +320,8 @@
                 delivery_location: document.getElementById('delivery_location').value.trim(),
                 requestor_name: document.getElementById('requestor_name').value.trim() || null,
                 requestor_designation: document.getElementById('requestor_designation').value.trim() || null,
+                receiver_name: document.getElementById('receiver_name').value.trim() || null,
+                receiver_contact: document.getElementById('receiver_contact').value.trim() || null,
                 remarks: document.getElementById('remarks').value || null,
                 items: itemPayload,
             });
@@ -311,6 +347,9 @@
         } catch (err) {
             errorBox.textContent = err.message;
             errorBox.style.display = 'block';
+            submitting = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create PR';
         }
     });
 

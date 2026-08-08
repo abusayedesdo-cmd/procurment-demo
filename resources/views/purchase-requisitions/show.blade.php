@@ -60,6 +60,18 @@
             && ['budget_checker', 'admin'].includes(currentUserRole);
     }
 
+    function isReviewStage(pr) {
+        return pr.status === 'draft'
+            && ['reviewer', 'admin'].includes(currentUserRole);
+    }
+
+    function isApproverStage(pr) {
+        if (['approver', 'admin'].includes(currentUserRole) === false) return false;
+        // PR window: Reviewer -> Budget Checker -> Approver (checked -> approved)
+        // Other windows: Reviewer -> Approver directly (reviewed -> approved)
+        return pr.window_type === 'PR' ? pr.status === 'checked' : pr.status === 'reviewed';
+    }
+
     async function load() {
         try {
             const { data: pr } = await api.get(`/purchase-requisitions/${prId}`);
@@ -160,12 +172,12 @@
                 </table>
             </div>
 
-            <div id="actionArea"></div>
+            <div id="budget-check"></div>
         `;
     }
 
     async function renderActionArea(pr) {
-        const area = document.getElementById('actionArea');
+        const area = document.getElementById('budget-check');
 
         if (pr.status === 'approved' || pr.status === 'rejected') {
             area.innerHTML = '';
@@ -174,8 +186,14 @@
 
         if (isBudgetCheckStage(pr)) {
             await renderBudgetCheckCard(pr, area);
+        } else if (isReviewStage(pr)) {
+            renderGenericActionCard(area, 'Reviewer', 'Review Decision');
+        } else if (isApproverStage(pr)) {
+            renderGenericActionCard(area, 'Approver', 'Approval Decision');
         } else {
-            renderGenericActionCard(area);
+            // Not this user's turn to act — no action card, just show
+            // where the PR currently sits in the chain.
+            area.innerHTML = `<div class="card muted">This PR is at "${pr.status}" — waiting on the next role in the chain.</div>`;
         }
     }
 
@@ -212,17 +230,21 @@
                         <option value="">-- বাছাই করুন --</option>
                         ${lineOptions}
                     </select>
-                    <div id="liveBalance" class="muted" style="margin-top:.5rem;"></div>
+                    <div id="livePreview" style="margin-top:.5rem;"></div>
                 ` : `
                     <div class="row">
                         <div><span class="muted">Budget Code</span><br><strong>${line.code}</strong></div>
-                        <div><span class="muted">Approved Budget</span><br>৳ ${money(line.approved_budget)}</div>
                         <div><span class="muted">Spent so far</span><br>৳ ${money(line.spent)}</div>
-                        <div><span class="muted">Available Balance</span><br><strong style="color:${line.is_sufficient ? '#065f46' : '#991b1b'}">৳ ${money(line.available_budget_amount)}</strong></div>
                     </div>
+                    <table style="margin-top:.75rem;">
+                        <tr><td class="muted">Total allocated Budget</td><td class="bold">৳ ${money(line.total_allocated_budget)}</td></tr>
+                        <tr><td class="muted">Remaining Budget B/F</td><td>৳ ${money(line.remaining_budget_bf)}</td></tr>
+                        <tr><td class="muted">Amount of PR</td><td>৳ ${money(line.amount_of_pr)}</td></tr>
+                        <tr><td class="muted">Remaining Budget C/F</td><td style="color:${line.is_sufficient ? '#065f46' : '#991b1b'}"><strong>৳ ${money(line.remaining_budget_cf)}</strong></td></tr>
+                        <tr><td class="muted">Name of Accountant</td><td>${check.data.accountant_name}</td></tr>
+                    </table>
                     <p class="muted" style="margin-top:.5rem;">
-                        PR amount ৳ ${money(pr.total_estimated_amount)} —
-                        ${line.is_sufficient ? '<b style="color:#065f46;">Sufficient balance</b>' : '<b style="color:#991b1b;">Insufficient balance</b>'}
+                        ${line.is_sufficient ? '<b style="color:#065f46;">Sufficient balance</b>' : '<b style="color:#991b1b;">Insufficient balance — C/F would go negative</b>'}
                     </p>
                 `}
 
@@ -236,9 +258,15 @@
                 <label for="budgetRemarks" style="margin-top:.75rem;">মন্তব্য</label>
                 <textarea id="budgetRemarks" rows="2"></textarea>
 
-                <div style="margin-top:1rem; display:flex; gap:.5rem;">
-                    <button class="btn" onclick="submitBudgetCheck('recommended')">Recommend for Approval</button>
-                    <button class="btn secondary" onclick="submitBudgetCheck('returned')">Return for Correction</button>
+                <label for="decision" style="margin-top:.75rem;">Decision</label>
+                <select id="decision">
+                    <option value="recommended">Recommend for Approval</option>
+                    <option value="approved" ${line && !line.is_sufficient ? 'disabled' : ''}>Approved${line && !line.is_sufficient ? ' (insufficient balance)' : ''}</option>
+                    <option value="rejected">Reject</option>
+                </select>
+
+                <div style="margin-top:1rem;">
+                    <button class="btn" onclick="submitBudgetCheck()">Submit</button>
                 </div>
             </div>
         `;
@@ -246,43 +274,52 @@
         if (!line) {
             document.getElementById('budgetLineSelect').addEventListener('change', (e) => {
                 const id = e.target.value;
-                const liveBalance = document.getElementById('liveBalance');
-                if (!id) { liveBalance.textContent = ''; return; }
+                const preview = document.getElementById('livePreview');
+                const decisionReturned = document.querySelector('#decision option[value="approved"]');
                 const picked = budgetLines.find(l => String(l.id) === id);
-                liveBalance.textContent = picked ? `Balance: ৳ ${money(picked.balance)}` : '';
+                if (!picked) {
+                    preview.innerHTML = '';
+                    decisionReturned.disabled = false;
+                    decisionReturned.textContent = 'Approved';
+                    return;
+                }
+                const cf = picked.balance - Number(pr.total_estimated_amount);
+                const sufficient = cf >= 0;
+                preview.innerHTML = `
+                    <table>
+                        <tr><td class="muted">Total allocated Budget</td><td class="bold">৳ ${money(picked.approved_budget)}</td></tr>
+                        <tr><td class="muted">Remaining Budget B/F</td><td>৳ ${money(picked.balance)}</td></tr>
+                        <tr><td class="muted">Amount of PR</td><td>৳ ${money(pr.total_estimated_amount)}</td></tr>
+                        <tr><td class="muted">Remaining Budget C/F</td><td style="color:${sufficient ? '#065f46' : '#991b1b'}"><strong>৳ ${money(cf)}</strong></td></tr>
+                    </table>
+                `;
+                decisionReturned.disabled = !sufficient;
+                decisionReturned.textContent = sufficient ? 'Approved' : 'Approved (insufficient balance)';
+                if (!sufficient && document.getElementById('decision').value === 'approved') {
+                    document.getElementById('decision').value = 'recommended';
+                }
             });
         }
     }
 
-    function renderGenericActionCard(area) {
+    function renderGenericActionCard(area, roleLabel, title) {
         area.innerHTML = `
             <div class="card">
-                <h3>Action নিন</h3>
-                <div class="row">
-                    <div>
-                        <label for="roleAtAction">আপনার ভূমিকা (এই action-এ)</label>
-                        <input type="text" id="roleAtAction" placeholder="যেমন: Reviewer, Approver">
-                    </div>
-                </div>
-                <label for="actionRemarks">মন্তব্য</label>
+                <h3>${title}</h3>
+                <p class="muted">Acting as: <strong>${roleLabel}</strong></p>
+                <label for="actionRemarks">Remarks</label>
                 <textarea id="actionRemarks" rows="2"></textarea>
                 <div style="margin-top:1rem; display:flex; gap:.5rem;">
-                    <button class="btn" onclick="submitAction('approved')">Approve</button>
-                    <button class="btn secondary" onclick="submitAction('returned')">Return</button>
-                    <button class="btn danger" onclick="submitAction('rejected')">Reject</button>
+                    <button class="btn" onclick="submitAction('approved', '${roleLabel}')">Approve</button>
+                    <button class="btn secondary" onclick="submitAction('returned', '${roleLabel}')">Return</button>
+                    <button class="btn danger" onclick="submitAction('rejected', '${roleLabel}')">Reject</button>
                 </div>
             </div>
         `;
     }
 
-    async function submitAction(action) {
+    async function submitAction(action, roleAtAction) {
         errorBox.style.display = 'none';
-        const roleAtAction = document.getElementById('roleAtAction').value;
-        if (!roleAtAction) {
-            errorBox.textContent = 'আপনার ভূমিকা লিখুন (Reviewer/Approver)।';
-            errorBox.style.display = 'block';
-            return;
-        }
 
         try {
             await api.post(`/purchase-requisitions/${prId}/approvals`, {
@@ -297,7 +334,7 @@
         }
     }
 
-    async function submitBudgetCheck(decision) {
+    async function submitBudgetCheck() {
         errorBox.style.display = 'none';
         const select = document.getElementById('budgetLineSelect');
         const budgetLineId = select ? (select.value || null) : null;
@@ -313,7 +350,7 @@
                 budget_line_id: budgetLineId,
                 is_budget_code_verified: document.getElementById('codeVerified').checked,
                 is_budget_available: document.getElementById('availabilityVerified').checked,
-                decision,
+                decision: document.getElementById('decision').value,
                 remarks: document.getElementById('budgetRemarks').value || null,
             });
             load();

@@ -69,6 +69,9 @@
             <?php if(in_array(auth()->user()->roleName(), [\App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN])): ?>
                 <a href="<?php echo e(route('modules.index')); ?>">All Modules</a>
             <?php endif; ?>
+            <?php if(auth()->user()->roleName() === \App\Models\User::ADMIN): ?>
+                <a href="<?php echo e(route('admin.users.index')); ?>">User Management</a>
+            <?php endif; ?>
             <span class="muted"><?php echo e(auth()->user()->name ?? ''); ?></span>
             <form method="POST" action="<?php echo e(route('logout')); ?>" style="display:inline">
                 <?php echo csrf_field(); ?>

@@ -49,6 +49,39 @@ class PrApprovalController extends Controller
         $chain = self::CHAIN[$purchaseRequisition->window_type] ?? self::CHAIN['PR'];
         $currentIndex = array_search($purchaseRequisition->status, $chain, true);
 
+        // Who is actually allowed to act on this PR right now? For the
+        // PR window, the 'reviewed' stage belongs to the Budget Checker
+        // and must go through PrBudgetCheckController — not here, or the
+        // budget check step could be silently skipped.
+        $userRole = $request->user()->roleName();
+        $isAdmin = $userRole === \App\Models\User::ADMIN;
+
+        $requiredRole = $purchaseRequisition->window_type === 'PR'
+            ? match ($purchaseRequisition->status) {
+                'draft' => \App\Models\User::REVIEWER,
+                'checked' => \App\Models\User::APPROVER,
+                default => null,
+            }
+            : match ($purchaseRequisition->status) {
+                'draft' => \App\Models\User::REVIEWER,
+                'reviewed' => \App\Models\User::APPROVER,
+                default => null,
+            };
+
+        if ($requiredRole === null) {
+            return response()->json([
+                'success' => false,
+                'message' => "This PR (status: {$purchaseRequisition->status}) isn't actionable here right now.",
+            ], 422);
+        }
+
+        if (! $isAdmin && $userRole !== $requiredRole) {
+            return response()->json([
+                'success' => false,
+                'message' => "This step needs a {$requiredRole}, not a {$userRole}.",
+            ], 403);
+        }
+
         $result = DB::transaction(function () use ($request, $validated, $purchaseRequisition, $chain, $currentIndex) {
             PrApproval::create([
                 'pr_id' => $purchaseRequisition->id,

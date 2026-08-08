@@ -261,6 +261,37 @@
             </div>
         </div>
 
+        @php
+            $canReview = in_array($user->roleName() ?? null, [\App\Models\User::REVIEWER, \App\Models\User::ADMIN]);
+            $canCheckBudget = in_array($user->roleName() ?? null, [\App\Models\User::BUDGET_CHECKER, \App\Models\User::ADMIN]);
+            $canApprove = in_array($user->roleName() ?? null, [\App\Models\User::APPROVER, \App\Models\User::ADMIN]);
+        @endphp
+        @if (($canReview && ($awaitingReview->count() ?? 0) > 0) || ($canCheckBudget && ($awaitingBudgetCheck->count() ?? 0) > 0) || ($canApprove && ($awaitingApproval->count() ?? 0) > 0))
+            <div class="actions">
+                @if ($canReview)
+                    @foreach ($awaitingReview as $pr)
+                        <a href="{{ route('purchase-requisitions.show', $pr->id) }}#budget-check" class="btn primary">
+                            ✓ Review — {{ $pr->pr_number }}
+                        </a>
+                    @endforeach
+                @endif
+                @if ($canCheckBudget)
+                    @foreach ($awaitingBudgetCheck as $pr)
+                        <a href="{{ route('purchase-requisitions.show', $pr->id) }}#budget-check" class="btn primary">
+                            ✓ Check Budget — {{ $pr->pr_number }}
+                        </a>
+                    @endforeach
+                @endif
+                @if ($canApprove)
+                    @foreach ($awaitingApproval as $pr)
+                        <a href="{{ route('purchase-requisitions.show', $pr->id) }}#budget-check" class="btn primary">
+                            ✓ Approve — {{ $pr->pr_number }}
+                        </a>
+                    @endforeach
+                @endif
+            </div>
+        @endif
+
         <p class="eyebrow">Operations Overview</p>
         <div class="card-grid">
             <a class="card-link" href="{{ route('purchase-requisitions.index') }}?status=draft">
@@ -269,7 +300,7 @@
                     <p>{{ $draftPrs }}</p>
                 </div>
             </a>
-            <a class="card-link" href="{{ route('purchase-requisitions.index') }}">
+            <a class="card-link" href="{{ route('purchase-requisitions.index') }}?status=reviewed,checked">
                 <div class="card" data-tone="pending">
                     <h3>Pending Review / Check</h3>
                     <p>{{ $pendingPrs }}</p>

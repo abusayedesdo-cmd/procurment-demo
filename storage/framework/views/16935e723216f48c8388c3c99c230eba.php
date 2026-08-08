@@ -15,6 +15,7 @@
                 <select id="statusFilter">
                     <option value="">সবগুলো</option>
                     <option value="draft">Draft</option>
+                    <option value="reviewed,checked">Pending (Review/Check)</option>
                     <option value="reviewed">Reviewed</option>
                     <option value="checked">Checked</option>
                     <option value="approved">Approved</option>

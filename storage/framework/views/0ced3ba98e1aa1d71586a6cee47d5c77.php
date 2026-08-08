@@ -5,7 +5,7 @@
         <tr>
             <td style="width:70%; text-align:center;">
                 <div class="bold" style="font-size:14px;">Eso-Social Development Organization (ESDO)</div>
-                <div>Collegepara(Gobindanagar), Thakurgaon(5100), Bangladesh</div>
+                <div class="bold" style="font-size:12px;">Collegepara(Gobindanagar), Thakurgaon-5100, Bangladesh</div>
                 <div class="bold" style="font-size:13px; margin-top:4px;">Purchase Requisition</div>
             </td>
             <td style="width:30%; text-align:right; vertical-align:top;">
@@ -15,7 +15,7 @@
         </tr>
     </table>
 
-    <div>Project : <?php echo e($pr->project_name ?? ''); ?></div>
+    <div class="bold" style="margin-top:10px;">Project : <?php echo e($pr->project_name ?? ''); ?></div>
     <table class="plain" style="margin-top:10px;">
         <tr>
             <td style="width:50%;">Name of Requestor: <?php echo e($pr->requestor_name ?? ''); ?></td>
@@ -59,11 +59,11 @@
             </tr>
         </tbody>
     </table>
-     <div in word style="margin-top:5px; font-size:12px;">In-word : ৳ <?php echo e($amountInWords); ?></div>
+     <div class="bold" style="margin-top:5px; font-size:12px;">In-word : ৳ <?php echo e($amountInWords); ?></div>
     <table class="bordered">
-        <tr><td style="width:50%;">Delivery Locations: (Mandatory)</td><td><?php echo e($pr->delivery_location ?? ''); ?></td></tr>
-        <tr><td>Estimated Delivery Date: (Mandatory)</td><td><?php echo e(optional($pr->estimated_delivery_date)->format('d.m.Y')); ?></td></tr>
-        <tr><td>Estimated Delivery Time: (Optional)</td><td><?php echo e($pr->estimated_delivery_time ?? ''); ?></td></tr>
+        <tr><td style="width:50%;">Delivery Locations:</td><td><?php echo e($pr->delivery_location ?? ''); ?></td></tr>
+        <tr><td>Estimated Delivery Date:</td><td><?php echo e(optional($pr->estimated_delivery_date)->format('d.m.Y')); ?></td></tr>
+        <tr><td>Estimated Delivery Time:</td><td><?php echo e($pr->estimated_delivery_time ?? ''); ?></td></tr>
         
         <tr><td colspan="2">Receiver Name: <?php echo e($pr->receiver_name ?? ''); ?></td></tr>
         <tr><td colspan="2">Receiver Contact: <?php echo e($pr->receiver_contact ?? ''); ?></td></tr>
@@ -75,13 +75,13 @@
         </tr>
         <tr>
             <td style="width:60%;">
-                Total allocated Budget : ...............................................................................<br><br>
-                Remaining Budget B/F : ..............................................................................<br><br>
+                Total allocated Budget : <?php echo e($budgetCheck ? number_format((float) $budgetCheck->allocated_budget, 2) : '...............................................................................'); ?><br><br>
+                Remaining Budget B/F : <?php echo e($budgetCheck ? number_format((float) $budgetCheck->remaining_budget_bf, 2) : '..............................................................................'); ?><br><br>
                 Amount of PR&emsp;&emsp;&emsp;&emsp;&nbsp;: <?php echo e(number_format((float) $pr->total_estimated_amount, 2)); ?><br><br>
-                Remaining Budget C/F: ..............................................................................<br><br>
-                Name of Accountant : ..................&emsp;&emsp;Signature.................................
+                Remaining Budget C/F: <?php echo e($budgetCheck ? number_format((float) $budgetCheck->remaining_budget_cf, 2) : '..............................................................................'); ?><br><br>
+                Name of Accountant : <?php echo e($budgetCheck?->checkedBy?->name ?? '..................'); ?>&emsp;&emsp;Signature.................................
             </td>
-            <td style="width:40%; vertical-align:top;">Remarks</td>
+            <td style="width:40%; vertical-align:top;">Remarks<?php echo e($budgetCheck?->remarks ? ': '.$budgetCheck->remarks : ''); ?></td>
         </tr>
     </table>
 
@@ -115,5 +115,4 @@
         </tr>
     </table>
 <?php $__env->stopSection(); ?>
-
 <?php echo $__env->make('documents.layout', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/documents/purchase-requisition.blade.php ENDPATH**/ ?>

@@ -69,6 +69,9 @@
             @if (in_array(auth()->user()->roleName(), [\App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN]))
                 <a href="{{ route('modules.index') }}">All Modules</a>
             @endif
+            @if (auth()->user()->roleName() === \App\Models\User::ADMIN)
+                <a href="{{ route('admin.users.index') }}">User Management</a>
+            @endif
             <span class="muted">{{ auth()->user()->name ?? '' }}</span>
             <form method="POST" action="{{ route('logout') }}" style="display:inline">
                 @csrf

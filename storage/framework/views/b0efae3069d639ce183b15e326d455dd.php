@@ -259,6 +259,40 @@
             </div>
         </div>
 
+        <?php
+            $canReview = in_array($user->roleName() ?? null, [\App\Models\User::REVIEWER, \App\Models\User::ADMIN]);
+            $canCheckBudget = in_array($user->roleName() ?? null, [\App\Models\User::BUDGET_CHECKER, \App\Models\User::ADMIN]);
+            $canApprove = in_array($user->roleName() ?? null, [\App\Models\User::APPROVER, \App\Models\User::ADMIN]);
+        ?>
+        <?php if(($canReview && ($awaitingReview->count() ?? 0) > 0) || ($canCheckBudget && ($awaitingBudgetCheck->count() ?? 0) > 0) || ($canApprove && ($awaitingApproval->count() ?? 0) > 0)): ?>
+            <div class="actions">
+                <?php if($canReview): ?>
+                    <?php $__currentLoopData = $awaitingReview; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pr): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <a href="<?php echo e(route('purchase-requisitions.show', $pr->id)); ?>#budget-check" class="btn primary">
+                            ✓ Review — <?php echo e($pr->pr_number); ?>
+
+                        </a>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                <?php endif; ?>
+                <?php if($canCheckBudget): ?>
+                    <?php $__currentLoopData = $awaitingBudgetCheck; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pr): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <a href="<?php echo e(route('purchase-requisitions.show', $pr->id)); ?>#budget-check" class="btn primary">
+                            ✓ Check Budget — <?php echo e($pr->pr_number); ?>
+
+                        </a>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                <?php endif; ?>
+                <?php if($canApprove): ?>
+                    <?php $__currentLoopData = $awaitingApproval; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pr): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <a href="<?php echo e(route('purchase-requisitions.show', $pr->id)); ?>#budget-check" class="btn primary">
+                            ✓ Approve — <?php echo e($pr->pr_number); ?>
+
+                        </a>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
         <p class="eyebrow">Operations Overview</p>
         <div class="card-grid">
             <a class="card-link" href="<?php echo e(route('purchase-requisitions.index')); ?>?status=draft">
@@ -267,7 +301,7 @@
                     <p><?php echo e($draftPrs); ?></p>
                 </div>
             </a>
-            <a class="card-link" href="<?php echo e(route('purchase-requisitions.index')); ?>">
+            <a class="card-link" href="<?php echo e(route('purchase-requisitions.index')); ?>?status=reviewed,checked">
                 <div class="card" data-tone="pending">
                     <h3>Pending Review / Check</h3>
                     <p><?php echo e($pendingPrs); ?></p>

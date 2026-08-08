@@ -10,7 +10,7 @@ class PrBudgetCheck extends Model
     use HasFactory;
 
     protected $fillable = [
-        'pr_id', 'pr_approval_id', 'budget_line_id', 'budget_code', 'available_budget_amount',
+        'pr_id', 'pr_approval_id', 'budget_line_id', 'budget_code', 'available_budget_amount', 'allocated_budget','remaining_budget_bf', 'remaining_budget_cf',
         'is_budget_code_verified', 'is_budget_available', 'decision', 'checked_by', 'checked_at', 'remarks',
     ];
 
@@ -18,6 +18,9 @@ class PrBudgetCheck extends Model
         'available_budget_amount' => 'decimal:2',
         'is_budget_code_verified' => 'boolean',
         'is_budget_available' => 'boolean',
+        'allocated_budget' => 'decimal:2',
+        'remaining_budget_bf' => 'decimal:2',
+        'remaining_budget_cf' => 'decimal:2',
         'checked_at' => 'date',
     ];
 
