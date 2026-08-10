@@ -9,15 +9,30 @@
 </style>
 </head>
 <body>
-    <!-- <h2>{{ $plan->title }}</h2>
-    <p><strong>Project Name/Title:</strong> {{ $plan->project_name ?? $plan->title }}</p>
-    <p><strong>Project Location (Office):</strong> {{ $plan->project_location }} </p> 
-    <p><strong>Project Working Area:</strong> {{ $plan->working_area }}</p>
-    <p><strong>Project Duration:</strong> {{ $plan->project_duration ?? (optional($plan->fiscal_year_start)->format('d M Y') . ' to ' . optional($plan->fiscal_year_end)->format('d M Y')) }} </p>
-    <p><strong>Date of Agreement/Awarded:</strong> {{ optional($plan->agreement_date)->format('d M Y') }}</p>
-    <p><strong>Donor Name:</strong> {{ $plan->donor_name }}</p>
-    <p><strong>Activity Summary:</strong> {{ $plan->activity_summary }}</p>
-    <p style="margin-bottom:10px;"></p> -->
+
+
+    <!-- <div style="text-align:center; margin-bottom:8px;">
+        @if (file_exists(public_path('img/esdo-logo.png')))
+            <img src="{{ public_path('img/esdo-logo.png') }}" style="height:60px; width:auto; display:block; margin:0 auto 4px;">
+        @endif
+        <div style="font-size:14px; font-weight:bold;">Eco-Social Development Organization (ESDO)</div>
+        <div style="font-size:9px; color:#555;">www.esdo.net.bd</div>
+    </div> -->
+    <div style="width: 100%; margin-bottom: 8px;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+            <tr>
+                @if (file_exists(public_path('img/esdo-logo.png')))
+                    <td style="width: 70px; vertical-align: middle; border: none; padding: 0;">
+                        <img src="{{ public_path('img/esdo-logo.png') }}" style="height: 50px; width: auto; display: block;">
+                    </td>
+                @endif
+                <td style="vertical-align: middle; padding-left: 10px; border: none;">
+                    <div style="font-size: 16px; font-weight: bold; line-height: 1.2;">Eco-Social Development Organization (ESDO)</div>
+                    <div style="font-size: 10px; color: #555; margin-top: 2px;">www.esdo.net.bd</div>
+                </td>
+            </tr>
+        </table>
+    </div>
 
     <h2>{{ $plan->title }}</h2>
     <p style="text-align:center;"><strong>Project Name/Title:</strong> {{ $plan->project_name ?? $plan->title }}</p>
@@ -32,7 +47,7 @@
  <table>
         <thead>
             <tr>
-                <th rowspan="3">Sl.No</th><th rowspan="3">Category</th><th rowspan="3">Budgeted Head</th><th rowspan="3">Specification</th><th rowspan="3">Unit</th>
+                <th rowspan="3">Sl.No</th><th rowspan="3">Category</th><th rowspan="3">Item Name</th><th rowspan="3">Specification</th><th rowspan="3">Unit</th>
                 @foreach ($layout as $group)
                     <th colspan="{{ count($group['sublabels']) * 3 }}">{{ $group['title'] }}</th>
                 @endforeach

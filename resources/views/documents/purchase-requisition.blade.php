@@ -3,9 +3,27 @@
 @section('title', 'Purchase Requisition ' . $pr->pr_number)
 
 @section('content')
-    <table class="plain" style="margin-bottom:0;">
+    <!-- <table class="plain" style="margin-bottom:0;">
         <tr>
             <td style="width:70%; text-align:center;">
+                <div class="bold" style="font-size:14px;">Eso-Social Development Organization (ESDO)</div>
+                <div class="bold" style="font-size:12px;">Collegepara(Gobindanagar), Thakurgaon-5100, Bangladesh</div>
+                <div class="bold" style="font-size:13px; margin-top:4px;">Purchase Requisition</div>
+            </td>
+            <td style="width:30%; text-align:right; vertical-align:top;">
+                <div>PR NO. {{ $pr->pr_number }}</div>
+                <div style="color:#c00;">Date: {{ optional($pr->requisition_date)->format('d.m.Y') }}</div>
+            </td>
+        </tr>
+    </table> -->
+
+    <table class="plain" style="margin-bottom:0;">
+        <tr>
+            <td style="width:18%; vertical-align:middle; text-align:center;">
+                <img src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('img/esdo-logo.png'))) }}"
+                     style="max-width:80px; max-height:80px;">
+            </td>
+            <td style="width:52%; text-align:center; vertical-align:middle;">
                 <div class="bold" style="font-size:14px;">Eso-Social Development Organization (ESDO)</div>
                 <div class="bold" style="font-size:12px;">Collegepara(Gobindanagar), Thakurgaon-5100, Bangladesh</div>
                 <div class="bold" style="font-size:13px; margin-top:4px;">Purchase Requisition</div>
@@ -44,8 +62,10 @@
                     <td>{{ $i + 1 }}</td>
                     <td>{{ $line->item->name ?? '' }}</td>
                     <td>{{ $line->specification ?? $line->item->specification ?? '' }}</td>
+                    <!-- <td>{{ $line->unit->name ?? '' }}</td>
+                    <td>{{ number_format((float) $line->quantity, 2) }}</td> -->
                     <td>{{ $line->unit->name ?? '' }}</td>
-                    <td>{{ number_format((float) $line->quantity, 2) }}</td>
+                    <td>{{ (int) $line->quantity }}</td>
                     <td>{{ number_format((float) $line->rate_bdt, 2) }}</td>
                     <td>{{ number_format((float) $line->total_amount, 2) }}</td>
                     <td>{{ $line->ac_code ?? '' }}</td>
@@ -95,14 +115,14 @@
         </tr>
         <tr><td colspan="3">&nbsp;</td></tr>
         <tr>
-            <td>Endorsed by: .................</td>
-            <td>Designation: .................</td>
+            <td>Endorsed by: {{ $endorsedBy?->user?->name ?? '.................' }}</td>
+            <td>Designation: {{ $endorsedBy?->user?->designation ?? '.................' }}</td>
             <td>Signature: .................</td>
         </tr>
         <tr><td colspan="3">&nbsp;</td></tr>
         <tr>
-            <td>Finance Requested by: .................</td>
-            <td>Designation: .................</td>
+            <td>Finance Requested by: {{ $financeRequestedBy?->user?->name ?? '.................' }}</td>
+            <td>Designation: {{ $financeRequestedBy?->user?->designation ?? '.................' }}</td>
             <td>Signature: .................</td>
         </tr>
     </table>
@@ -110,10 +130,10 @@
     <table class="plain" style="margin-top:30px;">
         <tr>
             <td style="width:50%;">
-                Recommend by:<br>
+                Recommend by: {{ $recommendedBy?->user?->name ?? '.................' }}<br>
                 PC/DPC/APC/Focal Person
             </td>
-            <td style="width:50%;">Approved by</td>
+            <td style="width:50%;">Approved by: {{ $approvedBy?->user?->name ?? '.................' }}</td>
         </tr>
     </table>
 @endsection

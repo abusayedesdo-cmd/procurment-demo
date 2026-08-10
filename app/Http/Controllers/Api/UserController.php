@@ -50,10 +50,14 @@ class UserController extends Controller
      */
     public function adminIndex(Request $request)
     {
-        $query = User::query()->with('role');
+        $query = User::query()->with(['role', 'project']);
 
         if ($request->filled('role_id')) {
             $query->where('role_id', $request->integer('role_id'));
+        }
+
+        if ($request->filled('project_id')) {
+            $query->where('project_id', $request->integer('project_id'));
         }
 
         if ($request->filled('status')) {
@@ -85,13 +89,14 @@ class UserController extends Controller
                 'active' => User::where('is_active', true)->count(),
                 'inactive' => User::where('is_active', false)->count(),
                 'admins' => User::whereHas('role', fn ($q) => $q->where('name', User::ADMIN))->count(),
+                'projects' => \App\Models\Project::where('is_active', true)->count(),
             ],
         ]);
     }
 
     public function show(User $user)
     {
-        $user->load('role');
+        $user->load(['role', 'project']);
 
         return response()->json([
             'success' => true,
@@ -106,16 +111,19 @@ class UserController extends Controller
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
             'role_id' => 'required|exists:roles,id',
+            'project_id' => [Rule::requiredIf(fn () => ! $this->roleIsProjectExempt($request->integer('role_id'))), 'nullable', 'exists:projects,id'],
             'phone' => 'nullable|string|max:255',
             'designation' => 'nullable|string|max:255',
             'is_active' => 'boolean',
+        ], [
+            'project_id.required' => 'Select the project this user belongs to. Only Admin and Procurement Officer accounts can be created without one.',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
         $validated['is_active'] = $validated['is_active'] ?? true;
 
         $user = User::create($validated);
-        $user->load('role');
+        $user->load(['role', 'project']);
 
         return response()->json([
             'success' => true,
@@ -126,13 +134,25 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
+        // The role this user will end up with once this request applies —
+        // needed to decide whether project_id is still required afterwards.
+        $resultingRoleId = $request->filled('role_id') ? $request->integer('role_id') : $user->role_id;
+        $resultingProjectGiven = $request->has('project_id') ? $request->input('project_id') : $user->project_id;
+
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'role_id' => 'sometimes|required|exists:roles,id',
+            'project_id' => [
+                Rule::requiredIf(fn () => ! $this->roleIsProjectExempt($resultingRoleId) && ! $resultingProjectGiven),
+                'nullable',
+                'exists:projects,id',
+            ],
             'phone' => 'nullable|string|max:255',
             'designation' => 'nullable|string|max:255',
             'is_active' => 'sometimes|boolean',
+        ], [
+            'project_id.required' => 'Select the project this user belongs to. Only Admin and Procurement Officer accounts can be without one.',
         ]);
 
         // Guard 1: nobody can deactivate their own account (locks everyone out
@@ -168,7 +188,7 @@ class UserController extends Controller
         }
 
         $user->update($validated);
-        $user->load('role');
+        $user->load(['role', 'project']);
 
         return response()->json([
             'success' => true,
@@ -216,7 +236,7 @@ class UserController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'This user has procurement history, so they were deactivated instead of deleted (to keep past records intact).',
-                'data' => $user->fresh('role'),
+                'data' => $user->fresh(['role', 'project']),
             ]);
         }
 
@@ -226,6 +246,21 @@ class UserController extends Controller
             'success' => true,
             'message' => 'User deleted successfully',
         ]);
+    }
+
+    /**
+     * True for roles that work across every project (Admin, Procurement
+     * Officer) and so don't need a project_id assigned.
+     */
+    protected function roleIsProjectExempt(?int $roleId): bool
+    {
+        if (! $roleId) {
+            return false;
+        }
+
+        $roleName = \App\Models\Role::find($roleId)?->name;
+
+        return in_array($roleName, [User::ADMIN, User::PROCUREMENT_OFFICER], true);
     }
 
     /**

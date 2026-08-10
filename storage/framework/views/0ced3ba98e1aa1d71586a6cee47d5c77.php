@@ -1,9 +1,27 @@
 <?php $__env->startSection('title', 'Purchase Requisition ' . $pr->pr_number); ?>
 
 <?php $__env->startSection('content'); ?>
-    <table class="plain" style="margin-bottom:0;">
+    <!-- <table class="plain" style="margin-bottom:0;">
         <tr>
             <td style="width:70%; text-align:center;">
+                <div class="bold" style="font-size:14px;">Eso-Social Development Organization (ESDO)</div>
+                <div class="bold" style="font-size:12px;">Collegepara(Gobindanagar), Thakurgaon-5100, Bangladesh</div>
+                <div class="bold" style="font-size:13px; margin-top:4px;">Purchase Requisition</div>
+            </td>
+            <td style="width:30%; text-align:right; vertical-align:top;">
+                <div>PR NO. <?php echo e($pr->pr_number); ?></div>
+                <div style="color:#c00;">Date: <?php echo e(optional($pr->requisition_date)->format('d.m.Y')); ?></div>
+            </td>
+        </tr>
+    </table> -->
+
+    <table class="plain" style="margin-bottom:0;">
+        <tr>
+            <td style="width:18%; vertical-align:middle; text-align:center;">
+                <img src="data:image/png;base64,<?php echo e(base64_encode(file_get_contents(public_path('img/esdo-logo.png')))); ?>"
+                     style="max-width:80px; max-height:80px;">
+            </td>
+            <td style="width:52%; text-align:center; vertical-align:middle;">
                 <div class="bold" style="font-size:14px;">Eso-Social Development Organization (ESDO)</div>
                 <div class="bold" style="font-size:12px;">Collegepara(Gobindanagar), Thakurgaon-5100, Bangladesh</div>
                 <div class="bold" style="font-size:13px; margin-top:4px;">Purchase Requisition</div>
@@ -42,8 +60,10 @@
                     <td><?php echo e($i + 1); ?></td>
                     <td><?php echo e($line->item->name ?? ''); ?></td>
                     <td><?php echo e($line->specification ?? $line->item->specification ?? ''); ?></td>
+                    <!-- <td><?php echo e($line->unit->name ?? ''); ?></td>
+                    <td><?php echo e(number_format((float) $line->quantity, 2)); ?></td> -->
                     <td><?php echo e($line->unit->name ?? ''); ?></td>
-                    <td><?php echo e(number_format((float) $line->quantity, 2)); ?></td>
+                    <td><?php echo e((int) $line->quantity); ?></td>
                     <td><?php echo e(number_format((float) $line->rate_bdt, 2)); ?></td>
                     <td><?php echo e(number_format((float) $line->total_amount, 2)); ?></td>
                     <td><?php echo e($line->ac_code ?? ''); ?></td>

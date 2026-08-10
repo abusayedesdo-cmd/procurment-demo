@@ -263,8 +263,10 @@
             $canReview = in_array($user->roleName() ?? null, [\App\Models\User::REVIEWER, \App\Models\User::ADMIN]);
             $canCheckBudget = in_array($user->roleName() ?? null, [\App\Models\User::BUDGET_CHECKER, \App\Models\User::ADMIN]);
             $canApprove = in_array($user->roleName() ?? null, [\App\Models\User::APPROVER, \App\Models\User::ADMIN]);
+            $canFocalReview = in_array($user->roleName() ?? null, [\App\Models\User::FOCAL_PERSON, \App\Models\User::ADMIN]);
+            $canEdApprove = in_array($user->roleName() ?? null, [\App\Models\User::EXECUTIVE_DIRECTOR, \App\Models\User::ADMIN]);
         ?>
-        <?php if(($canReview && ($awaitingReview->count() ?? 0) > 0) || ($canCheckBudget && ($awaitingBudgetCheck->count() ?? 0) > 0) || ($canApprove && ($awaitingApproval->count() ?? 0) > 0)): ?>
+        <?php if(($canReview && ($awaitingReview->count() ?? 0) > 0) || ($canCheckBudget && ($awaitingBudgetCheck->count() ?? 0) > 0) || ($canApprove && ($awaitingApproval->count() ?? 0) > 0) || ($canFocalReview && ($awaitingFocalReview->count() ?? 0) > 0) || ($canEdApprove && ($awaitingEdApproval->count() ?? 0) > 0)): ?>
             <div class="actions">
                 <?php if($canReview): ?>
                     <?php $__currentLoopData = $awaitingReview; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pr): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
@@ -278,6 +280,22 @@
                     <?php $__currentLoopData = $awaitingBudgetCheck; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pr): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                         <a href="<?php echo e(route('purchase-requisitions.show', $pr->id)); ?>#budget-check" class="btn primary">
                             ✓ Check Budget — <?php echo e($pr->pr_number); ?>
+
+                        </a>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                <?php endif; ?>
+                <?php if($canFocalReview): ?>
+                    <?php $__currentLoopData = $awaitingFocalReview; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pr): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <a href="<?php echo e(route('purchase-requisitions.show', $pr->id)); ?>#budget-check" class="btn primary">
+                            ✓ Focal Review — <?php echo e($pr->pr_number); ?>
+
+                        </a>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                <?php endif; ?>
+                <?php if($canEdApprove): ?>
+                    <?php $__currentLoopData = $awaitingEdApproval; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pr): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <a href="<?php echo e(route('purchase-requisitions.show', $pr->id)); ?>#budget-check" class="btn primary">
+                            ✓ ED Approval — <?php echo e($pr->pr_number); ?>
 
                         </a>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>

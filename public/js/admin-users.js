@@ -7,6 +7,7 @@
 (function () {
     const roles = window.ADMIN_ROLES || [];
     const roleLabels = window.ADMIN_ROLE_LABELS || {};
+    const projects = window.ADMIN_PROJECTS || [];
     const currentUserId = window.currentUserId;
 
     const els = {
@@ -15,11 +16,13 @@
         noticeBox: document.getElementById('noticeBox'),
         search: document.getElementById('searchInput'),
         roleFilter: document.getElementById('roleFilter'),
+        projectFilter: document.getElementById('projectFilter'),
         statusFilter: document.getElementById('statusFilter'),
         statTotal: document.getElementById('statTotal'),
         statActive: document.getElementById('statActive'),
         statInactive: document.getElementById('statInactive'),
         statAdmins: document.getElementById('statAdmins'),
+        statProjects: document.getElementById('statProjects'),
         btnNewUser: document.getElementById('btnNewUser'),
         modalBackdrop: document.getElementById('userModalBackdrop'),
         modalTitle: document.getElementById('modalTitle'),
@@ -30,6 +33,7 @@
         f_name: document.getElementById('f_name'),
         f_email: document.getElementById('f_email'),
         f_role: document.getElementById('f_role'),
+        f_project: document.getElementById('f_project'),
         f_phone: document.getElementById('f_phone'),
         f_designation: document.getElementById('f_designation'),
         f_password: document.getElementById('f_password'),
@@ -68,6 +72,12 @@
         els.roleFilter.insertAdjacentHTML('beforeend', filterOpts);
 
         els.f_role.innerHTML = roles.map(r => `<option value="${r.id}">${roleLabel(r.name)}</option>`).join('');
+
+        const projectFilterOpts = projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
+        els.projectFilter.insertAdjacentHTML('beforeend', projectFilterOpts);
+
+        const projectFormOpts = projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}${p.is_active ? '' : ' (inactive)'}</option>`).join('');
+        els.f_project.insertAdjacentHTML('beforeend', projectFormOpts);
     }
 
     // ---- List loading ----
@@ -76,18 +86,19 @@
         params.set('per_page', 100);
         if (els.search.value.trim()) params.set('q', els.search.value.trim());
         if (els.roleFilter.value) params.set('role_id', els.roleFilter.value);
+        if (els.projectFilter.value) params.set('project_id', els.projectFilter.value);
         if (els.statusFilter.value) params.set('status', els.statusFilter.value);
         return params.toString();
     }
 
     async function loadUsers() {
-        els.tbody.innerHTML = '<tr><td colspan="6" class="muted">Loading…</td></tr>';
+        els.tbody.innerHTML = '<tr><td colspan="7" class="muted">Loading…</td></tr>';
         try {
             const { data, stats } = await api.get(`/admin/users?${buildQuery()}`);
             renderStats(stats);
             renderRows(data);
         } catch (err) {
-            els.tbody.innerHTML = '<tr><td colspan="6" class="muted">Failed to load users.</td></tr>';
+            els.tbody.innerHTML = '<tr><td colspan="7" class="muted">Failed to load users.</td></tr>';
             showError(err.message || String(err));
         }
     }
@@ -98,11 +109,12 @@
         els.statActive.textContent = stats.active;
         els.statInactive.textContent = stats.inactive;
         els.statAdmins.textContent = stats.admins;
+        els.statProjects.textContent = stats.projects;
     }
 
     function renderRows(users) {
         if (!users.length) {
-            els.tbody.innerHTML = '<tr><td colspan="6" class="muted">No users match your filters.</td></tr>';
+            els.tbody.innerHTML = '<tr><td colspan="7" class="muted">No users match your filters.</td></tr>';
             return;
         }
 
@@ -113,6 +125,7 @@
                 ? '<span class="badge status-active">Active</span>'
                 : '<span class="badge status-inactive">Inactive</span>';
             const roleBadge = `<span class="badge role-${roleName || 'none'}">${roleLabel(roleName)}</span>`;
+            const projectCell = u.project ? escapeHtml(u.project.name) : '<span class="muted">—</span>';
 
             return `
                 <tr data-id="${u.id}" data-active="${u.is_active ? '1' : '0'}">
@@ -121,6 +134,7 @@
                         <div class="email">${escapeHtml(u.email)}</div>
                     </td>
                     <td>${roleBadge}</td>
+                    <td>${projectCell}</td>
                     <td>${escapeHtml(u.phone || '—')}</td>
                     <td>${escapeHtml(u.designation || '—')}</td>
                     <td>${statusBadge}</td>
@@ -164,6 +178,7 @@
         els.f_name.value = user.name;
         els.f_email.value = user.email;
         els.f_role.value = user.role_id;
+        els.f_project.value = user.project_id || '';
         els.f_phone.value = user.phone || '';
         els.f_designation.value = user.designation || '';
         els.f_is_active.checked = !!user.is_active;
@@ -189,6 +204,7 @@
             name: els.f_name.value.trim(),
             email: els.f_email.value.trim(),
             role_id: parseInt(els.f_role.value, 10),
+            project_id: els.f_project.value ? parseInt(els.f_project.value, 10) : null,
             phone: els.f_phone.value.trim() || null,
             designation: els.f_designation.value.trim() || null,
             is_active: els.f_is_active.checked,
@@ -279,6 +295,7 @@
     els.form.addEventListener('submit', handleFormSubmit);
     els.tbody.addEventListener('click', handleTableClick);
     els.roleFilter.addEventListener('change', loadUsers);
+    els.projectFilter.addEventListener('change', loadUsers);
     els.statusFilter.addEventListener('change', loadUsers);
     els.search.addEventListener('input', () => {
         clearTimeout(searchDebounce);

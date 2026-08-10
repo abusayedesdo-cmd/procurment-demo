@@ -2,18 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToProject;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class PurchaseRequisition extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToProject;
 
     protected $fillable = [
         'pr_number',
         'window_type',
         'category_id',
         'project_name',
+        'project_id',
         'budget_line_id',
         'procurement_plan_package_id',
         'requisition_date',
@@ -22,6 +24,7 @@ class PurchaseRequisition extends Model
         'estimated_delivery_time',
         'total_estimated_amount',
         'status',
+        'routed_to',
         'raised_by',
         'requestor_name',
         'requestor_designation',
@@ -36,6 +39,29 @@ class PurchaseRequisition extends Model
     ];
 
     protected $appends = ['attachment_url'];
+
+    /**
+     * When a PR is raised against a specific plan package, it must sit in
+     * that package's project rather than whatever the trait guessed from
+     * the creating user (matters for Admin/Procurement Officer, who have
+     * no project_id of their own but can raise PRs into any project).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $pr) {
+            if (! $pr->procurement_plan_package_id) {
+                return;
+            }
+
+            $packageProjectId = ProcurementPlanPackage::withoutGlobalScopes()
+                ->whereKey($pr->procurement_plan_package_id)
+                ->value('project_id');
+
+            if ($packageProjectId) {
+                $pr->project_id = $packageProjectId;
+            }
+        });
+    }
 
     public function getAttachmentUrlAttribute(): ?string
     {

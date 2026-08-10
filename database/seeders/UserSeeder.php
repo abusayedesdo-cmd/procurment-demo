@@ -20,6 +20,8 @@ class UserSeeder extends Seeder
             ['name' => 'Tanvir Hasan',      'email' => 'reviewer@esdo.net.bd',    'role' => User::REVIEWER],
             ['name' => 'Sharmin Akter',     'email' => 'budget@esdo.net.bd',      'role' => User::BUDGET_CHECKER],
             ['name' => 'Md. Rafiqul Islam', 'email' => 'approver@esdo.net.bd',    'role' => User::APPROVER],
+            ['name' => 'Farzana Yasmin',    'email' => 'focal@esdo.net.bd',       'role' => User::FOCAL_PERSON],
+            ['name' => 'Dr. Shafiqur Rahman', 'email' => 'ed@esdo.net.bd',        'role' => User::EXECUTIVE_DIRECTOR],
             ['name' => 'Abdul Karim',       'email' => 'procurement@esdo.net.bd', 'role' => User::PROCUREMENT_OFFICER],
             ['name' => 'System Admin',      'email' => 'admin@esdo.net.bd',       'role' => User::ADMIN],
         ];

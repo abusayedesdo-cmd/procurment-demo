@@ -6,6 +6,10 @@
  *
  * Usage (called from resources/views/modules/show.blade.php):
  *   initResourcePage(MODULE_CONFIGS['meetings']);
+ *
+ * Note: the page header (module title + "All Modules" back link) is
+ * rendered by modules/show.blade.php itself — this script only fills
+ * #resourceRoot with the records table and the create form.
  */
 
 function getByPath(obj, path) {
@@ -20,7 +24,7 @@ function formatCell(value) {
 
 async function initResourcePage(config) {
     const root = document.getElementById('resourceRoot');
-    root.innerHTML = '<p class="muted">লোড হচ্ছে...</p>';
+    root.innerHTML = '<div class="state-panel">Loading…</div>';
 
     const errorBox = document.createElement('div');
     errorBox.className = 'error-box';
@@ -70,7 +74,7 @@ async function initResourcePage(config) {
                 <div class="form-field">
                     <label for="${id}">${field.label}</label>
                     <select id="${id}" ${requiredAttr}>
-                        <option value="">-- বাছাই করুন --</option>${opts}
+                        <option value="">-- Select --</option>${opts}
                     </select>
                 </div>`;
         }
@@ -81,7 +85,7 @@ async function initResourcePage(config) {
                 <div class="form-field">
                     <label for="${id}">${field.label}</label>
                     <select id="${id}" ${requiredAttr}>
-                        <option value="">-- বাছাই করুন --</option>${opts}
+                        <option value="">-- Select --</option>${opts}
                     </select>
                 </div>`;
         }
@@ -121,11 +125,11 @@ async function initResourcePage(config) {
     async function loadList() {
         const tbody = document.getElementById('listBody');
         const colCount = config.listColumns.length + (config.rowActions ? 1 : 0);
-        tbody.innerHTML = `<tr><td colspan="${colCount}" class="muted">লোড হচ্ছে...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${colCount}" class="muted">Loading…</td></tr>`;
         try {
             const { data } = await api.get(`${config.apiPath}?per_page=50`);
             if (!data.length) {
-                tbody.innerHTML = `<tr><td colspan="${colCount}" class="muted">কোনো তথ্য পাওয়া যায়নি।</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${colCount}" class="muted">No records found.</td></tr>`;
                 return;
             }
             tbody.innerHTML = data.map(row => {
@@ -160,27 +164,26 @@ async function initResourcePage(config) {
     await loadSelectOptions();
 
     const visibleFields = config.formFields.filter(f => f.type !== 'currentUser');
+    const sectionTitleStyle = 'margin:0 0 1rem; font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--accent-dark);';
 
     root.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-            <h1 style="margin:0;">${config.title}</h1>
-            <a href="/modules" class="btn secondary">← সব মডিউল</a>
-        </div>
         <div id="errorBoxPlaceholder"></div>
 
         <div class="card">
-            <h3>তালিকা</h3>
-            <table>
-                <thead><tr>${config.listColumns.map(c => `<th>${c.label}</th>`).join('')}${config.rowActions ? '<th>Action</th>' : ''}</tr></thead>
-                <tbody id="listBody"><tr><td colspan="${config.listColumns.length + (config.rowActions ? 1 : 0)}" class="muted">লোড হচ্ছে...</td></tr></tbody>
-            </table>
+            <h3 style="${sectionTitleStyle}">Records</h3>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr>${config.listColumns.map(c => `<th>${c.label}</th>`).join('')}${config.rowActions ? '<th>Action</th>' : ''}</tr></thead>
+                    <tbody id="listBody"><tr><td colspan="${config.listColumns.length + (config.rowActions ? 1 : 0)}" class="muted">Loading…</td></tr></tbody>
+                </table>
+            </div>
         </div>
 
         <div class="card">
-            <h3>নতুন যোগ করুন</h3>
+            <h3 style="${sectionTitleStyle}">Add New</h3>
             <form id="resourceForm">
                 <div class="form-grid">${visibleFields.map(renderField).join('')}</div>
-                <button type="submit" class="btn" style="margin-top:1rem;">সংরক্ষণ করুন</button>
+                <button type="submit" class="btn primary" style="margin-top:1rem;">Save</button>
             </form>
         </div>
     `;

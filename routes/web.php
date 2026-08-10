@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\AdminDatabasePageController;
 use App\Http\Controllers\AdminUserPageController;
 use App\Http\Controllers\AnnualPlanPageController;
 use App\Http\Controllers\BudgetDashboardPageController;
@@ -36,10 +37,10 @@ Route::middleware('auth')->group(function () {
     Route::prefix('purchase-requisitions')->name('purchase-requisitions.')->group(function () {
         Route::get('/', [PurchaseRequisitionPageController::class, 'index'])->name('index');
 
-        // Only the Requester role raises a PR (document section A).
+        // Requester and Program Manager may raise a PR (document section A).
         Route::get('/create', [PurchaseRequisitionPageController::class, 'create'])
             ->name('create')
-            ->middleware('role:requester');
+            ->middleware('role:requester,program_manager');
 
         Route::get('/{id}', [PurchaseRequisitionPageController::class, 'show'])->name('show')->whereNumber('id');
     });
@@ -55,5 +56,6 @@ Route::middleware('auth')->group(function () {
     // Super Admin — User Management dashboard.
     Route::middleware('role:admin')->group(function () {
         Route::get('/admin/users', [AdminUserPageController::class, 'index'])->name('admin.users.index');
+        Route::get('/admin/database', [AdminDatabasePageController::class, 'index'])->name('admin.database.index');
     });
 });

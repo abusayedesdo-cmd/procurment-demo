@@ -2,19 +2,44 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToProject;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ProcurementPlanPackage extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToProject;
 
     protected $fillable = [
-        'procurement_annual_plan_id', 'sl_no', 'procurement_category_id', 'chart_of_account_id', 'budgeted_head', 'item_id', 'specification', 'unit',
+        'procurement_annual_plan_id', 'project_id', 'sl_no', 'procurement_category_id', 'chart_of_account_id', 'budgeted_head', 'item_id', 'specification', 'unit',
         'package_number', 'estimated_cost', 'procurement_method', 'responsible_officer_id', 'budget_line_id',
         'planned_invitation_date', 'actual_invitation_date', 'planned_evaluation_date', 'actual_evaluation_date',
         'planned_award_date', 'actual_award_date', 'planned_delivery_date', 'actual_delivery_date', 'remarks',
     ];
+
+    /**
+     * A package's project always follows its parent annual plan — this
+     * runs after BelongsToProject's own creating hook and overrides its
+     * user-based guess whenever the parent plan is known, so a package
+     * never ends up in a different project than its plan (e.g. when an
+     * Admin, who has no project of their own, creates one).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $package) {
+            if (! $package->procurement_annual_plan_id) {
+                return;
+            }
+
+            $planProjectId = ProcurementAnnualPlan::withoutGlobalScopes()
+                ->whereKey($package->procurement_annual_plan_id)
+                ->value('project_id');
+
+            if ($planProjectId) {
+                $package->project_id = $planProjectId;
+            }
+        });
+    }
 
     protected $casts = [
         'estimated_cost' => 'decimal:2',

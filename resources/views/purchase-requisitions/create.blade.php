@@ -113,8 +113,61 @@
         return chartOfAccounts.map(a => `<option value="${a.id}">${a.code ? a.code + ' — ' : ''}${a.name}</option>`).join('');
     }
 
+    function selectedCategoryId() {
+        return document.getElementById('category_id').value;
+    }
+
+    // Resolve an item's category via its chart of account — works whether
+    // the item came from the initial /items load (chart_of_account eager
+    // loaded) or was just created in-flow (only chart_of_account_id known).
+    function itemCategoryId(item) {
+        if (item.chart_of_account?.category_id != null) return String(item.chart_of_account.category_id);
+        const coaId = item.chart_of_account_id ?? item.chart_of_account?.id;
+        const coa = chartOfAccounts.find(a => String(a.id) === String(coaId));
+        return coa ? String(coa.category_id) : null;
+    }
+
+    function itemOptionsForCategory(categoryId) {
+        const pool = categoryId ? items.filter(i => itemCategoryId(i) === String(categoryId)) : items;
+        return pool.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+    }
+
+    function chartOfAccountOptionsForCategory(categoryId) {
+        const pool = categoryId ? chartOfAccounts.filter(a => String(a.category_id) === String(categoryId)) : chartOfAccounts;
+        return pool.map(a => `<option value="${a.id}">${a.code ? a.code + ' — ' : ''}${a.name}</option>`).join('');
+    }
+
+    // Rebuild every row's Item / Chart of Account dropdowns to match the
+    // currently selected Procurement Category, keeping each row's current
+    // selection if it's still valid for the new category.
+    function refreshRowDropdownsForCategory() {
+        const categoryId = selectedCategoryId();
+
+        itemRows.querySelectorAll(':scope > div').forEach(div => {
+            const itemSelect = div.querySelector('.row-item');
+            const prevItem = itemSelect.value;
+            itemSelect.innerHTML = `
+                <option value="">-- Select --</option>
+                <option value="__new__">-- Add New Item --</option>
+                ${itemOptionsForCategory(categoryId)}
+            `;
+            const stillValid = prevItem === '__new__' || [...itemSelect.options].some(o => o.value === prevItem && prevItem !== '');
+            itemSelect.value = stillValid ? prevItem : '';
+
+            const accountSelect = div.querySelector('.row-account');
+            const prevAccount = accountSelect.value;
+            accountSelect.innerHTML = `
+                <option value="">-- Select --</option>
+                ${chartOfAccountOptionsForCategory(categoryId)}
+            `;
+            const accountStillValid = [...accountSelect.options].some(o => o.value === prevAccount && prevAccount !== '');
+            accountSelect.value = accountStillValid ? prevAccount : '';
+        });
+    }
+
     function addRow() {
         const id = rowCount++;
+        const categoryId = selectedCategoryId();
         const div = document.createElement('div');
         div.className = 'card';
         div.dataset.rowId = id;
@@ -125,7 +178,7 @@
                 <select class="row-item" required style="width:100%;">
                     <option value="">-- Select --</option>
                     <option value="__new__">-- Add New Item --</option>
-                    ${itemOptions()}
+                    ${itemOptionsForCategory(categoryId)}
                 </select>
             </div>
             <div class="row-new-item-wrap" style="display:none; min-width:160px;">
@@ -136,7 +189,7 @@
                 <label style="font-size:.75rem;">Chart of Account</label>
                 <select class="row-account" style="width:100%;">
                     <option value="">-- Select --</option>
-                    ${chartOfAccountOptions()}
+                    ${chartOfAccountOptionsForCategory(categoryId)}
                 </select>
             </div>
             <div style="min-width:150px;">
@@ -211,6 +264,7 @@
             document.getElementById('category_id').innerHTML =
                 '<option value="">-- Select --</option>' +
                 categoriesRes.data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            document.getElementById('category_id').addEventListener('change', refreshRowDropdownsForCategory);
 
             document.getElementById('budget_line_id').innerHTML =
                 '<option value="">-- (Budget checker will assign later) --</option>' +
@@ -223,6 +277,23 @@
             const me = meRes.data ?? meRes;
             if (me?.name) document.getElementById('requestor_name').value = me.name;
             if (me?.designation) document.getElementById('requestor_designation').value = me.designation;
+
+            // Project/Program Name follows the requester's own assigned
+            // project — auto-filled and locked, same as any other scoped
+            // record, so it can't drift from what project_id enforces
+            // server-side. Admin/Procurement Officer have no project of
+            // their own and may raise a PR into any project, so the field
+            // stays editable for them.
+            const projectNameInput = document.getElementById('project_name');
+            const isProjectExempt = ['admin', 'procurement_officer'].includes(me?.role?.name);
+            if (me?.project?.name) {
+                projectNameInput.value = me.project.name;
+            }
+            if (!isProjectExempt) {
+                projectNameInput.readOnly = true;
+                projectNameInput.style.background = '#f1f5f9';
+                projectNameInput.title = 'Set automatically from your assigned project';
+            }
 
             items = itemsRes.data;
             units = unitsRes.data;

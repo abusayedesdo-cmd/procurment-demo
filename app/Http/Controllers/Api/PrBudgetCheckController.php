@@ -12,7 +12,12 @@ use Illuminate\Support\Facades\DB;
 
 class PrBudgetCheckController extends Controller
 {
-    protected const CHAIN = ['reviewed', 'checked', 'approved']; // budget check only applies to window_type = PR
+    // budget check only applies to window_type = PR. This controller only
+    // ever moves a PR from 'reviewed' to 'checked' (or back to draft/
+    // rejected) — once 'checked', the Budget Checker's own 'route_to'
+    // choice (stored on the PR as routed_to) decides who signs off next:
+    // Focal Person or Executive Director. Then it's 'approved'.
+    protected const CHAIN = ['reviewed', 'checked'];
 
     // GET /api/purchase-requisitions/{purchaseRequisition}/budget-check
     // What the Budget Checker (Accountant) sees before deciding: the PR +
@@ -78,6 +83,10 @@ class PrBudgetCheckController extends Controller
             'is_budget_code_verified' => 'required|boolean',
             'is_budget_available' => 'required|boolean',
             'decision' => 'required|in:recommended,approved,returned,rejected',
+            // Who the PR goes to next. The Budget Checker picks this
+            // explicitly now — required whenever the PR is being forwarded
+            // (recommended/approved); irrelevant for returned/rejected.
+            'route_to' => 'required_if:decision,recommended,approved|in:focal_person,executive_director',
             'remarks' => 'nullable|string',
         ]);
 
@@ -102,12 +111,14 @@ class PrBudgetCheckController extends Controller
 
         $check = DB::transaction(function () use ($request, $validated, $purchaseRequisition, $line, $remainingCf) {
             $action = match ($validated['decision']) {
-                'recommended' => 'approved',
+                // Both "Recommend for Approval" and "Approved" forward the
+                // PR to the next stage (Focal Person). The Budget Checker
+                // never gives final sign-off, so these are kept as two
+                // dropdown labels for the same forward action rather than
+                // one meaning approve and the other meaning send-back.
+                'recommended', 'approved' => 'approved',
                 'rejected' => 'rejected',
-                // 'approved' (label: "Approved") and legacy 'returned' both
-                // mean the same thing behaviorally: send the PR back to
-                // draft. Only the decision value stored differs, so it's
-                // no longer confusingly labeled "returned" in the DB.
+                // legacy 'returned' value: send the PR back to draft.
                 default => 'returned',
             };
 
@@ -143,6 +154,8 @@ class PrBudgetCheckController extends Controller
                 $currentIndex = array_search($purchaseRequisition->status, self::CHAIN, true);
                 $nextIndex = $currentIndex === false ? 0 : $currentIndex + 1;
                 $purchaseRequisition->status = self::CHAIN[$nextIndex] ?? end(self::CHAIN);
+                // Budget Checker's explicit pick of who signs off next.
+                $purchaseRequisition->routed_to = $validated['route_to'];
                 $purchaseRequisition->save();
 
                 // Post the spend now, so the balance is live for the next check anywhere in the system.

@@ -122,7 +122,7 @@ class DocumentDownloadController extends Controller
      */
     public function purchaseRequisitionPdf(PurchaseRequisition $purchaseRequisition)
     {
-        $purchaseRequisition->loadMissing('items.item', 'items.unit', 'raisedBy');
+        $purchaseRequisition->loadMissing('items.item', 'items.unit', 'raisedBy', 'approvals.user');
 
         $budgetCheck = $purchaseRequisition->budgetChecks()
             ->with(['budgetLine', 'checkedBy'])
@@ -130,10 +130,26 @@ class DocumentDownloadController extends Controller
             ->latest('id')
             ->first();
 
+        // Signature-line lookups: latest "approved" action recorded for
+        // each role in the chain, so the printed PR shows who actually
+        // endorsed/recommended/approved it instead of a blank line.
+        // "Finance Requested by" reuses the Budget Checker's approval —
+        // same person as "Name of Accountant" above, just a second
+        // signature line on the paper form.
+        $approvalByRole = fn (string $role) => $purchaseRequisition->approvals
+            ->where('role_at_action', $role)
+            ->where('action', 'approved')
+            ->sortBy([['acted_at', 'desc'], ['id', 'desc']])
+            ->first();
+
         $pdf = Pdf::loadView('documents.purchase-requisition', [
             'pr' => $purchaseRequisition,
             'amountInWords' => $this->amountInWords((float) $purchaseRequisition->total_estimated_amount),
             'budgetCheck' => $budgetCheck,
+            'endorsedBy' => $approvalByRole('Reviewer'),
+            'financeRequestedBy' => $approvalByRole('Budget Checker'),
+            'recommendedBy' => $approvalByRole('Focal Person'),
+            'approvedBy' => $approvalByRole('Executive Director'),
         ]);
 
         return $pdf->download("PR-{$this->safe($purchaseRequisition->pr_number)}.pdf");
@@ -265,7 +281,7 @@ class DocumentDownloadController extends Controller
         // --- Matrix header (3 rows: group title / sublabel / No.-Rate-Total) ---
         $sheet->setCellValue("A{$r1}", 'Sl.No');
         $sheet->setCellValue("B{$r1}", 'Category');
-        $sheet->setCellValue("C{$r1}", 'Budgeted Head');
+        $sheet->setCellValue("C{$r1}", 'Item Name');
         $sheet->setCellValue("D{$r1}", 'Specification');
         $sheet->setCellValue("E{$r1}", 'Unit');
         foreach (['A', 'B', 'C', 'D', 'E'] as $letter) {

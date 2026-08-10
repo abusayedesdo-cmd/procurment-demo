@@ -23,6 +23,10 @@
 
     body { font-family: 'Inter', system-ui, sans-serif; }
 
+    /* This page's shell (1180px) is wider than the layout's default
+       1100px container, and also has to coexist with the app shell's
+       own 248px nav sidebar — override so it isn't silently clipped. */
+    .container { max-width: 1180px; }
     .shell { max-width: 1180px; margin: 0 auto; padding: 2rem 2rem 4rem; }
 
     .eyebrow {
@@ -43,13 +47,24 @@
     .stat-card h3 { margin: 0 0 .5rem; font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
     .stat-card p { margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 1.7rem; font-weight: 700; color: var(--ink); }
 
-    .toolbar { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+    .toolbar {
+        display: grid;
+        grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(150px, 1fr));
+        gap: .75rem;
+        margin-bottom: 1rem;
+    }
     .toolbar input, .toolbar select {
         border: 1px solid var(--line); border-radius: 7px; padding: .55rem .75rem;
         font-size: .85rem; font-family: inherit; background: var(--paper);
+        width: 100%;
     }
-    .toolbar input { min-width: 220px; flex: 1; }
-    .toolbar .spacer { flex: 1; }
+
+    @media (max-width: 900px) {
+        .toolbar { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 560px) {
+        .toolbar { grid-template-columns: 1fr; }
+    }
 
     .btn {
         display: inline-flex; align-items: center; gap: .4rem;
@@ -85,6 +100,7 @@
     .badge.role-approver { background: #DBEAFE; color: #1D4ED8; }
     .badge.role-reviewer { background: #FCE7F3; color: #9D174D; }
     .badge.role-requester { background: var(--slate-bg); color: var(--muted); }
+    .badge.role-program_manager { background: #CCFBF1; color: var(--accent-dark); }
     .badge.status-active { background: var(--green-bg); color: var(--green); }
     .badge.status-inactive { background: var(--red-bg); color: var(--red); }
 
@@ -134,7 +150,10 @@
             <h1>User Management</h1>
             <p>Create accounts, assign roles, and manage access for everyone using the Procurement system.</p>
         </div>
-        <button class="btn primary" id="btnNewUser">+ New User</button>
+        <div style="display:flex; gap:.6rem;">
+            <a href="<?php echo e(route('admin.database.index')); ?>?table=projects" class="btn outline">Manage Projects</a>
+            <button class="btn primary" id="btnNewUser">+ New User</button>
+        </div>
     </div>
 
     <div class="stat-grid" id="statGrid">
@@ -142,6 +161,7 @@
         <div class="stat-card" data-tone="approved"><h3>Active</h3><p id="statActive">—</p></div>
         <div class="stat-card" data-tone="pending"><h3>Inactive</h3><p id="statInactive">—</p></div>
         <div class="stat-card"><h3>Admins</h3><p id="statAdmins">—</p></div>
+        <div class="stat-card" data-tone="brand"><h3>Active Projects</h3><p id="statProjects">—</p></div>
     </div>
 
     <div id="errorBox" class="error-box"></div>
@@ -150,6 +170,7 @@
     <div class="toolbar">
         <input type="text" id="searchInput" placeholder="Search name, email, phone, designation…">
         <select id="roleFilter"><option value="">All roles</option></select>
+        <select id="projectFilter"><option value="">All projects</option></select>
         <select id="statusFilter">
             <option value="">All statuses</option>
             <option value="active">Active only</option>
@@ -163,6 +184,7 @@
                 <tr>
                     <th>User</th>
                     <th>Role</th>
+                    <th>Project</th>
                     <th>Phone</th>
                     <th>Designation</th>
                     <th>Status</th>
@@ -170,7 +192,7 @@
                 </tr>
             </thead>
             <tbody id="userTableBody">
-                <tr><td colspan="6" class="muted">Loading…</td></tr>
+                <tr><td colspan="7" class="muted">Loading…</td></tr>
             </tbody>
         </table>
     </div>
@@ -194,6 +216,10 @@
                 <div class="field">
                     <label for="f_role">Role</label>
                     <select id="f_role" required></select>
+                </div>
+                <div class="field">
+                    <label for="f_project">Project</label>
+                    <select id="f_project"><option value="">— None —</option></select>
                 </div>
                 <div class="field">
                     <label for="f_phone">Phone</label>
@@ -227,8 +253,8 @@
     window.currentUserId = <?php echo e(auth()->id()); ?>;
     window.ADMIN_ROLES = <?php echo json_encode($roles, 15, 512) ?>;
     window.ADMIN_ROLE_LABELS = <?php echo json_encode($roleLabels, 15, 512) ?>;
+    window.ADMIN_PROJECTS = <?php echo json_encode($projects, 15, 512) ?>;
 </script>
 <script src="<?php echo e(asset('js/admin-users.js')); ?>"></script>
 <?php $__env->stopSection(); ?>
-
 <?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/admin/users.blade.php ENDPATH**/ ?>

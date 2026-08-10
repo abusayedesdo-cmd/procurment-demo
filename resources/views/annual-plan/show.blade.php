@@ -426,7 +426,7 @@ function renderMatrixHead(visible) {
         <tr>
             <th rowspan="2">Sl.No</th>
             <th rowspan="2">Category</th>
-            <th rowspan="2">Budgeted Head</th>
+            <th rowspan="2">Item Name</th>
             <th rowspan="2">Specification</th>
             <th rowspan="2">Unit</th>
             ${groupHeaders}
@@ -559,7 +559,7 @@ async function savePackage() {
     const budgetedHead = document.getElementById('budgetedHead').value.trim();
 
     if (!categoryId || !budgetedHead) {
-        errorBox.textContent = 'Please provide Category and Budgeted Head.';
+        errorBox.textContent = 'Please provide Category and Item Name.';
         errorBox.style.display = 'block';
         return;
     }

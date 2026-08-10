@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToProject;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ProcurementAnnualPlan extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToProject;
 
     protected $fillable = [
-        'plan_type', 'title', 'project_name', 'district_id', 'upazila_id', 'project_location', 'working_area',
+        'plan_type', 'title', 'project_name', 'project_id', 'district_id', 'upazila_id', 'project_location', 'working_area',
         'activity_summary', 'fiscal_year_start', 'fiscal_year_end', 'project_duration', 'agreement_date',
         'donor_name', 'funding_source', 'prepared_by', 'approved_by', 'status',
     ];

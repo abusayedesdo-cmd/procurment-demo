@@ -6,10 +6,10 @@ const MODULE_CONFIGS = {
 
     // ---- B. Procurement Plan ----
     'procurement-plans': {
-        title: 'Procurement Plan (approved PR থেকে auto-generate)',
+        title: 'Procurement Plan (auto-generated from approved PR)',
         apiPath: '/procurement-plans',
         listColumns: [
-            { key: 'purchase_requisition.pr_number', label: 'PR নাম্বার' },
+            { key: 'purchase_requisition.pr_number', label: 'PR Number' },
             { key: 'nature', label: 'Nature' },
             { key: 'estimated_amount', label: 'Estimated Amount' },
             { key: 'status', label: 'Status' },
@@ -45,22 +45,22 @@ const MODULE_CONFIGS = {
         apiPath: '/meeting-attendances',
         listColumns: [
             { key: 'meeting.notice_number', label: 'Meeting' },
-            { key: 'user.name', label: 'ইউজার' },
-            { key: 'present', label: 'উপস্থিত' },
+            { key: 'user.name', label: 'User' },
+            { key: 'present', label: 'Present' },
         ],
         formFields: [
             { name: 'meeting_id', label: 'Meeting', type: 'select', source: '/meetings', labelField: r => r.notice_number || `#${r.id}`, required: true },
-            { name: 'user_id', label: 'ইউজার', type: 'select', source: '/users', labelField: 'name', required: true },
-            { name: 'present', label: 'উপস্থিত ছিলেন', type: 'checkbox' },
+            { name: 'user_id', label: 'User', type: 'select', source: '/users', labelField: 'name', required: true },
+            { name: 'present', label: 'Present', type: 'checkbox' },
             { name: 'signature_file', label: 'Signature File (path)', type: 'text' },
         ],
     },
 
     'meeting-minutes': {
-        title: 'Meeting Minutes / রেজুলেশন',
+        title: 'Meeting Minutes / Resolution',
         apiPath: '/meeting-minutes',
         listColumns: [
-            { key: 'minutes_number', label: 'Minutes/Rezulation #' },
+            { key: 'minutes_number', label: 'Minutes/Resolution #' },
             { key: 'meeting.notice_number', label: 'Meeting' },
         ],
         formFields: [
@@ -98,8 +98,8 @@ const MODULE_CONFIGS = {
             { key: 'closing_date', label: 'Closing Date' },
         ],
         rowActions: [
-            { label: 'RFQ ডাউনলোড', hrefBuilder: r => `/api/rfqs/${r.id}/document` },
-            { label: 'Tender Schedule ডাউনলোড', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-document` },
+            { label: 'Download RFQ', hrefBuilder: r => `/api/rfqs/${r.id}/document` },
+            { label: 'Download Tender Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-document` },
         ],
         formFields: [
             { name: 'procurement_plan_id', label: 'Procurement Plan', type: 'select', source: '/procurement-plans', labelField: r => r.purchase_requisition?.pr_number ?? `#${r.id}`, required: true },
@@ -161,7 +161,7 @@ const MODULE_CONFIGS = {
         title: 'Vendors',
         apiPath: '/vendors',
         listColumns: [
-            { key: 'name', label: 'নাম' },
+            { key: 'name', label: 'Name' },
             { key: 'contact_person', label: 'Contact' },
             { key: 'phone', label: 'Phone' },
             { key: 'trade_license_no', label: 'Trade License' },
@@ -205,7 +205,7 @@ const MODULE_CONFIGS = {
             { key: 'opening_date', label: 'Opening Date' },
         ],
         rowActions: [
-            { label: 'ডাউনলোড', hrefBuilder: r => `/api/tender-openings/${r.id}/document` },
+            { label: 'Download', hrefBuilder: r => `/api/tender-openings/${r.id}/document` },
         ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },

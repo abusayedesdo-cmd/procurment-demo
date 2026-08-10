@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\DatabaseTableController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BoqDetailController;
 use App\Http\Controllers\Api\BudgetCategoryController;
@@ -85,6 +86,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('users/{user}', [UserController::class, 'update']);
         Route::delete('users/{user}', [UserController::class, 'destroy']);
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
+
+        // Data Manager — generic CRUD over every table (see
+        // DatabaseTableController for the exclusion list: framework/system
+        // tables and 'users' are never reachable here).
+        Route::prefix('tables')->group(function () {
+            Route::get('/', [DatabaseTableController::class, 'index']);
+            Route::get('{table}/columns', [DatabaseTableController::class, 'columns'])->where('table', '[a-z_]+');
+            Route::get('{table}/options', [DatabaseTableController::class, 'options'])->where('table', '[a-z_]+');
+            Route::get('{table}/rows', [DatabaseTableController::class, 'rows'])->where('table', '[a-z_]+');
+            Route::post('{table}/rows', [DatabaseTableController::class, 'store'])->where('table', '[a-z_]+');
+            Route::put('{table}/rows/{id}', [DatabaseTableController::class, 'update'])->where('table', '[a-z_]+')->where('id', '[0-9]+');
+            Route::delete('{table}/rows/{id}', [DatabaseTableController::class, 'destroy'])->where('table', '[a-z_]+')->where('id', '[0-9]+');
+        });
     });
     Route::apiResource('procurement-categories', ProcurementCategoryController::class);
     Route::apiResource('chart-of-accounts', ChartOfAccountController::class);
@@ -98,7 +112,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // A. Input PR
     Route::apiResource('purchase-requisitions', PurchaseRequisitionController::class)->except(['store']);
     Route::post('purchase-requisitions', [PurchaseRequisitionController::class, 'store'])
-        ->middleware('role:requester');
+        ->middleware('role:requester,program_manager');
 
     Route::apiResource('pr-items', PrItemController::class)->except(['store']);
     Route::post('purchase-requisitions/{purchaseRequisition}/attachment', [PurchaseRequisitionController::class, 'uploadAttachment']);
