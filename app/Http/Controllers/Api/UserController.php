@@ -250,7 +250,8 @@ class UserController extends Controller
 
     /**
      * True for roles that work across every project (Admin, Procurement
-     * Officer) and so don't need a project_id assigned.
+     * Officer, Focal Person, Executive Director) and so don't need a
+     * project_id assigned.
      */
     protected function roleIsProjectExempt(?int $roleId): bool
     {
@@ -260,7 +261,12 @@ class UserController extends Controller
 
         $roleName = \App\Models\Role::find($roleId)?->name;
 
-        return in_array($roleName, [User::ADMIN, User::PROCUREMENT_OFFICER], true);
+        return in_array($roleName, [
+            User::ADMIN,
+            User::PROCUREMENT_OFFICER,
+            User::FOCAL_PERSON,
+            User::EXECUTIVE_DIRECTOR,
+        ], true);
     }
 
     /**

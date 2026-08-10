@@ -27,7 +27,13 @@ class DashboardController extends Controller
         $canEdApprove = in_array($role, [\App\Models\User::EXECUTIVE_DIRECTOR, \App\Models\User::ADMIN]);
 
         // Chain: draft (Reviewer) -> reviewed (Budget Checker) -> checked
-        // (Focal Person) -> focal_reviewed (Executive Director) -> approved.
+        // (Focal Person OR Executive Director, per the Budget Checker's own
+        // 'route_to' choice, stored as routed_to) -> approved. For PRs
+        // checked before routed_to existed (routed_to is null), fall back
+        // to the old amount-based rule (see
+        // PrApprovalController::HIGH_VALUE_THRESHOLD). 'focal_reviewed' is
+        // a legacy status kept for PRs already routed through the Focal
+        // Person before this branching existed — those still need the ED.
         // Each role gets a direct list of the PRs actually waiting on them,
         // not just a generic unfiltered list.
         $awaitingReview = $canReview
@@ -45,12 +51,33 @@ class DashboardController extends Controller
             ? PurchaseRequisition::where('status', 'reviewed')->where('window_type', '!=', 'PR')->orderBy('id')->get(['id', 'pr_number'])
             : collect();
 
+        $threshold = \App\Http\Controllers\Api\PrApprovalController::HIGH_VALUE_THRESHOLD;
+
         $awaitingFocalReview = $canFocalReview
-            ? PurchaseRequisition::where('status', 'checked')->orderBy('id')->get(['id', 'pr_number'])
+            ? PurchaseRequisition::where('status', 'checked')
+                ->where(function ($q) use ($threshold) {
+                    $q->where('routed_to', 'focal_person')
+                        ->orWhere(function ($q2) use ($threshold) {
+                            $q2->whereNull('routed_to')->where('total_estimated_amount', '<', $threshold);
+                        });
+                })
+                ->orderBy('id')->get(['id', 'pr_number'])
             : collect();
 
         $awaitingEdApproval = $canEdApprove
-            ? PurchaseRequisition::where('status', 'focal_reviewed')->orderBy('id')->get(['id', 'pr_number'])
+            ? PurchaseRequisition::where(function ($q) use ($threshold) {
+                $q->where('status', 'focal_reviewed')
+                    ->orWhere(function ($q2) use ($threshold) {
+                        $q2->where('status', 'checked')
+                            ->where(function ($q3) use ($threshold) {
+                                $q3->where('routed_to', 'executive_director')
+                                    ->orWhere(function ($q4) use ($threshold) {
+                                        $q4->whereNull('routed_to')->where('total_estimated_amount', '>=', $threshold);
+                                    });
+                            });
+                    });
+            })
+                ->orderBy('id')->get(['id', 'pr_number'])
             : collect();
 
         return view('dashboard', [

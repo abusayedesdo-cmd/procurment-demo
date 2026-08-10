@@ -345,6 +345,14 @@
                     <option value="rejected">Reject</option>
                 </select>
 
+                <div id="routeToField" style="margin-top:.75rem;">
+                    <label for="routeTo">Send to</label>
+                    <select id="routeTo">
+                        <option value="focal_person">Focal Person</option>
+                        <option value="executive_director">Executive Director (ED)</option>
+                    </select>
+                </div>
+
                 <div style="margin-top:1rem;">
                     <button class="btn" onclick="submitQueueCheck(${pr.id})">Submit</button>
                 </div>
@@ -361,6 +369,7 @@
         const decisionApproved = document.querySelector('#decision option[value="approved"]');
         const decisionSelect = document.getElementById('decision');
         const lineSelect = document.getElementById('budgetLineSelect');
+        const routeToField = document.getElementById('routeToField');
 
         // Remaining Budget C/F = Remaining Budget B/F − Amount of PR.
         // Recomputed live any time the accountant edits Remaining B/F.
@@ -394,6 +403,12 @@
             recalc();
         });
 
+        // "Send to" only matters when the PR is actually being forwarded —
+        // hide it for Reject.
+        decisionSelect.addEventListener('change', (e) => {
+            routeToField.style.display = e.target.value === 'rejected' ? 'none' : '';
+        });
+
         recalc();
     }
 
@@ -403,6 +418,7 @@
         const lineSelect = document.getElementById('budgetLineSelect');
         const allocatedBudget = document.getElementById('allocatedBudget').value;
         const remainingBf = document.getElementById('remainingBf').value;
+        const decision = document.getElementById('decision').value;
 
         if (allocatedBudget === '' || remainingBf === '') {
             errorBox.textContent = 'Please enter Allocated Budget and Remaining Budget B/F.';
@@ -410,16 +426,21 @@
             return;
         }
 
+        const payload = {
+            budget_line_id: lineSelect.value || null,
+            allocated_budget: Number(allocatedBudget),
+            remaining_budget_bf: Number(remainingBf),
+            is_budget_code_verified: document.getElementById('codeVerified').checked,
+            is_budget_available: document.getElementById('availabilityVerified').checked,
+            decision,
+            remarks: document.getElementById('budgetRemarks').value || null,
+        };
+        if (decision !== 'rejected') {
+            payload.route_to = document.getElementById('routeTo').value;
+        }
+
         try {
-            await api.post(`/purchase-requisitions/${prId}/budget-check`, {
-                budget_line_id: lineSelect.value || null,
-                allocated_budget: Number(allocatedBudget),
-                remaining_budget_bf: Number(remainingBf),
-                is_budget_code_verified: document.getElementById('codeVerified').checked,
-                is_budget_available: document.getElementById('availabilityVerified').checked,
-                decision: document.getElementById('decision').value,
-                remarks: document.getElementById('budgetRemarks').value || null,
-            });
+            await api.post(`/purchase-requisitions/${prId}/budget-check`, payload);
             load();
         } catch (err) {
             errorBox.textContent = err.message;

@@ -15,11 +15,13 @@ use Illuminate\Support\Facades\Auth;
  *
  * Exemptions (see full project scope roll-out):
  *  - No authenticated user (console/queue/seeders) -> unscoped.
- *  - Admin and Procurement Officer roles -> unscoped, they work across
- *    all projects by design.
+ *  - Admin, Procurement Officer, Focal Person, and Executive Director
+ *    roles -> unscoped. Admin/Procurement Officer work across all
+ *    projects by design; Focal Person/ED sign off on PRs org-wide rather
+ *    than being tied to one project.
  *  - A user with no project_id of their own (e.g. a cross-project
- *    account that isn't Admin/Procurement Officer) -> sees nothing
- *    rather than everything, so a mis-set account fails closed.
+ *    account that isn't one of the roles above) -> sees nothing rather
+ *    than everything, so a mis-set account fails closed.
  */
 class ProjectScope implements Scope
 {
@@ -31,7 +33,12 @@ class ProjectScope implements Scope
             return;
         }
 
-        if (in_array($user->roleName(), [User::ADMIN, User::PROCUREMENT_OFFICER], true)) {
+        if (in_array($user->roleName(), [
+            User::ADMIN,
+            User::PROCUREMENT_OFFICER,
+            User::FOCAL_PERSON,
+            User::EXECUTIVE_DIRECTOR,
+        ], true)) {
             return;
         }
 

@@ -125,11 +125,18 @@ class PrApprovalController extends Controller
             } elseif ($validated['action'] === 'returned') {
                 $purchaseRequisition->status = 'draft';
             } elseif ($isPr) {
-                // approved: for the PR window there's only ever one more
-                // sign-off after the Budget Checker (Focal Person OR ED,
-                // decided above by amount) — whichever of them acts, the
-                // PR is final. 'focal_reviewed' (legacy) also finishes here.
-                $purchaseRequisition->status = 'approved';
+                // approved: advance by current stage, not straight to
+                // 'approved'. Reviewer (draft) must land on 'reviewed' so
+                // the Budget Checker's queue (PrBudgetCheckController,
+                // which only sees status='reviewed') actually picks it up
+                // — landing on 'approved' here would skip Budget Check,
+                // Focal Person, and ED entirely. Only the final sign-off
+                // (checked / legacy focal_reviewed) finishes the PR.
+                $purchaseRequisition->status = match ($purchaseRequisition->status) {
+                    'draft' => 'reviewed',
+                    'checked', 'focal_reviewed' => 'approved',
+                    default => $purchaseRequisition->status,
+                };
             } else {
                 // BOQ/TOR/Design & Drawing: move to the next stage in the
                 // fixed chain, or stay at 'approved' if already the last.
