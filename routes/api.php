@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\ContractAwardController;
 use App\Http\Controllers\Api\DeliveryReceiptController;
 use App\Http\Controllers\Api\DesignDrawingController;
 use App\Http\Controllers\Api\DocumentDownloadController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\EligibilityReportController;
 use App\Http\Controllers\Api\EligibilityReportItemController;
 use App\Http\Controllers\Api\FinancialEvaluationItemController;
@@ -71,6 +72,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('me', [AuthController::class, 'me']);
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('logout-all', [AuthController::class, 'logoutAll']);
+
+    // Self-service profile — signature image, reused on generated PDFs.
+    Route::post('profile/signature', [ProfileController::class, 'uploadSignature']);
+    Route::delete('profile/signature', [ProfileController::class, 'deleteSignature']);
 
     // Masters — readable by everyone logged in.
     Route::get('users', [UserController::class, 'index']);
@@ -160,6 +165,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('procurement-plan-packages/{procurementPlanPackage}', [ProcurementPlanPackageController::class, 'update']);
     Route::delete('procurement-plan-packages/{procurementPlanPackage}', [ProcurementPlanPackageController::class, 'destroy']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf', [DocumentDownloadController::class, 'annualPlanPdf']);
+    Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf/preview', [DocumentDownloadController::class, 'annualPlanPdfPreview']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/excel', [DocumentDownloadController::class, 'annualPlanExcel']);
     Route::get('procurement-districts', [ProcurementDistrictController::class, 'index']);
     Route::get('procurement-upazilas', [ProcurementUpazilaController::class, 'index']);

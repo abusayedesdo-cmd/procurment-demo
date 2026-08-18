@@ -23,6 +23,7 @@
     </style>
 </head>
 <body>
-    @yield('content')
+      @yield('content')
+    <div class="doc-footer">Eso-Social Development Organization (ESDO) — Procurement Management System</div>
 </body>
 </html>

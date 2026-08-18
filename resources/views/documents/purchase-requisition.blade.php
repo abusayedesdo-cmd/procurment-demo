@@ -3,43 +3,59 @@
 @section('title', 'Purchase Requisition ' . $pr->pr_number)
 
 @section('content')
-    <!-- <table class="plain" style="margin-bottom:0;">
-        <tr>
-            <td style="width:70%; text-align:center;">
-                <div class="bold" style="font-size:14px;">Eso-Social Development Organization (ESDO)</div>
-                <div class="bold" style="font-size:12px;">Collegepara(Gobindanagar), Thakurgaon-5100, Bangladesh</div>
-                <div class="bold" style="font-size:13px; margin-top:4px;">Purchase Requisition</div>
-            </td>
-            <td style="width:30%; text-align:right; vertical-align:top;">
-                <div>PR NO. {{ $pr->pr_number }}</div>
-                <div style="color:#c00;">Date: {{ optional($pr->requisition_date)->format('d.m.Y') }}</div>
-            </td>
-        </tr>
-    </table> -->
 
-    <table class="plain" style="margin-bottom:0;">
+
+    <!--<table class="plain" style="margin-bottom:0;">-->
+    <!--    <tr>-->
+    <!--        <td style="width:18%; vertical-align:middle; text-align:center;">-->
+    <!--            <img src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('img/esdo-logo.png'))) }}"-->
+    <!--                 style="max-width:80px; max-height:80px;">-->
+    <!--        </td>-->
+    <!--        <td style="width:52%; text-align:center; vertical-align:middle;">-->
+    <!--            <div class="bold" style="font-size:14px;">Eso-Social Development Organization (ESDO)</div>-->
+    <!--            <div class="bold" style="font-size:12px;">Collegepara(Gobindanagar), Thakurgaon-5100, Bangladesh</div>-->
+    <!--            <div class="bold" style="font-size:13px; margin-top:4px;">Purchase Requisition</div>-->
+    <!--        </td>-->
+    <!--        <td style="width:30%; text-align:right; vertical-align:top;">-->
+    <!--            <div>PR NO. {{ $pr->pr_number }}</div>-->
+    <!--            <div style="color:#c00;">Date: {{ optional($pr->requisition_date)->format('d.m.Y') }}</div>-->
+    <!--        </td>-->
+    <!--    </tr>-->
+    <!--</table>-->
+
+    <!--<div class="bold" style="margin-top:10px;">Project : {{ $pr->project_name ?? '' }}</div>-->
+    <!--<table class="plain" style="margin-top:10px;">-->
+    <!--    <tr>-->
+    <!--        <td style="width:50%;">Name of Requestor: {{ $pr->requestor_name ?? '' }}</td>-->
+    <!--        <td style="width:50%;">Designation: {{ $pr->requestor_designation ?? '' }}</td>-->
+    <!--    </tr>-->
+    <!--</table>-->
+    
+        <table class="plain" style="margin-bottom:0;">
         <tr>
-            <td style="width:18%; vertical-align:middle; text-align:center;">
-                <img src="data:image/png;base64,{{ base64_encode(file_get_contents(public_path('img/esdo-logo.png'))) }}"
-                     style="max-width:80px; max-height:80px;">
+            <td style="width:18%; text-align:left; vertical-align:top;">
+                @if (file_exists(public_path('img/esdo-logo.png')))
+                    <img src="{{ public_path('img/esdo-logo.png') }}" style="max-width:70px; max-height:70px;">
+                @endif
             </td>
-            <td style="width:52%; text-align:center; vertical-align:middle;">
+            <td style="width:52%; text-align:center; vertical-align:top;">
                 <div class="bold" style="font-size:14px;">Eso-Social Development Organization (ESDO)</div>
-                <div class="bold" style="font-size:12px;">Collegepara(Gobindanagar), Thakurgaon-5100, Bangladesh</div>
+                <div style="font-size:10px;">Collegepara(Gobindanagar), Thakurgaon-5100, Bangladesh</div>
                 <div class="bold" style="font-size:13px; margin-top:4px;">Purchase Requisition</div>
             </td>
             <td style="width:30%; text-align:right; vertical-align:top;">
-                <div>PR NO. {{ $pr->pr_number }}</div>
-                <div style="color:#c00;">Date: {{ optional($pr->requisition_date)->format('d.m.Y') }}</div>
+                <div class="bold">PR NO. {{ $pr->pr_number }}</div>
+                <div>Date: {{ optional($pr->requisition_date)->format('d.m.Y') }}</div>
             </td>
         </tr>
     </table>
+    <hr class="doc-header-rule">
 
-    <div class="bold" style="margin-top:10px;">Project : {{ $pr->project_name ?? '' }}</div>
-    <table class="plain" style="margin-top:10px;">
+    <table class="plain" style="margin-top:0;">
         <tr>
-            <td style="width:50%;">Name of Requestor: {{ $pr->requestor_name ?? '' }}</td>
-            <td style="width:50%;">Designation: {{ $pr->requestor_designation ?? '' }}</td>
+            <td style="width:34%;"><span class="bold">Project:</span> {{ $pr->project_name ?? '' }}</td>
+            <td style="width:33%;"><span class="bold">Requestor:</span> {{ $pr->requestor_name ?? '' }}</td>
+            <td style="width:33%;"><span class="bold">Designation:</span> {{ $pr->requestor_designation ?? '' }}</td>
         </tr>
     </table>
 

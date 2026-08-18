@@ -24,24 +24,30 @@
         --red-bg: #FEF2F2;
         --red-line: #FECACA;
         --slate-bg: #F1F5F9;
+
+        /* document / paper form palette — mirrors the DomPDF output */
+        --doc-border: #333333;
+        --doc-head-bg: #F2F2F2;
+        --doc-text: #111111;
+        --doc-muted: #444444;
     }
 
     body { font-family: 'Inter', system-ui, sans-serif; }
 
     .shell {
-        max-width: 1080px;
+        max-width: 1000px;
         margin: 0 auto;
-        padding: 2.5rem 2rem 4rem;
+        padding: 2rem 2rem 4rem;
     }
 
-    /* ---- Page header ---- */
+    /* ---- Page toolbar ---- */
     .pr-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
         gap: 1.5rem;
-        padding-bottom: 1.75rem;
-        margin-bottom: 2rem;
+        padding-bottom: 1.25rem;
+        margin-bottom: 1.5rem;
         border-bottom: 1px solid var(--line);
         flex-wrap: wrap;
     }
@@ -115,7 +121,171 @@
     .badge.approved { background: var(--green-bg); color: var(--green); border-color: var(--green-line); }
     .badge.rejected { background: var(--red-bg); color: var(--red); border-color: var(--red-line); }
 
-    /* ---- Sections ---- */
+    .muted { color: var(--muted); font-size: .85rem; }
+
+    /* =========================================================
+       DOCUMENT / PAPER-FORM THEME
+       Mirrors resources/views/documents/purchase-requisition.blade.php
+       (the DomPDF output) so the on-screen view matches the PDF.
+       ========================================================= */
+    .paper {
+        background: var(--paper);
+        border: 1px solid #D0D0D0;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, .06);
+        padding: 2rem 2.25rem 2.5rem;
+        color: var(--doc-text);
+        font-size: .86rem;
+        line-height: 1.5;
+        margin-bottom: 1.75rem;
+    }
+
+    .doc-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        justify-content: space-between;
+    }
+    .doc-head .doc-logo {
+        width: 56px;
+        height: 56px;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+    .doc-head .doc-org {
+        flex: 1;
+        text-align: center;
+    }
+    .doc-head .doc-org .org-name {
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: var(--doc-text);
+    }
+    .doc-head .doc-org .org-addr {
+        font-size: .78rem;
+        color: var(--doc-muted);
+        margin-top: .1rem;
+    }
+    .doc-head .doc-org .doc-title {
+        font-weight: 700;
+        font-size: .98rem;
+        margin-top: .5rem;
+        color: var(--doc-text);
+    }
+    .doc-head .doc-meta {
+        min-width: 150px;
+        text-align: right;
+        font-size: .82rem;
+        flex-shrink: 0;
+    }
+    .doc-head .doc-meta .pr-no { font-weight: 700; }
+
+    .doc-rule {
+        border: none;
+        border-top: 2px solid #000;
+        margin: .85rem 0 1rem;
+    }
+
+    .doc-meta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem 1.5rem;
+        font-size: .85rem;
+        margin-bottom: 1rem;
+    }
+    .doc-meta-row span { color: var(--doc-muted); }
+    .doc-meta-row strong { color: var(--doc-text); font-weight: 700; }
+
+    .doc-status-badge { margin-left: .5rem; vertical-align: middle; }
+
+    table.doc-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0 0 1rem;
+        font-size: .82rem;
+    }
+    table.doc-table th, table.doc-table td {
+        border: 1px solid var(--doc-border);
+        padding: .5rem .6rem;
+        vertical-align: top;
+        text-align: left;
+    }
+    table.doc-table th {
+        background: var(--doc-head-bg);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: .68rem;
+        letter-spacing: .03em;
+    }
+    table.doc-table td.num, table.doc-table th.num { text-align: right; font-family: 'JetBrains Mono', monospace; }
+    table.doc-table tr.total-row td { background: var(--doc-head-bg); font-weight: 700; }
+    table.doc-table td.empty-row { height: 1.6rem; color: transparent; }
+
+    .doc-inword {
+        font-weight: 700;
+        font-size: .88rem;
+        margin: 0 0 .9rem;
+    }
+
+    .doc-budget-remarks { vertical-align: top; }
+    .doc-budget-remarks .doc-budget-remarks-text { white-space: pre-wrap; }
+
+    table.doc-plain { width: 100%; border-collapse: collapse; margin: 1.25rem 0 0; font-size: .84rem; }
+    table.doc-plain td { border: none; padding: .55rem 0; vertical-align: top; }
+    table.doc-plain .sig-line { display: block; color: var(--doc-muted); }
+
+    .doc-footer {
+        margin-top: 1.75rem;
+        padding-top: .75rem;
+        border-top: 1px solid var(--line);
+        color: var(--doc-muted);
+        font-size: .72rem;
+        text-align: center;
+    }
+
+    /* ---- Additional (web-only) details strip — data not on the paper form ---- */
+    .extra-details {
+        margin-top: -1rem;
+        margin-bottom: 1.75rem;
+    }
+    .extra-details summary {
+        cursor: pointer;
+        font-size: .78rem;
+        font-weight: 600;
+        color: var(--muted);
+        list-style: none;
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+    }
+    .extra-details summary::-webkit-details-marker { display: none; }
+    .extra-details summary::before { content: '▸'; font-size: .7rem; transition: transform .15s ease; }
+    .extra-details[open] summary::before { transform: rotate(90deg); }
+    .extra-details .field-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 1rem 1.5rem;
+        margin-top: .9rem;
+        padding: 1rem 1.1rem;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+    }
+    .field { display: flex; flex-direction: column; gap: .3rem; }
+    .field-label {
+        font-size: .68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: var(--muted);
+    }
+    .field-value { font-size: .87rem; color: var(--ink); font-weight: 500; }
+    .field-value.mono { font-family: 'JetBrains Mono', monospace; }
+    .field-value.empty { color: #94A3B8; font-weight: 400; }
+    .field-value a { color: var(--accent-dark); font-weight: 600; text-decoration: none; }
+    .field-value a:hover { text-decoration: underline; }
+
+    /* ---- Approval history (live workflow log, not on the paper form) ---- */
     .pr-section { margin-bottom: 2rem; }
     .pr-section > .eyebrow { margin-bottom: .85rem; }
 
@@ -126,53 +296,9 @@
         padding: 1.35rem 1.5rem;
     }
 
-    /* ---- Field grid (summary card) ---- */
-    .field-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-        gap: 1.25rem 1.5rem;
-    }
-    .field { display: flex; flex-direction: column; gap: .3rem; }
-    .field-label {
-        font-size: .7rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: .05em;
-        color: var(--muted);
-    }
-    .field-value { font-size: .92rem; color: var(--ink); font-weight: 500; }
-    .field-value.mono { font-family: 'JetBrains Mono', monospace; }
-    .field-value.empty { color: #94A3B8; font-weight: 400; }
-    .field-value a { color: var(--accent-dark); font-weight: 600; text-decoration: none; }
-    .field-value a:hover { text-decoration: underline; }
-
-    .field.amount-field {
-        grid-column: span 2;
-        background: var(--surface);
-        border-radius: 8px;
-        padding: .75rem 1rem;
-        border-left: 3px solid var(--accent);
-    }
-    .field.amount-field .field-value {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: var(--ink);
-    }
-
-    .in-words {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px dashed var(--line);
-        font-size: .88rem;
-        color: var(--muted);
-    }
-    .in-words strong { color: var(--ink); font-weight: 600; }
-
-    /* ---- Tables ---- */
     .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: .87rem; }
-    thead th {
+    table.log-table { width: 100%; border-collapse: collapse; font-size: .87rem; }
+    .log-table thead th {
         text-align: left;
         padding: .6rem .7rem;
         color: var(--muted);
@@ -183,19 +309,16 @@
         border-bottom: 1px solid var(--line);
         white-space: nowrap;
     }
-    tbody td {
+    .log-table tbody td {
         text-align: left;
         padding: .7rem .7rem;
         border-bottom: 1px solid var(--line);
         color: var(--ink);
         vertical-align: top;
     }
-    tbody tr:last-child td { border-bottom: none; }
-    tbody tr:hover td { background: var(--surface); }
-    td.num, th.num { text-align: right; font-family: 'JetBrains Mono', monospace; }
-    td.muted-cell { color: var(--muted); text-align: center; padding: 1.5rem .7rem; }
-
-    .muted { color: var(--muted); font-size: .85rem; }
+    .log-table tbody tr:last-child td { border-bottom: none; }
+    .log-table tbody tr:hover td { background: var(--surface); }
+    .log-table td.muted-cell { color: var(--muted); text-align: center; padding: 1.5rem .7rem; }
 
     /* ---- Action / status area ---- */
     .status-note {
@@ -281,7 +404,7 @@
     }
     .checkbox-field input[type="checkbox"] { width: auto; accent-color: var(--accent); }
 
-    .budget-summary-table { margin-top: 1rem; }
+    .budget-summary-table { margin-top: 1rem; width: 100%; }
     .budget-summary-table td { border-bottom: 1px solid var(--line); padding: .55rem .3rem; }
     .budget-summary-table tr:last-child td { border-bottom: none; }
     .budget-summary-table td.bold { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
@@ -300,7 +423,9 @@
     @media (max-width: 560px) {
         .shell { padding: 1.5rem 1.1rem 3rem; }
         .pr-header { flex-direction: column; align-items: flex-start; }
-        .field.amount-field { grid-column: span 1; }
+        .paper { padding: 1.25rem 1.1rem 1.75rem; }
+        .doc-head { flex-direction: column; align-items: center; text-align: center; }
+        .doc-head .doc-meta { text-align: center; }
     }
 </style>
 @endsection
@@ -331,8 +456,22 @@
         return `<span class="badge ${status}">${status}</span>`;
     }
 
+    function esc(v) {
+        if (v === null || v === undefined) return '';
+        return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
     function money(n) {
         return Number(n || 0).toLocaleString('en-BD', { minimumFractionDigits: 2 });
+    }
+
+    function formatDocDate(v) {
+        if (!v) return '';
+        const d = new Date(v);
+        if (isNaN(d.getTime())) return '';
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        return `${dd}.${mm}.${d.getFullYear()}`;
     }
 
     function amountInWords(n) {
@@ -366,6 +505,22 @@
         if (hundred) parts.push(threeDigits(hundred));
 
         return parts.join(' ') + ' Taka Only';
+    }
+
+    // Latest "approved" action recorded for a given role — used for the
+    // Requested/Endorsed/Finance Requested/Recommend/Approved signature
+    // lines, same lookup the PDF (DocumentDownloadController) uses.
+    function approvalByRole(pr, role) {
+        return (pr.approvals || [])
+            .filter(a => a.role_at_action === role && a.action === 'approved')
+            .sort((a, b) => {
+                const byDate = new Date(b.acted_at || 0) - new Date(a.acted_at || 0);
+                return byDate !== 0 ? byDate : (b.id - a.id);
+            })[0] || null;
+    }
+
+    function latestBudgetCheck(pr) {
+        return (pr.budget_checks || [])[0] || null;
     }
 
     function isBudgetCheckStage(pr) {
@@ -429,45 +584,59 @@
     }
 
     function render(pr) {
-        const itemsRows = (pr.items || []).map(li => `
+        const items = pr.items || [];
+
+        const itemsRows = items.map((li, i) => `
             <tr>
-                <td>${li.serial_no}</td>
-                <td>${li.item?.name ?? ''}</td>
-                <td>${li.specification ?? li.item?.specification ?? '-'}</td>
-                <td>${li.unit?.name ?? ''}</td>
+                <td>${i + 1}</td>
+                <td>${esc(li.item?.name ?? '')}</td>
+                <td>${esc(li.specification ?? li.item?.specification ?? '')}</td>
+                <td>${esc(li.unit?.name ?? '')}</td>
                 <td class="num">${Number(li.quantity).toLocaleString()}</td>
                 <td class="num">${Number(li.rate_bdt).toLocaleString('en-BD', {minimumFractionDigits: 2})}</td>
                 <td class="num">${Number(li.total_amount).toLocaleString('en-BD', {minimumFractionDigits: 2})}</td>
-                <td>${li.ac_code ?? '-'}</td>
-                <td>${li.is_fixed_asset ? 'Yes' : 'No'}</td>
+                <td>${esc(li.ac_code ?? '')}</td>
             </tr>
         `).join('');
 
-        const classificationRows = (pr.items || []).map(li => `
+        // Pad with blank rows up to 6, same as the printed PR form.
+        let blankRows = '';
+        for (let i = items.length; i < 6; i++) {
+            blankRows += `<tr><td class="empty-row">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+        }
+
+        const classificationRows = items.map(li => `
             <tr>
-                <td>${pr.category?.name ?? '-'}</td>
-                <td>${li.item?.chart_of_account?.name ?? '-'}</td>
+                <td>${esc(pr.category?.name ?? '-')}</td>
+                <td>${esc(li.item?.chart_of_account?.name ?? '-')}</td>
                 <td>${li.is_fixed_asset ? 'Yes' : 'No'}</td>
-                <td>${li.item?.name ?? ''}</td>
+                <td>${esc(li.item?.name ?? '')}</td>
             </tr>
         `).join('');
 
         const approvalRows = (pr.approvals || []).map(a => `
             <tr>
-                <td>${a.acted_at}</td>
-                <td>${a.user?.name ?? ''}</td>
-                <td>${a.role_at_action}</td>
-                <td>${badge(a.action === 'approved' ? 'approved' : (a.action === 'rejected' ? 'rejected' : 'draft'))} ${a.action}</td>
-                <td>${a.remarks ?? ''}</td>
+                <td>${esc(a.acted_at)}</td>
+                <td>${esc(a.user?.name ?? '')}</td>
+                <td>${esc(a.role_at_action)}</td>
+                <td>${badge(a.action === 'approved' ? 'approved' : (a.action === 'rejected' ? 'rejected' : 'draft'))} ${esc(a.action)}</td>
+                <td>${esc(a.remarks ?? '')}</td>
             </tr>
         `).join('') || '<tr><td colspan="5" class="muted-cell">No action recorded yet.</td></tr>';
+
+        const budgetCheck = latestBudgetCheck(pr);
+        const endorsedBy = approvalByRole(pr, 'Reviewer');
+        const financeRequestedBy = approvalByRole(pr, 'Budget Checker');
+        const recommendedBy = approvalByRole(pr, 'Focal Person');
+        const approvedBy = approvalByRole(pr, 'Executive Director');
+        const dash = '.................';
 
         detail.innerHTML = `
             <div class="pr-header">
                 <div>
                     <p class="eyebrow">Purchase Requisition</p>
                     <h1 class="pr-title">
-                        <span class="pr-number">${pr.pr_number}</span> ${badge(pr.status)}
+                        <span class="pr-number">${esc(pr.pr_number)}</span> ${badge(pr.status)}
                     </h1>
                 </div>
                 <div class="header-actions">
@@ -476,42 +645,125 @@
                 </div>
             </div>
 
-            <div class="pr-section">
-                <div class="panel">
-                    <div class="field-grid">
-                        <div class="field"><span class="field-label">Window</span><span class="field-value">${pr.window_type}</span></div>
-                        <div class="field"><span class="field-label">Category</span><span class="field-value">${pr.category?.name ?? '-'}</span></div>
-                        <div class="field"><span class="field-label">Project / Program Name</span><span class="field-value">${pr.project_name ?? '-'}</span></div>
-                        <div class="field"><span class="field-label">Budget Line</span><span class="field-value ${pr.budget_line ? '' : 'empty'}">${pr.budget_line ? pr.budget_line.item_code + ' — ' + pr.budget_line.item_name : 'Not linked yet'}</span></div>
-                        <div class="field"><span class="field-label">Annual Plan Package</span><span class="field-value ${pr.package ? '' : 'empty'}">${pr.package ? pr.package.package_number + ' — ' + pr.package.budgeted_head : 'Not linked'}</span></div>
-                        <div class="field"><span class="field-label">Requisition Date</span><span class="field-value mono">${pr.requisition_date}</span></div>
-                        <div class="field"><span class="field-label">Est. Delivery Date</span><span class="field-value mono">${pr.estimated_delivery_date ?? '-'}</span></div>
-                        <div class="field"><span class="field-label">Est. Delivery Time</span><span class="field-value">${pr.estimated_delivery_time ?? '-'}</span></div>
-                        <div class="field"><span class="field-label">Delivery Location</span><span class="field-value">${pr.delivery_location ?? '-'}</span></div>
-                        <div class="field"><span class="field-label">Raised By</span><span class="field-value">${pr.raised_by_user?.name ?? pr.raisedBy?.name ?? '-'}</span></div>
-                        <div class="field"><span class="field-label">Name of Requestor</span><span class="field-value">${pr.requestor_name ?? '-'}</span></div>
-                        <div class="field"><span class="field-label">Designation</span><span class="field-value">${pr.requestor_designation ?? '-'}</span></div>
-                        ${pr.attachment_url ? `<div class="field"><span class="field-label">Attachment</span><span class="field-value"><a href="${pr.attachment_url}" target="_blank" rel="noopener">View / Download</a></span></div>` : ''}
-                        <div class="field amount-field"><span class="field-label">Total Estimated Amount</span><span class="field-value">৳ ${money(pr.total_estimated_amount)}</span></div>
+            <div class="paper">
+                <div class="doc-head">
+                    <img class="doc-logo" src="/img/esdo-logo.png" alt="" onerror="this.style.display='none'">
+                    <div class="doc-org">
+                        <div class="org-name">Eso-Social Development Organization (ESDO)</div>
+                        <div class="org-addr">Collegepara(Gobindanagar), Thakurgaon-5100, Bangladesh</div>
+                        <div class="doc-title">Purchase Requisition</div>
                     </div>
-                    <div class="in-words">In words — <strong>৳ ${amountInWords(pr.total_estimated_amount)}</strong></div>
+                    <div class="doc-meta">
+                        <div class="pr-no">PR NO. ${esc(pr.pr_number)}</div>
+                        <div>Date: ${formatDocDate(pr.requisition_date)}</div>
+                    </div>
                 </div>
+                <hr class="doc-rule">
+
+                <div class="doc-meta-row">
+                    <div><span>Project:</span> <strong>${esc(pr.project_name ?? '-')}</strong></div>
+                    <div><span>Requestor:</span> <strong>${esc(pr.requestor_name ?? '-')}</strong></div>
+                    <div><span>Designation:</span> <strong>${esc(pr.requestor_designation ?? '-')}</strong></div>
+                </div>
+
+                <table class="doc-table">
+                    <thead>
+                        <tr>
+                            <th style="width:5%;">Sl.No</th>
+                            <th style="width:19%;">Item Name</th>
+                            <th style="width:23%;">Specification</th>
+                            <th style="width:8%;">Unit</th>
+                            <th style="width:9%;" class="num">Quantity</th>
+                            <th style="width:11%;" class="num">Unit Price</th>
+                            <th style="width:12%;" class="num">Total Price</th>
+                            <th style="width:13%;">A/C Code/Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsRows}
+                        ${blankRows}
+                        <tr class="total-row">
+                            <td colspan="6" style="text-align:right;">Total Tk</td>
+                            <td class="num">${money(pr.total_estimated_amount)}</td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="doc-inword">In-word : ৳ ${amountInWords(pr.total_estimated_amount)}</div>
+
+                <table class="doc-table">
+                    <tr><td style="width:35%;">Delivery Locations:</td><td>${esc(pr.delivery_location ?? '')}</td></tr>
+                    <tr><td>Estimated Delivery Date:</td><td>${formatDocDate(pr.estimated_delivery_date)}</td></tr>
+                    <tr><td>Estimated Delivery Time:</td><td>${esc(pr.estimated_delivery_time ?? '')}</td></tr>
+                    <tr><td colspan="2">Receiver Name: ${esc(pr.receiver_name ?? '')}</td></tr>
+                    <tr><td colspan="2">Receiver Contact: ${esc(pr.receiver_contact ?? '')}</td></tr>
+                    ${pr.attachment_url ? `<tr><td colspan="2">Attachment: <a href="${pr.attachment_url}" target="_blank" rel="noopener">View / Download</a></td></tr>` : ''}
+                </table>
+
+                <table class="doc-table">
+                    <tr><td colspan="2" style="font-weight:700;">Budgetary Check: (by Accounts personnel)</td></tr>
+                    <tr>
+                        <td style="width:60%;">
+                            Total allocated Budget : ${budgetCheck ? money(budgetCheck.allocated_budget) : dash}<br><br>
+                            Remaining Budget B/F : ${budgetCheck ? money(budgetCheck.remaining_budget_bf) : dash}<br><br>
+                            Amount of PR&emsp;&emsp;&emsp;&emsp;&nbsp;: ${money(pr.total_estimated_amount)}<br><br>
+                            Remaining Budget C/F: ${budgetCheck ? money(budgetCheck.remaining_budget_cf) : dash}<br><br>
+                            Name of Accountant : ${esc(budgetCheck?.checked_by?.name ?? '..................')}
+                        </td>
+                        <td class="doc-budget-remarks">Remarks${budgetCheck?.remarks ? ': <span class="doc-budget-remarks-text">' + esc(budgetCheck.remarks) + '</span>' : ''}</td>
+                    </tr>
+                </table>
+
+                <table class="doc-plain">
+                    <tr>
+                        <td style="width:34%;">Requested by: ${esc(pr.requestor_name ?? dash)}</td>
+                        <td style="width:33%;">Designation: ${esc(pr.requestor_designation ?? dash)}</td>
+                        <td style="width:33%;">Signature: <span class="sig-line">${dash}</span></td>
+                    </tr>
+                    <tr><td colspan="3">&nbsp;</td></tr>
+                    <tr>
+                        <td>Endorsed by: ${esc(endorsedBy?.user?.name ?? dash)}</td>
+                        <td>Designation: ${esc(endorsedBy?.user?.designation ?? dash)}</td>
+                        <td>Signature: <span class="sig-line">${dash}</span></td>
+                    </tr>
+                    <tr><td colspan="3">&nbsp;</td></tr>
+                    <tr>
+                        <td>Finance Requested by: ${esc(financeRequestedBy?.user?.name ?? dash)}</td>
+                        <td>Designation: ${esc(financeRequestedBy?.user?.designation ?? dash)}</td>
+                        <td>Signature: <span class="sig-line">${dash}</span></td>
+                    </tr>
+                </table>
+
+                <table class="doc-plain" style="margin-top:1.5rem;">
+                    <tr>
+                        <td style="width:50%;">
+                            Recommend by: ${esc(recommendedBy?.user?.name ?? dash)}<br>
+                            PC/DPC/APC/Focal Person
+                        </td>
+                        <td style="width:50%;">Approved by: ${esc(approvedBy?.user?.name ?? dash)}</td>
+                    </tr>
+                </table>
+
+                <div class="doc-footer">Eso-Social Development Organization (ESDO) — Procurement Management System</div>
             </div>
 
-            <div class="pr-section">
-                <p class="eyebrow">Items</p>
-                <div class="panel table-wrap">
-                    <table>
-                        <thead><tr><th>#</th><th>Item</th><th>Specification</th><th>Unit</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Total</th><th>A/C Code</th><th>Fixed Asset</th></tr></thead>
-                        <tbody>${itemsRows}</tbody>
-                    </table>
+            <details class="extra-details">
+                <summary>Additional system details (window, category, budget line, plan package)</summary>
+                <div class="field-grid">
+                    <div class="field"><span class="field-label">Window</span><span class="field-value">${esc(pr.window_type)}</span></div>
+                    <div class="field"><span class="field-label">Category</span><span class="field-value">${esc(pr.category?.name ?? '-')}</span></div>
+                    <div class="field"><span class="field-label">Budget Line</span><span class="field-value ${pr.budget_line ? '' : 'empty'}">${pr.budget_line ? esc(pr.budget_line.item_code + ' — ' + pr.budget_line.item_name) : 'Not linked yet'}</span></div>
+                    <div class="field"><span class="field-label">Annual Plan Package</span><span class="field-value ${pr.package ? '' : 'empty'}">${pr.package ? esc(pr.package.package_number + ' — ' + pr.package.budgeted_head) : 'Not linked'}</span></div>
+                    <div class="field"><span class="field-label">Raised By</span><span class="field-value">${esc(pr.raised_by_user?.name ?? pr.raisedBy?.name ?? '-')}</span></div>
+                    <div class="field"><span class="field-label">Requisition Date</span><span class="field-value mono">${esc(pr.requisition_date)}</span></div>
                 </div>
-            </div>
+            </details>
 
             <div class="pr-section">
                 <p class="eyebrow">Item Category / Sub Category / Fixed Asset</p>
                 <div class="panel table-wrap">
-                    <table>
+                    <table class="log-table">
                         <thead><tr><th>Item Category</th><th>Sub Category</th><th>Fixed Asset</th><th>Item Name</th></tr></thead>
                         <tbody>${classificationRows}</tbody>
                     </table>
@@ -521,7 +773,7 @@
             <div class="pr-section">
                 <p class="eyebrow">Approval History</p>
                 <div class="panel table-wrap">
-                    <table>
+                    <table class="log-table">
                         <thead><tr><th>Date</th><th>User</th><th>Role</th><th>Action</th><th>Remarks</th></tr></thead>
                         <tbody>${approvalRows}</tbody>
                     </table>
@@ -556,7 +808,7 @@
             area.innerHTML = `
                 <p class="eyebrow">Status</p>
                 <div class="status-note">
-                    <span class="tag">${pr.status}</span>
+                    <span class="tag">${esc(pr.status)}</span>
                     <p>This PR is waiting on the next role in the approval chain.</p>
                 </div>
             `;
@@ -585,7 +837,7 @@
         budgetCheckContext = { line, budgetLines };
 
         const lineOptions = budgetLines.map(l => `
-            <option value="${l.id}">${l.code} — ${l.name} (${l.category}) · balance ৳ ${money(l.balance)}</option>
+            <option value="${l.id}">${esc(l.code)} — ${esc(l.name)} (${esc(l.category)}) · balance ৳ ${money(l.balance)}</option>
         `).join('');
 
         area.innerHTML = `
@@ -602,7 +854,7 @@
                     <div id="livePreview"></div>
                 ` : `
                     <div class="field-grid" style="margin-bottom:.5rem;">
-                        <div class="field"><span class="field-label">Budget Code</span><span class="field-value mono">${line.code}</span></div>
+                        <div class="field"><span class="field-label">Budget Code</span><span class="field-value mono">${esc(line.code)}</span></div>
                         <div class="field"><span class="field-label">Spent so far</span><span class="field-value">৳ ${money(line.spent)}</span></div>
                     </div>
                     <table class="budget-summary-table">
@@ -610,7 +862,7 @@
                         <tr><td class="muted">Remaining Budget B/F</td><td>৳ ${money(line.remaining_budget_bf)}</td></tr>
                         <tr><td class="muted">Amount of PR</td><td>৳ ${money(line.amount_of_pr)}</td></tr>
                         <tr><td class="muted">Remaining Budget C/F</td><td class="bold" style="color:${line.is_sufficient ? 'var(--green)' : 'var(--red)'}">৳ ${money(line.remaining_budget_cf)}</td></tr>
-                        <tr><td class="muted">Name of Accountant</td><td>${check.data.accountant_name}</td></tr>
+                        <tr><td class="muted">Name of Accountant</td><td>${esc(check.data.accountant_name)}</td></tr>
                     </table>
                     <div class="decision-hint ${line.is_sufficient ? 'ok' : 'bad'}">
                         ${line.is_sufficient ? 'Sufficient balance' : 'Insufficient balance — C/F would go negative'}

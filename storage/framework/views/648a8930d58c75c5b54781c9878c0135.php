@@ -1,8 +1,8 @@
-@extends('layouts.app')
 
-@section('title', 'Procurement Annual Plan')
 
-@section('content')
+<?php $__env->startSection('title', 'Procurement Annual Plan'); ?>
+
+<?php $__env->startSection('content'); ?>
     <div id="errorBox" class="error-box" style="display:none;"></div>
     <div id="planHeader">Loading...</div>
 
@@ -120,11 +120,11 @@
         </table>
     </div>
     
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('scripts')
+<?php $__env->startSection('scripts'); ?>
 <script>
-   const planId = {{ (int) $id }};
+   const planId = <?php echo e((int) $id); ?>;
 const errorBox = document.getElementById('errorBox');
 let categories = [];
 let items = [];
@@ -380,7 +380,6 @@ function renderHeader(plan) {
                 <span class="muted">${plan.plan_type} · ${plan.donor_name ?? ''}</span>
             </div>
             <div style="display:flex; gap:.5rem;">
-                <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/pdf/preview" target="_blank">Preview</a>
                 <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/pdf" target="_blank">Download PDF</a>
                 <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/excel" target="_blank">Download Excel</a>
             </div>
@@ -606,4 +605,5 @@ async function savePackage() {
 renderYearPanel();
 load();
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/annual-plan/show.blade.php ENDPATH**/ ?>

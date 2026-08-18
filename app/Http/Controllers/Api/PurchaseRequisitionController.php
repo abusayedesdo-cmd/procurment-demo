@@ -57,6 +57,7 @@ class PurchaseRequisitionController extends Controller
         $purchaseRequisition->load([
             'category', 'raisedBy', 'budgetLine', 'package.plan', 'items.item.chartOfAccount', 'items.unit',
             'approvals.user', 'boqDetail', 'torDetail', 'designDrawing', 'procurementPlan',
+            'budgetChecks' => fn ($q) => $q->with(['budgetLine', 'checkedBy'])->latest('checked_at')->latest('id'),
         ]);
 
         return response()->json([
@@ -84,6 +85,8 @@ class PurchaseRequisitionController extends Controller
             'estimated_delivery_time' => 'nullable|string|max:100',
             'requestor_name' => 'nullable|string|max:255',
             'requestor_designation' => 'nullable|string|max:255',
+            'receiver_name' => 'nullable|string|max:255',
+            'receiver_contact' => 'nullable|string|max:255',
             'remarks' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.item_id' => 'required|exists:items,id',
@@ -118,6 +121,8 @@ class PurchaseRequisitionController extends Controller
                 'raised_by' => $request->user()->id,
                 'requestor_name' => $validated['requestor_name'] ?? $request->user()->name,
                 'requestor_designation' => $validated['requestor_designation'] ?? $request->user()->designation,
+                'receiver_name' => $validated['receiver_name'] ?? null,
+                'receiver_contact' => $validated['receiver_contact'] ?? null,
                 'remarks' => $validated['remarks'] ?? null,
             ]);
 
@@ -206,6 +211,8 @@ class PurchaseRequisitionController extends Controller
             'estimated_delivery_time' => 'nullable|string|max:100',
             'requestor_name' => 'nullable|string|max:255',
             'requestor_designation' => 'nullable|string|max:255',
+            'receiver_name' => 'nullable|string|max:255',
+            'receiver_contact' => 'nullable|string|max:255',
             'remarks' => 'nullable|string',
         ]);
 

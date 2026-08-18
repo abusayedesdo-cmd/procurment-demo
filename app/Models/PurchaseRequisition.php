@@ -28,6 +28,8 @@ class PurchaseRequisition extends Model
         'raised_by',
         'requestor_name',
         'requestor_designation',
+        'receiver_name',
+        'receiver_contact',
         'remarks',
         'attachment_path',
     ];

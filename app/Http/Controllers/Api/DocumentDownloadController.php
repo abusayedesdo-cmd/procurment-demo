@@ -225,7 +225,7 @@ class DocumentDownloadController extends Controller
 
     public function annualPlanPdf(ProcurementAnnualPlan $procurementAnnualPlan)
     {
-        $procurementAnnualPlan->load('packages.periods.entries', 'packages.category');
+        $procurementAnnualPlan->load('packages.periods.entries', 'packages.category', 'packages.chartOfAccount', 'packages.item.chartOfAccount');
         $layout = $this->buildAnnualPlanLayout($procurementAnnualPlan);
 
         $pdf = Pdf::loadView('documents.annual-plan-pdf', ['plan' => $procurementAnnualPlan, 'layout' => $layout])
@@ -234,9 +234,25 @@ class DocumentDownloadController extends Controller
         return $pdf->download('annual-plan-' . $procurementAnnualPlan->id . '.pdf');
     }
 
+    /**
+     * Same document as annualPlanPdf(), but streamed with an inline
+     * Content-Disposition so the "Preview" button opens it in the
+     * browser's own PDF viewer instead of forcing a download.
+     */
+    public function annualPlanPdfPreview(ProcurementAnnualPlan $procurementAnnualPlan)
+    {
+        $procurementAnnualPlan->load('packages.periods.entries', 'packages.category', 'packages.chartOfAccount', 'packages.item.chartOfAccount');
+        $layout = $this->buildAnnualPlanLayout($procurementAnnualPlan);
+
+        $pdf = Pdf::loadView('documents.annual-plan-pdf', ['plan' => $procurementAnnualPlan, 'layout' => $layout])
+            ->setPaper('a3', 'landscape');
+
+        return $pdf->stream('annual-plan-' . $procurementAnnualPlan->id . '.pdf');
+    }
+
     public function annualPlanExcel(ProcurementAnnualPlan $procurementAnnualPlan)
     {
-        $procurementAnnualPlan->load('packages.periods.entries', 'packages.category');
+        $procurementAnnualPlan->load('packages.periods.entries', 'packages.category', 'packages.chartOfAccount', 'packages.item.chartOfAccount');
         $layout = $this->buildAnnualPlanLayout($procurementAnnualPlan);
 
         $spreadsheet = new Spreadsheet();
@@ -281,14 +297,15 @@ class DocumentDownloadController extends Controller
         // --- Matrix header (3 rows: group title / sublabel / No.-Rate-Total) ---
         $sheet->setCellValue("A{$r1}", 'Sl.No');
         $sheet->setCellValue("B{$r1}", 'Category');
-        $sheet->setCellValue("C{$r1}", 'Item Name');
-        $sheet->setCellValue("D{$r1}", 'Specification');
-        $sheet->setCellValue("E{$r1}", 'Unit');
-        foreach (['A', 'B', 'C', 'D', 'E'] as $letter) {
+        $sheet->setCellValue("C{$r1}", 'Sub Category');
+        $sheet->setCellValue("D{$r1}", 'Item Name');
+        $sheet->setCellValue("E{$r1}", 'Specification');
+        $sheet->setCellValue("F{$r1}", 'Unit');
+        foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $letter) {
             $sheet->mergeCells("{$letter}{$r1}:{$letter}{$r3}");
         }
 
-        $colIndex = 6;
+        $colIndex = 7;
         foreach ($layout as $group) {
             $groupWidth = count($group['sublabels']) * 3;
             $startLetter = $col($colIndex);
@@ -339,10 +356,13 @@ class DocumentDownloadController extends Controller
         $alreadyProcuredSum = 0.0;
         $remainingBalanceSum = 0.0;
 
+        $rowNumber = 0;
         foreach ($procurementAnnualPlan->packages as $pkg) {
+            $rowNumber++;
             $colIndex = 1;
-            $setCell($colIndex++, $row, $pkg->sl_no);
+            $setCell($colIndex++, $row, $pkg->sl_no ?? $rowNumber);
             $setCell($colIndex++, $row, $pkg->category->name);
+            $setCell($colIndex++, $row, $pkg->chartOfAccount->name ?? $pkg->item?->chartOfAccount?->name ?? '');
             $setCell($colIndex++, $row, $pkg->budgeted_head);
             $setCell($colIndex++, $row, $pkg->specification);
             $setCell($colIndex++, $row, $pkg->unit);
@@ -370,8 +390,8 @@ class DocumentDownloadController extends Controller
 
         // --- Total row (Total column per sublabel only — No. of Unit/Rate left blank, same as before) ---
         $sheet->setCellValue("A{$row}", 'Total');
-        $sheet->mergeCells("A{$row}:E{$row}");
-        $colIndex = 6;
+        $sheet->mergeCells("A{$row}:F{$row}");
+        $colIndex = 7;
         foreach ($layout as $group) {
             foreach ($groupSums[$group['key']] as $sum) {
                 $setCell($colIndex + 2, $row, $sum);
@@ -405,9 +425,45 @@ class DocumentDownloadController extends Controller
         $breakableTitles = ['previous_2nd_year' => 'Previous 2nd Year', 'previous_1st_year' => 'Previous 1st Year', 'current_year' => 'Current Year', 'year_2_total' => 'Total Year-2', 'year_3_total' => 'Total Year-3'];
         $fixedTitles = ['quarter_1' => 'Quarter-1', 'quarter_2' => 'Quarter-2', 'quarter_3' => 'Quarter-3', 'year_1_total' => 'Total Year-1', 'grand_total' => 'Grand Total'];
 
+        // Mirrors updateYearSlotLabels() in the live view exactly, so the PDF/Excel FY
+        // labels always match what the "Select Year" dropdown showed when the data was
+        // entered: y = fiscal_year_start.year + 2, then Prev2=y, Prev1=y-1, Current=y-2,
+        // Year2=y+1, Year3=y+2 (yes, "Previous 2nd Year" lands on the LATER year number —
+        // that's the existing convention, kept as-is for consistency with the live view).
+        $y = $plan->fiscal_year_start ? $plan->fiscal_year_start->year + 2 : now()->year;
+        $shortYear = fn (int $year): string => substr((string) $year, -2);
+        $fyStartYear = [
+            'previous_2nd_year' => $y,
+            'previous_1st_year' => $y - 1,
+            'current_year' => $y - 2,
+            'year_2_total' => $y + 1,
+            'year_3_total' => $y + 2,
+        ];
+        // Only "Current Year" is actually entered July-first (FISCAL_MONTH_NAMES in the
+        // live form, matching Quarter-1 "July-October"); every other breakable slot is
+        // entered plain January-first (MONTH_NAMES) as a single calendar year. Column
+        // order here must match how entries were actually saved (ordered by slot_number),
+        // or values will land under the wrong month header.
+        $fiscalMonths = ['July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March', 'April', 'May', 'June'];
+        $calendarMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
         $groups = [];
 
+        // Same rule as the live view's matrix (computeVisiblePeriods): a period slot
+        // only gets a column if at least one package actually has a value in it.
+        // An empty plan (no packages yet) still shows every column, same as the live view.
+        $hasAnyValue = fn (string $key): bool => $plan->packages->isEmpty()
+            || $plan->packages->contains(function ($pkg) use ($key) {
+                $period = $pkg->periodBySlotKey($key);
+
+                return $period && ((float) $period->no_of_unit !== 0.0 || (float) $period->rate !== 0.0 || (float) $period->total !== 0.0);
+            });
+
         foreach ($fixedOrder as $key) {
+                if (! $hasAnyValue($key)) {
+                    continue;
+                }
+
                 if (isset($breakableTitles[$key])) {
                 // If any package in this plan used Monthly for this slot, the whole plan's
                 // column layout uses Monthly — it's the finer granularity, so a Quarterly
@@ -421,9 +477,21 @@ class DocumentDownloadController extends Controller
 
                 $granularity = $granularities->contains('month') ? 'month' : $granularities->first();
 
-                $sublabels = $granularity === 'month'
-                    ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-                    : [''];
+                if ($granularity === 'month') {
+                    $yStart = $fyStartYear[$key];
+                    if ($key === 'current_year') {
+                        // July-December -> yStart, January-June -> yStart + 1
+                        $sublabels = [];
+                        foreach ($fiscalMonths as $i => $monthName) {
+                            $sublabels[] = $monthName . '-' . $shortYear($i < 6 ? $yStart : $yStart + 1);
+                        }
+                    } else {
+                        // Plain calendar Jan-Dec, all within the same single year.
+                        $sublabels = array_map(fn ($monthName) => $monthName . '-' . $shortYear($yStart), $calendarMonths);
+                    }
+                } else {
+                    $sublabels = [''];
+                }
 
                 $groups[] = ['key' => $key, 'title' => $breakableTitles[$key], 'sublabels' => $sublabels];
             } else {

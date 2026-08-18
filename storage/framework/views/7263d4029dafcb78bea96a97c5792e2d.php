@@ -40,19 +40,19 @@
 
         <div class="row">
             <div>
-                <label for="w_agreement_date">Date of Agreement/Awarded (Start Date)</label>
+                <label for="w_agreement_date">Date of Agreement/Awarded</label>
                 <input type="date" id="w_agreement_date">
             </div>
             <div>
-                <label for="w_fy_start">Fiscal Year Start (Previous 2nd Year begins)</label>
+                <label for="w_fy_start">Year Start </label>
                 <input type="date" id="w_fy_start" oninput="updateDurationPreview()">
             </div>
             <div>
-                <label for="w_fy_end">Fiscal Year End</label>
+                <label for="w_fy_end">Year End</label>
                 <input type="date" id="w_fy_end" oninput="updateDurationPreview()">
             </div>
         </div>
-        <p class="muted" style="margin-top:.25rem;">Project Duration (auto-calculated): <strong id="durationPreview">-</strong></p>
+        <p class="muted" style="margin-top:.25rem;">Project Duration: <strong id="durationPreview">-</strong></p>
 
         <div class="row">
             <div style="flex:1;">
