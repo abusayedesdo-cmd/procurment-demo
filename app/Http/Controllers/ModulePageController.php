@@ -11,6 +11,16 @@ class ModulePageController extends Controller
 
     public function show(string $slug)
     {
-        return view('modules.show', ['slug' => $slug]);
+        $stepSlug = null;
+        foreach (ProcessStepPageController::STEPS as $sSlug => $step) {
+            foreach ($step['modules'] as $m) {
+                if (($m['slug'] ?? null) === $slug) {
+                    $stepSlug = $sSlug;
+                    break 2;
+                }
+            }
+        }
+
+        return view('modules.show', ['slug' => $slug, 'stepSlug' => $stepSlug]);
     }
 }

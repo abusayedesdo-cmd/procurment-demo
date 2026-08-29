@@ -5,12 +5,53 @@ namespace App\Http\Controllers;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementPolicy;
 use App\Models\PurchaseRequisition;
+use App\Services\NumberGeneratorService;
+use Illuminate\Http\Request;
 
 class ProcurementCaseController extends Controller
 {
     public function index()
     {
         return view('cases.index', ['cases' => ProcurementCase::latest()->get()]);
+    }
+
+    /** Form to open a new case from an approved PR that doesn't have one yet. */
+    public function create()
+    {
+        $eligiblePrs = PurchaseRequisition::with('category')
+            ->where('status', 'approved')
+            ->whereDoesntHave('procurementCase')
+            ->orderBy('requisition_date')
+            ->get();
+
+        return view('cases.create', ['eligiblePrs' => $eligiblePrs]);
+    }
+
+    public function store(Request $request, NumberGeneratorService $numbers)
+    {
+        $validated = $request->validate([
+            'purchase_requisition_id' => 'required|exists:purchase_requisitions,id',
+            'title' => 'required|string|max:255',
+            'category' => 'required|in:Goods,Works,Services',
+            'method' => 'required|in:RFQ,RFP,RFT',
+            'is_otm' => 'boolean',
+            'amount' => 'required|numeric|min:0',
+        ]);
+
+        abort_if(
+            ProcurementCase::where('purchase_requisition_id', $validated['purchase_requisition_id'])->exists(),
+            422,
+            'This PR already has a procurement case.'
+        );
+
+        $case = ProcurementCase::create($validated + [
+            'ref' => $numbers->next('case_ref', 'PC-', 4),
+            'current_step' => 0,
+        ]);
+
+        $case->seedSteps();
+
+        return redirect()->route('cases.show', $case)->with('ok', 'Case opened — ' . $case->ref);
     }
 
     public function show(ProcurementCase $case)
@@ -22,12 +63,15 @@ class ProcurementCaseController extends Controller
 
     public function completeStep(ProcurementCase $case)
     {
-        $next = $case->steps()->whereNull('completed_at')->orderBy('step_no')->first();
-        if ($next) {
-            $next->update(['completed_at' => now()]);
-            $case->update(['current_step' => $next->step_no]);
-        }
-        return back()->with('ok', 'Step completed.');
+        $step = $case->steps()->where('step_no', $case->current_step + 1)->first();
+
+        abort_if(! $step, 404, 'No pending step found for this case.');
+        abort_if($step->isDone(), 422, 'That step is already marked complete.');
+
+        $step->update(['completed_at' => now()]);
+        $case->update(['current_step' => $step->step_no]);
+
+        return redirect()->route('cases.show', $case)->with('ok', 'Step marked complete: ' . $step->name);
     }
 
     /** Procurement plan — milestone dates auto-calculated from PR date per policy. */

@@ -1,3 +1,5 @@
+
+
 <?php $__env->startSection('title', 'Budget Dashboard'); ?>
 
 <?php $__env->startSection('content'); ?>

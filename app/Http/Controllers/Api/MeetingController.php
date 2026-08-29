@@ -11,7 +11,16 @@ class MeetingController extends Controller
     public function index(Request $request)
     {
         $query = Meeting::query();
-        $query->with(['procurementPlan.purchaseRequisition', 'createdBy', 'attendances', 'minutes']);
+        $query->with(['procurementCase.purchaseRequisition', 'recordedBy', 'attendees', 'awards']);
+
+        if ($request->filled('procurement_case_id')) {
+            $query->where('procurement_case_id', $request->integer('procurement_case_id'));
+        }
+
+        if ($request->filled('meeting_type')) {
+            $query->where('meeting_type', $request->string('meeting_type'));
+        }
+
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
 
         return response()->json([
@@ -27,7 +36,7 @@ class MeetingController extends Controller
 
     public function show(Meeting $meeting)
     {
-        $meeting->load(['procurementPlan.purchaseRequisition', 'createdBy', 'attendances.user', 'minutes']);
+        $meeting->load(['procurementCase.purchaseRequisition', 'recordedBy', 'attendees.committeeMember', 'awards.vendor']);
 
         return response()->json([
             'success' => true,
@@ -38,15 +47,24 @@ class MeetingController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'procurement_plan_id' => 'required|exists:procurement_plans,id',
-            'meeting_sequence' => 'required|in:1st,2nd',
+            'procurement_case_id' => 'required|exists:procurement_cases,id',
+            'meeting_type' => 'required|in:first,second',
+            'location' => 'nullable|string|max:120',
             'meeting_date' => 'required|date',
-            'notice_number' => 'nullable|string|max:255',
-            'notice_file' => 'nullable|string|max:255',
-            'created_by' => 'required|exists:users,id',
+            'meeting_time' => 'nullable|string|max:40',
+            'agenda' => 'nullable|string',
         ]);
 
-        $meeting = Meeting::create($validated);
+        abort_if(
+            Meeting::where('procurement_case_id', $validated['procurement_case_id'])
+                ->where('meeting_type', $validated['meeting_type'])->exists(),
+            422,
+            ucfirst($validated['meeting_type']) . ' meeting already recorded for this case.'
+        );
+
+        $meeting = Meeting::create($validated + [
+            'recorded_by' => $request->user()?->id,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -58,10 +76,15 @@ class MeetingController extends Controller
     public function update(Request $request, Meeting $meeting)
     {
         $validated = $request->validate([
-            'meeting_sequence' => 'sometimes|required|in:1st,2nd',
+            'location' => 'nullable|string|max:120',
             'meeting_date' => 'sometimes|required|date',
-            'notice_number' => 'nullable|string|max:255',
-            'notice_file' => 'nullable|string|max:255',
+            'meeting_time' => 'nullable|string|max:40',
+            'agenda' => 'nullable|string',
+            'publish_date' => 'nullable|date',
+            'closing_date' => 'nullable|date|after_or_equal:publish_date',
+            'opening_date' => 'nullable|date|after_or_equal:closing_date',
+            'schedule_override_reason' => 'nullable|string|max:255',
+            'decisions' => 'nullable|string',
         ]);
 
         $meeting->update($validated);

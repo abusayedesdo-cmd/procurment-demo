@@ -107,7 +107,7 @@
                 <p class="eyebrow">Module</p>
                 <h1 id="moduleTitle">Loading…</h1>
             </div>
-            <a href="{{ route('modules.index') }}" class="btn">← All Modules</a>
+            <a href="{{ $stepSlug ? route('process-steps.show', $stepSlug) : route('dashboard') }}" class="btn">← {{ $stepSlug ? 'Back to Step' : 'Dashboard' }}</a>
         </div>
 
         <div id="resourceRoot">

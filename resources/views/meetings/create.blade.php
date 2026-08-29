@@ -71,16 +71,35 @@
   </div>
 </form>
 
+@php
+  // Built here instead of inline inside @json(...) because Blade's @json
+  // directive splits its argument on EVERY comma (to support the optional
+  // $options/$depth args), including commas hidden inside string values
+  // like "roleLabel() . ', Central Procurement Committee'". That silently
+  // truncates the expression and leaves an unclosed array in the compiled
+  // PHP, which breaks the parser. Passing a plain variable avoids it.
+  $rosterJs = $roster->map(fn ($m) => [
+      'id' => $m->id,
+      'name' => $m->name,
+      'designation' => $m->roleLabel() . ', Central Procurement Committee',
+  ]);
+
+  $vendorsJs = $vendors->map(fn ($v) => [
+      'id' => $v->id,
+      'name' => $v->name,
+  ]);
+@endphp
+
 <script>
-let roster = @json($roster->map(fn($m) => ['name' => $m->name, 'designation' => $m->roleLabel() . ', Central Procurement Committee']));
-let vendors = @json($vendors->map(fn($v) => ['id' => $v->id, 'name' => $v->name]));
+let roster = @json($rosterJs);
+let vendors = @json($vendorsJs);
 
 let ai = 0;
-function addAttendee(name = '', designation = '') {
+function addAttendee(name = '', designation = '', committeeMemberId = '') {
   const i = ai++;
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input name="attendees[${i}][name]" value="${name}" required style="width:100%;border:1px solid #D9DAE8;border-radius:6px;padding:7px 8px;font-size:13px"></td>
+    <td><input type="hidden" name="attendees[${i}][committee_member_id]" value="${committeeMemberId}"><input name="attendees[${i}][name]" value="${name}" required style="width:100%;border:1px solid #D9DAE8;border-radius:6px;padding:7px 8px;font-size:13px"></td>
     <td><input name="attendees[${i}][designation]" value="${designation}" required style="width:100%;border:1px solid #D9DAE8;border-radius:6px;padding:7px 8px;font-size:13px"></td>
     <td><button type="button" onclick="this.closest('tr').remove()" style="border:none;background:none;color:var(--bad);font-size:15px;cursor:pointer">×</button></td>`;
   document.querySelector('#attendees tbody').appendChild(tr);
@@ -104,7 +123,7 @@ function addAward() {
   document.querySelector('#awards tbody').appendChild(tr);
 }
 
-roster.forEach(m => addAttendee(m.name, m.designation));
+roster.forEach(m => addAttendee(m.name, m.designation, m.id));
 @if ($type === 'second')
 addAward();
 @endif

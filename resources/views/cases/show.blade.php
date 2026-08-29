@@ -2,7 +2,17 @@
 @section('title', 'Case Detail')
 @section('content')
 
-<div><a href="{{ route('cases.index') }}" style="font-size:12.5px;font-weight:600;text-decoration:none">← All cases</a></div>
+@php
+    $backToStep = request()->query('focus') === 'meetings' ? request()->query('step') : null;
+@endphp
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+    @if ($backToStep)
+        <a href="{{ route('process-steps.show', $backToStep) }}" style="font-size:12.5px;font-weight:600;text-decoration:none">← Back to Step</a>
+        <a href="{{ route('cases.create') }}" class="btn btn-primary" style="font-size:12.5px">+ New Case</a>
+    @else
+        <a href="{{ route('dashboard') }}" style="font-size:12.5px;font-weight:600;text-decoration:none">← Dashboard</a>
+    @endif
+</div>
 
 <div class="card" style="padding:22px">
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -41,33 +51,4 @@
   </div>
 </div>
 
-@foreach ($phases as $phase => $steps)
-  <div class="card" style="overflow:hidden">
-    <div style="padding:12px 18px;background:#F7F8FC;border-bottom:1px solid #EEEFF6;display:flex;align-items:center;gap:10px">
-      <span style="font-size:13px;font-weight:800;color:var(--brand)">{{ $phase }}</span>
-      <span style="font-size:11.5px;font-weight:600;color:var(--muted)">{{ $steps->whereNotNull('completed_at')->count() }} of {{ $steps->count() }} complete</span>
-    </div>
-    @foreach ($steps as $step)
-      @php $done = $step->isDone(); $current = !$done && $step->step_no === $case->current_step + 1; @endphp
-      <div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line-soft)">
-        <span style="font-size:11px;font-weight:700;color:var(--faint);width:22px">{{ str_pad($step->step_no, 2, '0', STR_PAD_LEFT) }}</span>
-        <div style="width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;
-          background:{{ $done ? 'var(--ok)' : ($current ? '#fff' : '#F7F8FC') }};
-          color:{{ $done ? '#fff' : 'var(--brand)' }};
-          border:2px solid {{ $done ? 'var(--ok)' : ($current ? 'var(--brand)' : 'var(--line)') }}">{{ $done ? '✓' : '' }}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13.5px;font-weight:600;color:{{ $done || $current ? 'var(--ink)' : 'var(--faint)' }}">{{ $step->name }}</div>
-          @if ($step->detail)<div style="font-size:12px;color:var(--muted)">{{ $step->detail }}</div>@endif
-        </div>
-        @if ($current)
-          <form method="POST" action="{{ route('cases.complete-step', $case) }}">@csrf
-            <button class="btn btn-primary" style="padding:7px 13px;font-size:12px">Mark complete</button>
-          </form>
-        @elseif ($done)
-          <span style="font-size:11.5px;color:var(--muted)">{{ $step->completed_at->format('d M') }}</span>
-        @endif
-      </div>
-    @endforeach
-  </div>
-@endforeach
 @endsection

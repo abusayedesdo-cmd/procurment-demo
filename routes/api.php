@@ -22,7 +22,6 @@ use App\Http\Controllers\Api\FrameworkAgreementController;
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\MeetingAttendanceController;
 use App\Http\Controllers\Api\MeetingController;
-use App\Http\Controllers\Api\MeetingMinuteController;
 use App\Http\Controllers\Api\PayOrderController;
 use App\Http\Controllers\Api\PrApprovalController;
 use App\Http\Controllers\Api\PrItemController;
@@ -53,6 +52,7 @@ use App\Http\Controllers\Api\VendorDocumentController;
 use App\Http\Controllers\Api\WorkOrderController;
 use App\Http\Controllers\Api\BudgetLineController;
 use App\Http\Controllers\Api\PrBudgetCheckController;
+use App\Http\Controllers\Api\ProcurementCaseController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -172,8 +172,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::apiResource('meetings', MeetingController::class);
         Route::apiResource('meeting-attendances', MeetingAttendanceController::class);
-        Route::apiResource('meeting-minutes', MeetingMinuteController::class);
+        Route::post('meeting-attendances/seed-from-roster', [MeetingAttendanceController::class, 'seedFromRoster']);
+        Route::get('meetings/{meeting}/notice-document', [DocumentDownloadController::class, 'meetingNotice'])->name('api.meetings.notice-document');
+        Route::get('meetings/{meeting}/attendance-document', [DocumentDownloadController::class, 'meetingAttendance'])->name('api.meetings.attendance-document');
+        Route::get('meetings/{meeting}/minutes-document', [DocumentDownloadController::class, 'meetingMinutes'])->name('api.meetings.minutes-document');
         Route::apiResource('sub-committee-transfers', SubCommitteeTransferController::class);
+        Route::apiResource('procurement-cases', ProcurementCaseController::class)->only(['index', 'show']);
         Route::apiResource('rfqs', RfqController::class);
         Route::apiResource('tender-schedules', TenderScheduleController::class);
         Route::apiResource('tender-proposals', TenderProposalController::class);
@@ -201,6 +205,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // paper formats.
         Route::get('rfqs/{rfq}/document', [DocumentDownloadController::class, 'rfq']);
         Route::get('rfqs/{rfq}/tender-schedule-document', [DocumentDownloadController::class, 'tenderSchedule']);
+        Route::get('rfqs/{rfq}/tender-schedule-preview', [DocumentDownloadController::class, 'tenderSchedulePreview']);
         Route::get('tender-openings/{tenderOpening}/document', [DocumentDownloadController::class, 'tenderOpening']);
     });
 });

@@ -98,6 +98,43 @@
             border-left-color: var(--accent);
         }
 
+        .nav-group { display: flex; flex-direction: column; }
+        .nav-group-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: .87rem;
+            font-weight: 500;
+            color: #CBD5E1;
+            padding: .6rem .75rem;
+            border-radius: 7px;
+            border-left: 3px solid transparent;
+            background: none;
+            border-top: none; border-right: none; border-bottom: none;
+            cursor: pointer;
+            font-family: inherit;
+            width: 100%;
+            text-align: left;
+            transition: background .15s ease, color .15s ease, border-color .15s ease;
+        }
+        .nav-group-toggle:hover { background: #1E293B; color: #fff; border-left-color: var(--accent); }
+        .nav-group-toggle .caret { transition: transform .15s ease; color: #64748B; font-size: .75rem; }
+        .nav-group.open .nav-group-toggle .caret { transform: rotate(90deg); color: var(--accent); }
+
+        .nav-group-items {
+            display: flex;
+            flex-direction: column;
+            gap: .15rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height .2s ease;
+            padding-left: .5rem;
+            border-left: 1px solid #1E293B;
+            margin-left: 1rem;
+        }
+        .nav-group.open .nav-group-items { max-height: 600px; }
+        .nav-group-items a { font-size: .82rem; padding: .5rem .75rem; }
+
         .sidebar-footer {
             margin-top: auto;
             padding: .9rem 1.1rem 1.1rem;
@@ -339,7 +376,21 @@
                     <a href="{{ route('annual-plans.index') }}">Annual Plan</a>
                 @endif
                 @if (in_array(auth()->user()->roleName(), [\App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN]))
-                    <a href="{{ route('modules.index') }}">All Modules</a>
+                    @php
+                        $currentStepSlug = request()->routeIs('process-steps.show') ? request()->route('slug') : null;
+                    @endphp
+                    <div class="nav-group @if($currentStepSlug) open @endif" id="processStepsGroup">
+                        <button type="button" class="nav-group-toggle" onclick="toggleNavGroup('processStepsGroup')">
+                            <span>Process Steps</span>
+                            <span class="caret">&#9656;</span>
+                        </button>
+                        <div class="nav-group-items">
+                            @foreach (\App\Http\Controllers\ProcessStepPageController::STEPS as $slug => $s)
+                                <a href="{{ route('process-steps.show', $slug) }}"> {{ $s['subject'] }}</a>
+                            @endforeach
+                        </div>
+                    </div>
+                    <a href="{{ route('settings.committee.index') }}">Committee Roster</a>
                 @endif
                 @if (auth()->user()->roleName() === \App\Models\User::ADMIN)
                     <a href="{{ route('admin.users.index') }}">User Management</a>
@@ -389,6 +440,10 @@
         function closeSidebar() {
             sidebarEl.classList.remove('open');
             backdropEl.classList.remove('show');
+        }
+
+        function toggleNavGroup(id) {
+            document.getElementById(id).classList.toggle('open');
         }
 
         // Close the drawer automatically if the viewport grows back to desktop size.

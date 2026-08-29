@@ -40,6 +40,7 @@ class PurchaseCommitteeController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'address' => 'nullable|string|max:255',
             'type' => 'required|in:main,sub',
             'parent_committee_id' => 'nullable|exists:purchase_committees,id'
         ]);
@@ -57,6 +58,7 @@ class PurchaseCommitteeController extends Controller
     {
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
+            'address' => 'nullable|string|max:255',
             'type' => 'sometimes|required|in:main,sub',
             'parent_committee_id' => 'nullable|exists:purchase_committees,id'
         ]);

@@ -11,9 +11,13 @@ class MeetingAttendance extends Model
 
     protected $fillable = [
         'meeting_id',
-        'user_id',
+        'committee_member_id',
+        'name',
+        'designation',
         'present',
         'signature_file',
+        'remarks',
+        'sort_order',
     ];
 
     protected $casts = [
@@ -25,9 +29,8 @@ class MeetingAttendance extends Model
         return $this->belongsTo(Meeting::class, 'meeting_id');
     }
 
-    public function user()
+    public function committeeMember()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(ProcurementCommitteeMember::class, 'committee_member_id');
     }
-
 }

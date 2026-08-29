@@ -122,6 +122,35 @@ async function initResourcePage(config) {
         return el.value === '' ? null : el.value;
     }
 
+    // Wires up any `field.autofillFrom = { field, property }` relationships:
+    // when the named source <select> changes, look up the chosen record in
+    // its selectCache and copy `property` into this field. Runs after the
+    // form is drawn, since it needs the rendered <select>/<input> elements.
+    function wireAutofill() {
+        config.formFields.forEach(field => {
+            if (!field.autofillFrom) return;
+            const sourceEl = document.getElementById(`field_${field.autofillFrom.field}`);
+            const targetEl = document.getElementById(`field_${field.name}`);
+            if (!sourceEl || !targetEl) return;
+            sourceEl.addEventListener('change', () => {
+                const records = selectCache[field.autofillFrom.field] || [];
+                const record = records.find(r => String(r.id) === sourceEl.value);
+                targetEl.value = record ? (getByPath(record, field.autofillFrom.property) ?? '') : '';
+            });
+        });
+    }
+
+    // Renders one row-action link. `a.download === true` forces a real
+    // file download (adds the `download` attribute, no new tab); anything
+    // else opens in a new tab so the browser can preview it inline
+    // (PDF/image) — that's the Download vs Preview distinction.
+    function renderRowAction(a, row) {
+        const href = a.hrefBuilder(row);
+        if (!href) return '';
+        const attrs = a.download ? 'download' : 'target="_blank" rel="noopener"';
+        return `<a href="${href}" class="btn secondary" style="padding:.3rem .6rem; font-size:.8rem;" ${attrs}>${a.label}</a>`;
+    }
+
     async function loadList() {
         const tbody = document.getElementById('listBody');
         const colCount = config.listColumns.length + (config.rowActions ? 1 : 0);
@@ -135,7 +164,7 @@ async function initResourcePage(config) {
             tbody.innerHTML = data.map(row => {
                 const cells = config.listColumns.map(c => `<td>${formatCell(getByPath(row, c.key))}</td>`).join('');
                 const actions = config.rowActions
-                    ? `<td>${config.rowActions.map(a => `<a href="${a.hrefBuilder(row)}" class="btn secondary" style="padding:.3rem .6rem; font-size:.8rem;" target="_blank">${a.label}</a>`).join(' ')}</td>`
+                    ? `<td>${config.rowActions.map(a => renderRowAction(a, row)).join(' ')}</td>`
                     : '';
                 return `<tr>${cells}${actions}</tr>`;
             }).join('');
@@ -190,6 +219,7 @@ async function initResourcePage(config) {
 
     document.getElementById('errorBoxPlaceholder').replaceWith(errorBox);
     document.getElementById('resourceForm').addEventListener('submit', handleSubmit);
+    wireAutofill();
 
     await loadList();
 }

@@ -324,7 +324,9 @@ async function loadCategories() {
 
 function onCategoryChanged() {
     const categoryId = document.getElementById('category').value;
-    const groups = chartOfAccounts.filter(g => String(g.category_id) === String(categoryId));
+    const groups = chartOfAccounts
+        .filter(g => String(g.category_id) === String(categoryId))
+        .filter(g => g.code !== 'C51');
 
     document.getElementById('groupSelect').innerHTML =
         '<option value="">-- Select Group --</option>' +

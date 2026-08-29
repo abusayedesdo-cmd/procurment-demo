@@ -324,7 +324,9 @@ async function loadCategories() {
 
 function onCategoryChanged() {
     const categoryId = document.getElementById('category').value;
-    const groups = chartOfAccounts.filter(g => String(g.category_id) === String(categoryId));
+    const groups = chartOfAccounts
+        .filter(g => String(g.category_id) === String(categoryId))
+        .filter(g => g.code !== 'C51');
 
     document.getElementById('groupSelect').innerHTML =
         '<option value="">-- Select Group --</option>' +
@@ -380,6 +382,7 @@ function renderHeader(plan) {
                 <span class="muted">${plan.plan_type} · ${plan.donor_name ?? ''}</span>
             </div>
             <div style="display:flex; gap:.5rem;">
+                <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/pdf/preview" target="_blank">Preview</a>
                 <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/pdf" target="_blank">Download PDF</a>
                 <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/excel" target="_blank">Download Excel</a>
             </div>

@@ -129,4 +129,9 @@ class PurchaseRequisition extends Model
         return $this->hasMany(SoleSourcingRequest::class, 'pr_id');
     }
 
+    public function procurementCase()
+    {
+        return $this->hasOne(ProcurementCase::class, 'purchase_requisition_id');
+    }
+
 }

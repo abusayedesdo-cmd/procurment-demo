@@ -105,7 +105,7 @@
                 <p class="eyebrow">Module</p>
                 <h1 id="moduleTitle">Loading…</h1>
             </div>
-            <a href="<?php echo e(route('modules.index')); ?>" class="btn">← All Modules</a>
+            <a href="<?php echo e($stepSlug ? route('process-steps.show', $stepSlug) : route('dashboard')); ?>" class="btn">← <?php echo e($stepSlug ? 'Back to Step' : 'Dashboard'); ?></a>
         </div>
 
         <div id="resourceRoot">

@@ -19,10 +19,10 @@ class RfqController extends Controller
 
     public function index(Request $request)
     {
-        $query = Rfq::query()->with(['procurementPlan.purchaseRequisition']);
+        $query = Rfq::query()->with(['procurementCase.purchaseRequisition']);
 
-        if ($request->filled('procurement_plan_id')) {
-            $query->where('procurement_plan_id', $request->integer('procurement_plan_id'));
+        if ($request->filled('procurement_case_id')) {
+            $query->where('procurement_case_id', $request->integer('procurement_case_id'));
         }
 
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
@@ -41,7 +41,7 @@ class RfqController extends Controller
     public function show(Rfq $rfq)
     {
         $rfq->load([
-            'procurementPlan', 'tenderSchedules', 'tenderProposals', 'tenderAdvertisements',
+            'procurementCase', 'tenderSchedules', 'tenderProposals', 'tenderAdvertisements',
             'items.unit', 'quotations.vendor', 'quotations.items', 'tenderOpenings.committeeMembers',
             'eligibilityReports', 'technicalEvaluationReports',
             'financialEvaluationReports', 'comparativeStatements',
@@ -56,7 +56,8 @@ class RfqController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'procurement_plan_id' => 'required|exists:procurement_plans,id',
+            'procurement_case_id' => 'required|exists:procurement_cases,id',
+            'subject' => 'required|string|max:255',
             'type' => 'required|in:RFQ,OTM',
             'issue_date' => 'required|date',
             'closing_date' => 'required|date|after:issue_date',
@@ -64,7 +65,7 @@ class RfqController extends Controller
         ]);
 
         $rfq = Rfq::create($validated + [
-            'rfq_number' => $this->numberGenerator->nextMemo(),
+            'rfq_number' => $this->numberGenerator->nextCommitteeMemo('Purchases Committee'),
         ]);
 
         return response()->json([

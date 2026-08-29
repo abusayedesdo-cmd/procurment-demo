@@ -62,6 +62,34 @@ class NumberGeneratorService
         return $this->next('rezulation', '', 1);
     }
 
+    /**
+     * Document-typed memo number sharing the office-wide fiscal-year
+     * counter, matching real ESDO paper forms:
+     *   ESDO/Procurement/Notice/126/{seq}/{FY}
+     *   ESDO/Procurement/Attendence/126/{seq}/{FY}   (ESDO's own spelling)
+     */
+    public function nextDocMemo(string $department, string $docType, string $officeCode = '126'): string
+    {
+        $fiscalYear = $this->currentFiscalYear();
+        $seq = $this->next("memo_{$fiscalYear}", '', 3);
+
+        return "ESDO/{$department}/{$docType}/{$officeCode}/{$seq}/{$fiscalYear}";
+    }
+
+    /**
+     * Same shared office-wide fiscal-year counter as nextDocMemo(), but
+     * without a document-type segment — matches ESDO/Purchases Committee/
+     * 126/{seq}/{FY}, the single reference number a case's RFQ/Resolution/
+     * Work Order/Bill all carry throughout its lifecycle.
+     */
+    public function nextCommitteeMemo(string $committee, string $officeCode = '126'): string
+    {
+        $fiscalYear = $this->currentFiscalYear();
+        $seq = $this->next("memo_{$fiscalYear}", '', 3);
+
+        return "ESDO/{$committee}/{$officeCode}/{$seq}/{$fiscalYear}";
+    }
+
     protected function currentFiscalYear(): string
     {
         $year = (int) now()->format('Y');

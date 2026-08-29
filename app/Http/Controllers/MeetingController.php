@@ -6,7 +6,7 @@ use App\Models\Meeting;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementCommitteeMember;
 use App\Models\Vendor;
-use App\Services\MemoSequence;
+use App\Services\NumberGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +31,7 @@ class MeetingController extends Controller
         ]);
     }
 
-    public function store(Request $request, ProcurementCase $case, string $type)
+    public function store(Request $request, ProcurementCase $case, string $type, NumberGeneratorService $numbers)
     {
         abort_unless(in_array($type, ['first', 'second'], true), 404);
 
@@ -44,6 +44,7 @@ class MeetingController extends Controller
             'attendees' => 'required|array|min:1',
             'attendees.*.name' => 'required|string|max:120',
             'attendees.*.designation' => 'required|string|max:120',
+            'attendees.*.committee_member_id' => 'nullable|exists:procurement_committee_members,id',
             // 1st-meeting tender schedule fields
             'publish_date' => 'nullable|date',
             'closing_date' => 'nullable|date|after_or_equal:publish_date',
@@ -57,9 +58,9 @@ class MeetingController extends Controller
             'awards.*.amount' => 'nullable|numeric|min:0',
         ]);
 
-        $meeting = DB::transaction(function () use ($data, $case, $type) {
+        $meeting = DB::transaction(function () use ($data, $case, $type, $numbers) {
             $meeting = Meeting::create([
-                'rezulation_no' => MemoSequence::nextRezulation(),
+                'rezulation_no' => $numbers->nextRezulation(),
                 'procurement_case_id' => $case->id,
                 'meeting_type' => $type,
                 'location' => $data['location'],
@@ -71,11 +72,13 @@ class MeetingController extends Controller
                 'closing_date' => $data['closing_date'] ?? null,
                 'opening_date' => $data['opening_date'] ?? null,
                 'schedule_override_reason' => $data['schedule_override_reason'] ?? null,
+                'held_at' => now(),
                 'recorded_by' => Auth::id(),
             ]);
 
             foreach ($data['attendees'] as $i => $a) {
                 $meeting->attendees()->create([
+                    'committee_member_id' => $a['committee_member_id'] ?? null,
                     'name' => $a['name'], 'designation' => $a['designation'], 'sort_order' => $i,
                 ]);
             }
@@ -100,12 +103,49 @@ class MeetingController extends Controller
             $case->update(['current_step' => $stepNo]);
         }
 
-        return redirect()->route('meetings.show', $meeting)->with('ok', 'Meeting recorded — Rezulation No. ' . $meeting->rezulation_no);
+        $sentCount = $this->sendMeetingNotices($meeting);
+        $noticeMsg = $sentCount > 0 ? " Notice emailed to {$sentCount} attendee(s)." : '';
+
+        return redirect()->route('meetings.show', $meeting)->with('ok', 'Meeting recorded — Rezulation No. ' . $meeting->rezulation_no . '.' . $noticeMsg);
+    }
+
+    /**
+     * Email every attendee who is linked to a roster member with an email
+     * on file. Sent synchronously (no queue worker available on shared
+     * hosting) — failures are logged, not thrown, so a bad/missing SMTP
+     * setup never blocks saving the meeting itself. Returns how many were
+     * actually sent.
+     */
+    private function sendMeetingNotices(Meeting $meeting): int
+    {
+        $meeting->load('attendees.committeeMember', 'procurementCase');
+        $sent = 0;
+
+        foreach ($meeting->attendees as $attendee) {
+            $email = $attendee->committeeMember?->email;
+            if (! $email) {
+                continue;
+            }
+
+            try {
+                \Illuminate\Support\Facades\Mail::to($email)
+                    ->send(new \App\Mail\MeetingNoticeMail($meeting, $attendee->name));
+                $sent++;
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Meeting notice email failed', [
+                    'meeting_id' => $meeting->id,
+                    'email' => $email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $sent;
     }
 
     public function show(Meeting $meeting)
     {
-        $meeting->load(['attendees', 'awards.vendor', 'procurementCase']);
+        $meeting->load(['attendees', 'awards.vendor', 'procurementCase', 'recordedBy']);
         return view('meetings.show', ['meeting' => $meeting]);
     }
 }

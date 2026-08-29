@@ -2,7 +2,10 @@
 @section('title', 'Procurement Cases')
 @section('content')
 
-<div style="font-size:13px;color:var(--muted);max-width:680px">Each case follows the 23-step ESDO procurement process — Goods → RFQ, Services → RFP, Works → RFT.</div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+  <div style="font-size:13px;color:var(--muted);max-width:680px">Each case follows the 23-step ESDO procurement process — Goods → RFQ, Services → RFP, Works → RFT.</div>
+  <a href="{{ route('cases.create') }}" class="btn btn-primary" style="white-space:nowrap">+ New Case</a>
+</div>
 
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
   @foreach ($cases as $case)

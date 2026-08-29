@@ -78,7 +78,10 @@
   </div>
 </div>
 
-<div style="max-width:760px;margin:14px auto 0;text-align:right">
+<div style="max-width:760px;margin:14px auto 0;text-align:right;display:flex;gap:8px;justify-content:flex-end">
+  <a href="{{ route('api.meetings.notice-document', $meeting) }}" class="btn btn-outline">Notice PDF</a>
+  <a href="{{ route('api.meetings.attendance-document', $meeting) }}" class="btn btn-outline">Attendance PDF</a>
+  <a href="{{ route('api.meetings.minutes-document', $meeting) }}" class="btn btn-outline">Minutes PDF</a>
   <button onclick="window.print()" class="btn btn-outline">Print</button>
 </div>
 

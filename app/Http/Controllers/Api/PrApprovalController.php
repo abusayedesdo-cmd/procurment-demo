@@ -32,9 +32,13 @@ class PrApprovalController extends Controller
         'Design_Drawing' => ['reviewed', 'approved'],
     ];
 
-    // 5 Lakh BDT. Keep in sync with the threshold check in
+    // ESDO Procurement Policy §8.1 PR approval table: Tk. 750,001 and
+    // above is the only tier where Executive Director sign-off is
+    // exclusive (no Focal Person alternative) — that is the real cutoff,
+    // not the 500,000 previously used here.
+    // Keep in sync with the threshold check in
     // resources/views/purchase-requisitions/show.blade.php (isHighValue()).
-    public const HIGH_VALUE_THRESHOLD = 500000;
+    public const HIGH_VALUE_THRESHOLD = 750000;
 
     public function index(Request $request, PurchaseRequisition $purchaseRequisition)
     {

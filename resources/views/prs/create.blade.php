@@ -38,7 +38,7 @@
     <button type="button" class="btn btn-outline" onclick="addRow()">+ Add line</button>
     <div style="flex:1"></div>
     <span style="font-size:13px;color:var(--muted)">Total estimated amount</span>
-    <b id="grand" style="font-size:20px;font-variant-numeric:tabular-nums">৳ 0.00</b>
+    <b id="grand" style="font-size:20px;font-variant-numeric:tabular-nums">Tk 0.00</b>
   </div>
 
   <div style="display:flex;gap:10px;justify-content:flex-end">

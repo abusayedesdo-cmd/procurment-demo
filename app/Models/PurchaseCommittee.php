@@ -11,6 +11,7 @@ class PurchaseCommittee extends Model
 
     protected $fillable = [
         'name',
+        'address',
         'type',
         'parent_committee_id',
     ];

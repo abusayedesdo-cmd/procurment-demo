@@ -17,6 +17,7 @@ class CommitteeController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:120',
             'designation' => 'required|string|max:120',
+            'email' => 'nullable|email|max:150',
             'role' => 'required|in:convener,member,member_secretary',
         ]);
 
@@ -31,5 +32,12 @@ class CommitteeController extends Controller
     {
         $member->update(['active' => ! $member->active]);
         return back()->with('ok', $member->active ? 'Member reactivated.' : 'Member deactivated.');
+    }
+
+    public function updateEmail(Request $request, ProcurementCommitteeMember $member)
+    {
+        $data = $request->validate(['email' => 'nullable|email|max:150']);
+        $member->update($data);
+        return back()->with('ok', 'Email updated for ' . $member->name . '.');
     }
 }

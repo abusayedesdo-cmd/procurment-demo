@@ -542,7 +542,7 @@
     }
 
     // Keep in sync with PrApprovalController::HIGH_VALUE_THRESHOLD.
-    const HIGH_VALUE_THRESHOLD = 500000;
+    const HIGH_VALUE_THRESHOLD = 750000;
     function isHighValue(pr) {
         return Number(pr.total_estimated_amount) >= HIGH_VALUE_THRESHOLD;
     }

@@ -20,10 +20,15 @@
         ol.terms li { margin-bottom: 4px; }
         .sig-block { margin-top: 30px; }
         .page-break { page-break-before: always; }
+        .doc-footer { text-align: center; margin-top: 20px; font-size: 9.5px; color: #444; }
+        .doc-footer .disclaimer { font-style: italic; margin-top: 3px; }
     </style>
 </head>
 <body>
       @yield('content')
-    <div class="doc-footer">Eso-Social Development Organization (ESDO) — Procurement Management System</div>
+    <div class="doc-footer">
+        <!-- Eso-Social Development Organization (ESDO) — Procurement Management System -->
+        <div class="disclaimer">(This is a system-generated document; signature is not required. The document is ready only after verification by the concerned official.)</div>
+    </div>
 </body>
 </html>

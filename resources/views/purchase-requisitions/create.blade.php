@@ -47,7 +47,7 @@
                 <input type="text" id="estimated_delivery_time" placeholder="e.g. 10:00 AM">
             </div>
             <div>
-                <label for="delivery_location">Delivery Location (Mandatory)</label>
+                <label for="delivery_location">Delivery Location </label>
                 <input type="text" id="delivery_location" required>
             </div>
             <div>
@@ -80,7 +80,7 @@
         <button type="button" class="btn secondary" id="addRowBtn" style="margin-top:.5rem;">+ Add Item</button>
 
         <div style="margin-top:1rem; text-align:right; font-weight:700;">
-            Total Estimated Amount: ৳ <span id="grandTotal">0.00</span>
+            Total Estimated Amount: Tk <span id="grandTotal">0.00</span>
         </div>
 
         <div style="margin-top:1.5rem; display:flex; gap:.5rem;">

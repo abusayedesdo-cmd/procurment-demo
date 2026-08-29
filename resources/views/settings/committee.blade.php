@@ -12,12 +12,19 @@
 
 <div class="card" style="overflow:hidden;margin-bottom:16px">
   <table class="data">
-    <thead><tr><th>Name</th><th>Designation</th><th>Role</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Designation</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
     <tbody>
       @foreach ($members as $m)
         <tr>
           <td>{{ $m->name }}</td>
           <td>{{ $m->designation }}</td>
+          <td>
+            <form method="POST" action="{{ route('settings.committee.update-email', $m) }}" style="display:flex;gap:6px;align-items:center">
+              @csrf
+              <input type="email" name="email" value="{{ $m->email }}" placeholder="add email" style="border:1px solid #D9DAE8;border-radius:6px;padding:5px 7px;font-size:12px;width:170px">
+              <button class="btn btn-outline" style="padding:5px 8px;font-size:12px">Save</button>
+            </form>
+          </td>
           <td>{{ $m->roleLabel() }}</td>
           <td>{{ $m->active ? 'Active' : 'Inactive' }}</td>
           <td>
@@ -39,6 +46,7 @@
     <div class="form-grid">
       <div class="field"><label>Name</label><input name="name" required></div>
       <div class="field"><label>Designation</label><input name="designation" placeholder="e.g. Sr. Procurement Manager" required></div>
+      <div class="field"><label>Email</label><input type="email" name="email" placeholder="for meeting notice emails"></div>
       <div class="field"><label>Role</label>
         <select name="role">
           <option value="convener">Convener</option>

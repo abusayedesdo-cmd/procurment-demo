@@ -3,6 +3,16 @@
 @section('title', 'Tender Opening ' . ($rfq->rfq_number ?? ''))
 
 @section('content')
+    <div style="width: 100%; position: relative; margin-bottom: 12px; min-height: 50px;">
+    @if (file_exists(public_path('img/esdo-logo.png')))
+        <img src="{{ public_path('img/esdo-logo.png') }}" style="position: absolute; left: 0; top: 0; height: 50px; width: auto;">
+    @endif
+        <div style="text-align: center; width: 100%;">
+            <div style="font-size: 16px; font-weight: bold; line-height: 1.2;">Eco-Social Development Organization (ESDO)</div>
+            <div style="font-size: 10px; color: #555; margin-top: 2px;">Collegepara(Gobindanagar),Thakurgaon, Rangpur, Bangladesh</div>
+        </div>
+    </div>
+
     <h1>TENDER OPENING REPORT</h1>
     <br>
     <p class="bold">RFQ/Tender Reference: {{ $rfq->rfq_number ?? '' }}</p>

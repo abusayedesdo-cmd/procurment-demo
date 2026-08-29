@@ -10,14 +10,13 @@ class Rfq extends Model
     use HasFactory;
 
     protected $fillable = [
-        'procurement_plan_id',
+        'procurement_case_id',
         'rfq_number',
-        'type',
         'subject',
+        'type',
         'issue_date',
         'closing_date',
         'file_path',
-       
     ];
 
     protected $casts = [
@@ -25,9 +24,9 @@ class Rfq extends Model
         'closing_date' => 'date',
     ];
 
-    public function procurementPlan()
+    public function procurementCase()
     {
-        return $this->belongsTo(ProcurementPlan::class, 'procurement_plan_id');
+        return $this->belongsTo(ProcurementCase::class, 'procurement_case_id');
     }
 
     public function tenderSchedules()

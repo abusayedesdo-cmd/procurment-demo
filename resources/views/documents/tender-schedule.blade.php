@@ -3,6 +3,16 @@
 @section('title', 'Tender Schedule ' . $rfq->rfq_number)
 
 @section('content')
+    <div style="width: 100%; position: relative; margin-bottom: 12px; min-height: 50px;">
+    @if (file_exists(public_path('img/esdo-logo.png')))
+        <img src="{{ public_path('img/esdo-logo.png') }}" style="position: absolute; left: 0; top: 0; height: 50px; width: auto;">
+    @endif
+        <div style="text-align: center; width: 100%;">
+            <div style="font-size: 16px; font-weight: bold; line-height: 1.2;">Eco-Social Development Organization (ESDO)</div>
+            <div style="font-size: 10px; color: #555; margin-top: 2px;">Collegepara(Gobindanagar),Thakurgaon, Rangpur, Bangladesh</div>
+        </div>
+    </div>
+
     <p class="bold">Reference: {{ $rfq->rfq_number }}</p>
     <p>Date: {{ optional($rfq->issue_date)->format('d.m.Y') }}</p>
 
@@ -16,7 +26,7 @@
         <tr><td class="bold">Submission Deadline</td><td>{{ optional($rfq->closing_date)->format('d F, Y, h:i A') }}</td></tr>
         <tr><td class="bold">Tender Validity</td><td>{{ $validityDays }} days from the submission deadline</td></tr>
         <tr><td class="bold">Delivery Location</td><td>[Project Office / District — fill in]</td></tr>
-        <tr><td class="bold">Expected Delivery Date</td><td>{{ optional($rfq->procurementPlan?->est_delivery_date)->format('d F, Y') ?: '[TBD]' }}</td></tr>
+        <tr><td class="bold">Expected Delivery Date</td><td>{{ optional($rfq->procurementCase?->purchaseRequisition?->procurementPlan?->est_delivery_date)->format('d F, Y') ?: '[TBD]' }}</td></tr>
         <tr><td class="bold">Performance Security</td><td>{{ $performanceSecurityPercent }}% of contract value (Works/Goods contracts above threshold)</td></tr>
         <tr><td class="bold">Delay Penalty</td><td>{{ $delayPenaltyPercent }}% of contract value per week of delay, max 10%</td></tr>
     </table>

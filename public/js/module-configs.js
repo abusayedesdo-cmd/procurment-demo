@@ -21,22 +21,42 @@ const MODULE_CONFIGS = {
     },
 
     // ---- C. Meetings ----
+    // NOTE: /modules/meetings, /modules/meeting-attendances and /modules/meeting-minutes
+    // are retired route-side (see routes/web.php) — the case-based flow
+    // (Cases -> a case -> 1st/2nd meeting, via MeetingController) replaced these
+    // generic pages. Kept here in sync with the real schema in case the generic
+    // engine is reused elsewhere (e.g. the Data Manager).
     'meetings': {
         title: 'Meeting (1st/2nd)',
         apiPath: '/meetings',
         listColumns: [
-            { key: 'procurement_plan.purchase_requisition.pr_number', label: 'PR' },
-            { key: 'meeting_sequence', label: 'Sequence' },
+            { key: 'procurement_case.ref', label: 'Case' },
+            { key: 'meeting_type', label: 'Type' },
             { key: 'meeting_date', label: 'Date' },
             { key: 'notice_number', label: 'Notice #' },
+            { key: 'held_at', label: 'Held At' },
         ],
         formFields: [
-            { name: 'procurement_plan_id', label: 'Procurement Plan', type: 'select', source: '/procurement-plans', labelField: r => r.purchase_requisition?.pr_number ?? `#${r.id}`, required: true },
-            { name: 'meeting_sequence', label: 'Sequence', type: 'enum', options: ['1st', '2nd'], required: true },
+            { name: 'procurement_case_id', label: 'Procurement Case', type: 'select', source: '/procurement-cases', labelField: 'ref', required: true },
+            { name: 'meeting_type', label: 'Meeting Type', type: 'enum', options: ['first', 'second'], required: true },
+            { name: 'rezulation_no', label: 'Resolution No.', type: 'text' },
+            { name: 'location', label: 'Location', type: 'text' },
             { name: 'meeting_date', label: 'Meeting Date', type: 'date', required: true },
+            { name: 'meeting_time', label: 'Meeting Time', type: 'text' },
             { name: 'notice_number', label: 'Notice Number', type: 'text' },
-            { name: 'notice_file', label: 'Notice File (path/URL)', type: 'text' },
-            { name: 'created_by', label: '', type: 'currentUser' },
+            { name: 'notice_date', label: 'Notice Date', type: 'date' },
+            { name: 'notice_file', label: 'Notice File (path/URL)', type: 'file' },
+            { name: 'attendance_number', label: 'Attendance Number', type: 'text' },
+            { name: 'agenda', label: 'Agenda', type: 'textarea' },
+            { name: 'publish_date', label: 'Publish Date', type: 'date' },
+            { name: 'closing_date', label: 'Closing Date', type: 'date' },
+            { name: 'opening_date', label: 'Opening Date', type: 'date' },
+            { name: 'schedule_override_reason', label: 'Schedule Override Reason', type: 'textarea' },
+            { name: 'decisions', label: 'Decisions', type: 'textarea' },
+            { name: 'attendance_file', label: 'Attendance File (path/URL)', type: 'file' },
+            { name: 'minutes_file', label: 'Minutes File (path/URL)', type: 'file' },
+            { name: 'held_at', label: 'Held At', type: 'datetime' },
+            { name: 'recorded_by', label: '', type: 'currentUser' },
         ],
     },
 
@@ -45,28 +65,54 @@ const MODULE_CONFIGS = {
         apiPath: '/meeting-attendances',
         listColumns: [
             { key: 'meeting.notice_number', label: 'Meeting' },
-            { key: 'user.name', label: 'User' },
+            { key: 'name', label: 'Name' },
+            { key: 'designation', label: 'Designation' },
             { key: 'present', label: 'Present' },
         ],
         formFields: [
             { name: 'meeting_id', label: 'Meeting', type: 'select', source: '/meetings', labelField: r => r.notice_number || `#${r.id}`, required: true },
-            { name: 'user_id', label: 'User', type: 'select', source: '/users', labelField: 'name', required: true },
+            { name: 'committee_member_id', label: 'Committee Member', type: 'select', source: '/procurement-committee-members', labelField: 'name', required: true },
+            { name: 'name', label: 'Name (snapshot)', type: 'text', required: true },
+            { name: 'designation', label: 'Designation (snapshot)', type: 'text', required: true },
             { name: 'present', label: 'Present', type: 'checkbox' },
-            { name: 'signature_file', label: 'Signature File (path)', type: 'text' },
+            { name: 'signature_file', label: 'Signature File (path)', type: 'file' },
+            { name: 'remarks', label: 'Remarks', type: 'text' },
+            { name: 'sort_order', label: 'Sort Order', type: 'number' },
         ],
     },
 
+    // No REST API exists for meeting-minutes (no apiResource route) — minutes/
+    // resolution data now lives on the Meeting record itself (rezulation_no,
+    // decisions, minutes_file). This entry has no working backend; consider
+    // dropping it from MODULE_GROUPS below rather than fixing its fields.
     'meeting-minutes': {
         title: 'Meeting Minutes / Resolution',
-        apiPath: '/meeting-minutes',
+        apiPath: null, // no apiResource route in routes/api.php — page will not function
         listColumns: [
-            { key: 'minutes_number', label: 'Minutes/Resolution #' },
             { key: 'meeting.notice_number', label: 'Meeting' },
+            { key: 'meeting.rezulation_no', label: 'Resolution #' },
         ],
         formFields: [
             { name: 'meeting_id', label: 'Meeting', type: 'select', source: '/meetings', labelField: r => r.notice_number || `#${r.id}`, required: true },
             { name: 'resolution_text', label: 'Resolution', type: 'textarea' },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
+        ],
+    },
+
+    'purchase-committees': {
+        title: 'Committees',
+        apiPath: '/purchase-committees',
+        listColumns: [
+            { key: 'name', label: 'Name' },
+            { key: 'address', label: 'Address' },
+            { key: 'type', label: 'Type' },
+            { key: 'parent_committee.name', label: 'Parent Committee' },
+        ],
+        formFields: [
+            { name: 'name', label: 'Committee Name', type: 'text', required: true },
+            { name: 'address', label: 'Address', type: 'text' },
+            { name: 'type', label: 'Type', type: 'enum', options: ['main', 'sub'], required: true },
+            { name: 'parent_committee_id', label: 'Parent Committee', type: 'select', source: '/purchase-committees', labelField: 'name' },
         ],
     },
 
@@ -102,11 +148,12 @@ const MODULE_CONFIGS = {
             { label: 'Download Tender Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-document` },
         ],
         formFields: [
-            { name: 'procurement_plan_id', label: 'Procurement Plan', type: 'select', source: '/procurement-plans', labelField: r => r.purchase_requisition?.pr_number ?? `#${r.id}`, required: true },
-            { name: 'type', label: 'Type', type: 'enum', options: ['RFQ', 'OTM'], required: true },
-            { name: 'issue_date', label: 'Issue Date', type: 'date', required: true },
-            { name: 'closing_date', label: 'Closing Date', type: 'date', required: true },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'procurement_case_id', label: 'Procurement Case', type: 'select', source: '/procurement-cases', labelField: 'ref', required: true },
+            { name: 'subject', label: 'Subject', type: 'text', required: true, autofillFrom: { field: 'procurement_case_id', property: 'title' } },
+            { name: 'type', label: 'Type', type: 'enum', options: ['RFQ', 'OTM'], required: true, autofillFrom: { field: 'procurement_case_id', property: 'rfq_type_hint' } },
+            { name: 'issue_date', label: 'Issue Date', type: 'date', required: true, autofillFrom: { field: 'procurement_case_id', property: 'issue_date_hint' } },
+            { name: 'closing_date', label: 'Closing Date', type: 'date', required: true, autofillFrom: { field: 'procurement_case_id', property: 'closing_date_hint' } },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 
@@ -117,11 +164,23 @@ const MODULE_CONFIGS = {
             { key: 'rfq.rfq_number', label: 'RFQ' },
             { key: 'category', label: 'Category' },
         ],
+        rowActions: [
+            { label: 'Preview', hrefBuilder: r => `/api/rfqs/${r.rfq_id}/tender-schedule-preview` },
+            { label: 'Download', hrefBuilder: r => `/api/rfqs/${r.rfq_id}/tender-schedule-document`, download: true },
+        ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
             { name: 'category', label: 'Category', type: 'enum', options: ['Goods', 'Works'], required: true },
             { name: 'schedule_details', label: 'Details', type: 'textarea' },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'validity_days', label: 'Validity (days)', type: 'number' },
+            { name: 'performance_security_percent', label: 'Performance Security %', type: 'number', step: '0.01' },
+            { name: 'delay_penalty_percent', label: 'Delay Penalty %', type: 'number', step: '0.01' },
+            { name: 'payment_terms', label: 'Payment Terms', type: 'textarea' },
+            { name: 'award_type', label: 'Award Type', type: 'text' },
+            { name: 'contract_type', label: 'Contract Type', type: 'text' },
+            { name: 'technical_weight', label: 'Technical Weight', type: 'number', step: '0.01' },
+            { name: 'financial_weight', label: 'Financial Weight', type: 'number', step: '0.01' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 
@@ -134,7 +193,7 @@ const MODULE_CONFIGS = {
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
             { name: 'proposal_details', label: 'Details', type: 'textarea' },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 
@@ -152,7 +211,7 @@ const MODULE_CONFIGS = {
             { name: 'medium', label: 'Medium', type: 'enum', options: ['Newspaper', 'bdjobs'], required: true },
             { name: 'category', label: 'Category', type: 'enum', options: ['Goods', 'Works', 'Service'], required: true },
             { name: 'publish_date', label: 'Publish Date', type: 'date', required: true },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 
@@ -187,13 +246,24 @@ const MODULE_CONFIGS = {
             { key: 'quoted_amount', label: 'Amount' },
             { key: 'status', label: 'Status' },
         ],
+        rowActions: [
+            { label: 'Preview', hrefBuilder: r => r.file_path || null },
+            { label: 'Download', hrefBuilder: r => r.file_path || null, download: true },
+        ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
             { name: 'vendor_id', label: 'Vendor', type: 'select', source: '/vendors', labelField: 'name', required: true },
             { name: 'submitted_at', label: 'Submitted At', type: 'datetime', required: true },
             { name: 'quoted_amount', label: 'Quoted Amount', type: 'number', step: '0.01', required: true },
             { name: 'status', label: 'Status', type: 'enum', options: ['received', 'opened', 'evaluated', 'disqualified'] },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'representative_name', label: 'Representative Name', type: 'text' },
+            { name: 'representative_contact', label: 'Representative Contact', type: 'text' },
+            { name: 'attended', label: 'Attended', type: 'checkbox' },
+            { name: 'trade_license_submitted', label: 'Trade License Submitted', type: 'checkbox' },
+            { name: 'tin_submitted', label: 'TIN Submitted', type: 'checkbox' },
+            { name: 'bin_submitted', label: 'BIN Submitted', type: 'checkbox' },
+            { name: 'opening_remarks', label: 'Opening Remarks', type: 'textarea' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 
@@ -210,8 +280,10 @@ const MODULE_CONFIGS = {
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
             { name: 'opening_date', label: 'Opening Date', type: 'date', required: true },
+            { name: 'venue', label: 'Venue', type: 'text' },
+            { name: 'opening_time', label: 'Opening Time', type: 'text' },
             { name: 'opened_by', label: '', type: 'currentUser' },
-            { name: 'report_file', label: 'Report File (path/URL)', type: 'text' },
+            { name: 'report_file', label: 'Report File (path/URL)', type: 'file' },
             { name: 'remarks', label: 'Remarks', type: 'textarea' },
         ],
     },
@@ -224,10 +296,14 @@ const MODULE_CONFIGS = {
             { key: 'rfq.rfq_number', label: 'RFQ' },
             { key: 'prepared_by.name', label: 'Prepared By' },
         ],
+        rowActions: [
+            { label: 'Preview', hrefBuilder: r => `/api/eligibility-reports/${r.id}/preview` },
+            { label: 'Download', hrefBuilder: r => `/api/eligibility-reports/${r.id}/document`, download: true },
+        ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
             { name: 'prepared_by', label: '', type: 'currentUser' },
-            { name: 'report_file', label: 'Report File (path/URL)', type: 'text' },
+            { name: 'report_file', label: 'Report File (path/URL)', type: 'file' },
         ],
     },
 
@@ -253,10 +329,14 @@ const MODULE_CONFIGS = {
             { key: 'rfq.rfq_number', label: 'RFQ' },
             { key: 'prepared_by.name', label: 'Prepared By' },
         ],
+        rowActions: [
+            { label: 'Preview', hrefBuilder: r => `/api/technical-evaluation-reports/${r.id}/preview` },
+            { label: 'Download', hrefBuilder: r => `/api/technical-evaluation-reports/${r.id}/document`, download: true },
+        ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
             { name: 'prepared_by', label: '', type: 'currentUser' },
-            { name: 'report_file', label: 'Report File (path/URL)', type: 'text' },
+            { name: 'report_file', label: 'Report File (path/URL)', type: 'file' },
         ],
     },
 
@@ -282,10 +362,14 @@ const MODULE_CONFIGS = {
             { key: 'rfq.rfq_number', label: 'RFQ' },
             { key: 'prepared_by.name', label: 'Prepared By' },
         ],
+        rowActions: [
+            { label: 'Preview', hrefBuilder: r => `/api/financial-evaluation-reports/${r.id}/preview` },
+            { label: 'Download', hrefBuilder: r => `/api/financial-evaluation-reports/${r.id}/document`, download: true },
+        ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
             { name: 'prepared_by', label: '', type: 'currentUser' },
-            { name: 'report_file', label: 'Report File (path/URL)', type: 'text' },
+            { name: 'report_file', label: 'Report File (path/URL)', type: 'file' },
         ],
     },
 
@@ -311,11 +395,15 @@ const MODULE_CONFIGS = {
             { key: 'rfq.rfq_number', label: 'RFQ' },
             { key: 'lowest_evaluated_vendor.name', label: 'Lowest Evaluated Vendor' },
         ],
+        rowActions: [
+            { label: 'Preview', hrefBuilder: r => `/api/comparative-statements/${r.id}/preview` },
+            { label: 'Download', hrefBuilder: r => `/api/comparative-statements/${r.id}/document`, download: true },
+        ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
             { name: 'prepared_by', label: '', type: 'currentUser' },
             { name: 'lowest_evaluated_vendor_id', label: 'Lowest Evaluated Vendor', type: 'select', source: '/vendors', labelField: 'name' },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 
@@ -349,8 +437,9 @@ const MODULE_CONFIGS = {
             { name: 'procurement_plan_id', label: 'Procurement Plan', type: 'select', source: '/procurement-plans', labelField: r => r.purchase_requisition?.pr_number ?? `#${r.id}`, required: true },
             { name: 'category', label: 'Category', type: 'enum', options: ['Work', 'Goods', 'Service'], required: true },
             { name: 'vendor_id', label: 'Awarded Vendor', type: 'select', source: '/vendors', labelField: 'name', required: true },
+            { name: 'noa_number', label: 'NOA Number', type: 'text', required: true },
             { name: 'noa_date', label: 'NOA Date', type: 'date', required: true },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 
@@ -384,8 +473,9 @@ const MODULE_CONFIGS = {
         formFields: [
             { name: 'contract_award_id', label: 'Contract Award', type: 'select', source: '/contract-awards', labelField: 'noa_number', required: true },
             { name: 'category', label: 'Category', type: 'enum', options: ['Work', 'Goods', 'Service'], required: true },
+            { name: 'agreement_number', label: 'Agreement Number', type: 'text', required: true },
             { name: 'agreement_date', label: 'Agreement Date', type: 'date', required: true },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 
@@ -400,8 +490,9 @@ const MODULE_CONFIGS = {
         formFields: [
             { name: 'contract_agreement_id', label: 'Contract Agreement', type: 'select', source: '/contract-agreements', labelField: 'agreement_number', required: true },
             { name: 'category', label: 'Category', type: 'enum', options: ['Work', 'Goods', 'Service'], required: true },
+            { name: 'wo_number', label: 'WO Number', type: 'text', required: true },
             { name: 'wo_date', label: 'WO Date', type: 'date', required: true },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 
@@ -419,7 +510,7 @@ const MODULE_CONFIGS = {
             { name: 'delivery_date', label: 'Delivery Date', type: 'date', required: true },
             { name: 'received_by', label: '', type: 'currentUser' },
             { name: 'remarks', label: 'Remarks', type: 'textarea' },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 
@@ -439,7 +530,7 @@ const MODULE_CONFIGS = {
             { name: 'start_date', label: 'Start Date', type: 'date', required: true },
             { name: 'end_date', label: 'End Date', type: 'date', required: true },
             { name: 'terms', label: 'Terms', type: 'textarea' },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 
@@ -458,7 +549,7 @@ const MODULE_CONFIGS = {
             { name: 'justification', label: 'Justification', type: 'textarea' },
             { name: 'approved_by', label: 'Approved By', type: 'select', source: '/users', labelField: 'name' },
             { name: 'approval_date', label: 'Approval Date', type: 'date' },
-            { name: 'file_path', label: 'File (path/URL)', type: 'text' },
+            { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
 };
@@ -466,7 +557,7 @@ const MODULE_CONFIGS = {
 /** Grouped for the /modules hub page nav, matching the document sections. */
 const MODULE_GROUPS = [
     { title: 'B. Procurement Plan', slugs: ['procurement-plans'] },
-    { title: 'C. Meetings & Committee', slugs: ['meetings', 'meeting-attendances', 'meeting-minutes', 'sub-committee-transfers'] },
+    { title: 'C. Meetings & Committee', slugs: ['purchase-committees', 'meetings', 'meeting-attendances', 'meeting-minutes', 'sub-committee-transfers'] },
     { title: 'C. RFQ / Tender', slugs: ['rfqs', 'tender-schedules', 'tender-proposals', 'tender-advertisements'] },
     { title: 'Vendors & Quotations', slugs: ['vendors', 'quotations', 'tender-openings'] },
     { title: 'C. Evaluation', slugs: ['eligibility-reports', 'eligibility-report-items', 'technical-evaluation-reports', 'technical-evaluation-items', 'financial-evaluation-reports', 'financial-evaluation-items', 'comparative-statements', 'comparative-statement-items'] },
