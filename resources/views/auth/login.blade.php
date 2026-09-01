@@ -2,7 +2,7 @@
 <html lang="bn">
 <head>
     <meta charset="UTF-8">
-    <title>ESDO Procurement — লগ-ইন</title>
+    <title>ESDO Procurement — Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: system-ui, sans-serif; background: #f5f6fa; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }
@@ -23,13 +23,13 @@
             <div class="error">{{ $errors->first() }}</div>
         @endif
 
-        <label for="email">ইমেইল</label>
+        <label for="email">Email</label>
         <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus>
 
-        <label for="password">পাসওয়ার্ড</label>
+        <label for="password">Password </label>
         <input id="password" type="password" name="password" required>
 
-        <button type="submit">লগ-ইন</button>
+        <button type="submit">Login</button>
     </form>
 </body>
 </html>

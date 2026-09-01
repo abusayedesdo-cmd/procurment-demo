@@ -18,6 +18,7 @@ class ProcessStepPageController extends Controller
             'subject' => 'Sub-Committee',
             'modules' => [
                 ['slug' => 'purchase-committees', 'title' => 'Committees (create Dhaka, Thakurgaon, etc.)'],
+                ['slug' => 'committee-members', 'title' => 'Committee Members'],
                 ['slug' => 'sub-committee-transfers', 'title' => 'Sub-Committee Transfer'],
             ],
         ],

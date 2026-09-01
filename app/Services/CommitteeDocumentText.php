@@ -28,10 +28,12 @@ class CommitteeDocumentText
         return $case->purchaseRequisition?->category?->name ?: $case->category;
     }
 
-    /** The specific subject of the PR, e.g. "5 Laptops for the Field Office". */
+    /** The specific subject of the PR — the Chart of Account name of its first line item. */
     public static function subCategoryName(ProcurementCase $case): string
     {
-        return $case->title;
+        $chartOfAccount = $case->purchaseRequisition?->items?->first()?->item?->chartOfAccount?->name;
+
+        return $chartOfAccount ?: $case->title;
     }
 
     /** "Regarding the Procuring [Sub Category] for the [Category]." */

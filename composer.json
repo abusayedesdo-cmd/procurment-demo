@@ -11,10 +11,7 @@
         "laravel/framework": "^10.10",
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
-<<<<<<< HEAD
         "phpoffice/phpspreadsheet": "^5.9",
-=======
->>>>>>> 17f553d94be223884a853c7e712b85e71d50acfc
         "phpoffice/phpword": "^1.4"
     },
     "require-dev": {

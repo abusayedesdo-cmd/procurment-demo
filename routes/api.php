@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\VendorDocumentController;
 use App\Http\Controllers\Api\WorkOrderController;
 use App\Http\Controllers\Api\BudgetLineController;
 use App\Http\Controllers\Api\PrBudgetCheckController;
+use App\Http\Controllers\Api\FileUploadController;
 use App\Http\Controllers\Api\ProcurementCaseController;
 use Illuminate\Support\Facades\Route;
 
@@ -178,6 +179,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('meetings/{meeting}/minutes-document', [DocumentDownloadController::class, 'meetingMinutes'])->name('api.meetings.minutes-document');
         Route::apiResource('sub-committee-transfers', SubCommitteeTransferController::class);
         Route::apiResource('procurement-cases', ProcurementCaseController::class)->only(['index', 'show']);
+        Route::post('uploads', [FileUploadController::class, 'store']);
         Route::apiResource('rfqs', RfqController::class);
         Route::apiResource('tender-schedules', TenderScheduleController::class);
         Route::apiResource('tender-proposals', TenderProposalController::class);
@@ -204,8 +206,17 @@ Route::middleware('auth:sanctum')->group(function () {
         // Document generation — downloadable .docx matching ESDO's real
         // paper formats.
         Route::get('rfqs/{rfq}/document', [DocumentDownloadController::class, 'rfq']);
+        Route::get('rfqs/{rfq}/preview', [DocumentDownloadController::class, 'rfqPreview']);
         Route::get('rfqs/{rfq}/tender-schedule-document', [DocumentDownloadController::class, 'tenderSchedule']);
         Route::get('rfqs/{rfq}/tender-schedule-preview', [DocumentDownloadController::class, 'tenderSchedulePreview']);
+        Route::get('eligibility-reports/{eligibilityReport}/document', [DocumentDownloadController::class, 'eligibilityReport']);
+        Route::get('eligibility-reports/{eligibilityReport}/preview', [DocumentDownloadController::class, 'eligibilityReportPreview']);
+        Route::get('technical-evaluation-reports/{technicalEvaluationReport}/document', [DocumentDownloadController::class, 'technicalEvaluationReport']);
+        Route::get('technical-evaluation-reports/{technicalEvaluationReport}/preview', [DocumentDownloadController::class, 'technicalEvaluationReportPreview']);
+        Route::get('financial-evaluation-reports/{financialEvaluationReport}/document', [DocumentDownloadController::class, 'financialEvaluationReport']);
+        Route::get('financial-evaluation-reports/{financialEvaluationReport}/preview', [DocumentDownloadController::class, 'financialEvaluationReportPreview']);
+        Route::get('comparative-statements/{comparativeStatement}/document', [DocumentDownloadController::class, 'comparativeStatement']);
+        Route::get('comparative-statements/{comparativeStatement}/preview', [DocumentDownloadController::class, 'comparativeStatementPreview']);
         Route::get('tender-openings/{tenderOpening}/document', [DocumentDownloadController::class, 'tenderOpening']);
     });
 });

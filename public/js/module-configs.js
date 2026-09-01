@@ -99,6 +99,21 @@ const MODULE_CONFIGS = {
         ],
     },
 
+    'committee-members': {
+        title: 'Committee Members',
+        apiPath: '/committee-members',
+        listColumns: [
+            { key: 'committee.name', label: 'Committee' },
+            { key: 'user.name', label: 'User' },
+            { key: 'designation_in_committee', label: 'Designation' },
+        ],
+        formFields: [
+            { name: 'committee_id', label: 'Committee', type: 'select', source: '/purchase-committees', labelField: 'name', required: true },
+            { name: 'user_id', label: 'User', type: 'select', source: '/users', labelField: 'name', required: true },
+            { name: 'designation_in_committee', label: 'Designation', type: 'text' },
+        ],
+    },
+
     'purchase-committees': {
         title: 'Committees',
         apiPath: '/purchase-committees',
@@ -144,8 +159,10 @@ const MODULE_CONFIGS = {
             { key: 'closing_date', label: 'Closing Date' },
         ],
         rowActions: [
-            { label: 'Download RFQ', hrefBuilder: r => `/api/rfqs/${r.id}/document` },
-            { label: 'Download Tender Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-document` },
+            { label: 'Preview RFQ', hrefBuilder: r => `/api/rfqs/${r.id}/preview` },
+            { label: 'Download RFQ', hrefBuilder: r => `/api/rfqs/${r.id}/document`, download: true },
+            { label: 'Preview Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-preview` },
+            { label: 'Download Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-document`, download: true },
         ],
         formFields: [
             { name: 'procurement_case_id', label: 'Procurement Case', type: 'select', source: '/procurement-cases', labelField: 'ref', required: true },
@@ -557,7 +574,7 @@ const MODULE_CONFIGS = {
 /** Grouped for the /modules hub page nav, matching the document sections. */
 const MODULE_GROUPS = [
     { title: 'B. Procurement Plan', slugs: ['procurement-plans'] },
-    { title: 'C. Meetings & Committee', slugs: ['purchase-committees', 'meetings', 'meeting-attendances', 'meeting-minutes', 'sub-committee-transfers'] },
+    { title: 'C. Meetings & Committee', slugs: ['purchase-committees', 'committee-members', 'meetings', 'meeting-attendances', 'meeting-minutes', 'sub-committee-transfers'] },
     { title: 'C. RFQ / Tender', slugs: ['rfqs', 'tender-schedules', 'tender-proposals', 'tender-advertisements'] },
     { title: 'Vendors & Quotations', slugs: ['vendors', 'quotations', 'tender-openings'] },
     { title: 'C. Evaluation', slugs: ['eligibility-reports', 'eligibility-report-items', 'technical-evaluation-reports', 'technical-evaluation-items', 'financial-evaluation-reports', 'financial-evaluation-items', 'comparative-statements', 'comparative-statement-items'] },

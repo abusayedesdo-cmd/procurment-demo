@@ -16,6 +16,7 @@ use App\Models\TechnicalEvaluationReport;
 use App\Models\FinancialEvaluationReport;
 use App\Models\ComparativeStatement;
 use App\Models\CommitteeMember;
+use App\Services\CommitteeDocumentText;
 use App\Services\NumberGeneratorService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -43,7 +44,39 @@ class DocumentDownloadController extends Controller
         'Compliance documents (Trade License, VAT, TIN, PSR)',
     ];
 
+    /** Documents required from every bidder — printed in the cover-letter table (ESDO standard set). */
+    protected const ELIGIBILITY_DOCUMENTS = [
+        'Valid Trade License',
+        'Tax Identification Number (TIN) & updated PSR copy',
+        '13-digit BIN Number',
+        'Reputed Company (company profile / registration)',
+        'Work Experience of similar works',
+    ];
+
     public function rfq(Rfq $rfq)
+    {
+        $pdf = Pdf::loadView('documents.rfq', $this->rfqViewData($rfq));
+
+        return $pdf->download("RFQ-{$this->safe($rfq->rfq_number)}.pdf");
+    }
+
+    /**
+     * Same document as rfq(), but streamed with an inline
+     * Content-Disposition so the "Preview" button opens it in the
+     * browser's own PDF viewer instead of forcing a download.
+     */
+    public function rfqPreview(Rfq $rfq)
+    {
+        $pdf = Pdf::loadView('documents.rfq', $this->rfqViewData($rfq));
+
+        return $pdf->stream("RFQ-{$this->safe($rfq->rfq_number)}.pdf");
+    }
+
+    /**
+     * Shared data-loading for rfq()/rfqPreview() so the download and
+     * preview routes can never drift apart.
+     */
+    protected function rfqViewData(Rfq $rfq): array
     {
         $rfq->loadMissing(
             'procurementCase.purchaseRequisition.items.item',
@@ -54,34 +87,17 @@ class DocumentDownloadController extends Controller
 
         [$signatoryName, $signatoryTitle] = $this->conveningOfficer();
 
-        $pdf = Pdf::loadView('documents.rfq', [
+        return [
             'rfq' => $rfq,
             'items' => $items,
             'signatoryName' => $signatoryName,
             'signatoryTitle' => $signatoryTitle,
-        ]);
-
-        return $pdf->download("RFQ-{$this->safe($rfq->rfq_number)}.pdf");
+        ];
     }
 
     public function tenderSchedule(Rfq $rfq)
     {
-        $rfq->loadMissing(
-            'procurementCase.purchaseRequisition.items.item.chartOfAccount',
-            'procurementCase.purchaseRequisition.items.unit',
-            'procurementCase.purchaseRequisition.procurementPlan'
-        );
-        $items = $rfq->procurementCase?->purchaseRequisition?->items ?? collect();
-        $itemsByCategory = $items->groupBy(fn ($line) => $line->item->chartOfAccount->name ?? 'General');
-
-        $pdf = Pdf::loadView('documents.tender-schedule', [
-            'rfq' => $rfq,
-            'itemsByCategory' => $itemsByCategory,
-            'validityDays' => self::VALIDITY_DAYS,
-            'performanceSecurityPercent' => self::PERFORMANCE_SECURITY_PERCENT,
-            'delayPenaltyPercent' => self::DELAY_PENALTY_PERCENT_PER_WEEK,
-            'technicalCriteria' => self::TECHNICAL_CRITERIA,
-        ]);
+        $pdf = Pdf::loadView('documents.tender-schedule', $this->tenderScheduleViewData($rfq));
 
         return $pdf->download("Tender-Schedule-{$this->safe($rfq->rfq_number)}.pdf");
     }
@@ -93,24 +109,50 @@ class DocumentDownloadController extends Controller
      */
     public function tenderSchedulePreview(Rfq $rfq)
     {
+        $pdf = Pdf::loadView('documents.tender-schedule', $this->tenderScheduleViewData($rfq));
+
+        return $pdf->stream("Tender-Schedule-{$this->safe($rfq->rfq_number)}.pdf");
+    }
+
+    /**
+     * Shared data-loading for tenderSchedule()/tenderSchedulePreview() so the
+     * download and preview routes can never drift apart. Adds the cover-letter
+     * (bidder-facing request letter) and the previously-missing requirement-table
+     * fields — bidder submission address, eligibility documents, currency/VAT/
+     * packing boilerplate, and the Member Secretary as contact person — on top
+     * of the price-schedule/evaluation data that was already here.
+     */
+    protected function tenderScheduleViewData(Rfq $rfq): array
+    {
         $rfq->loadMissing(
             'procurementCase.purchaseRequisition.items.item.chartOfAccount',
             'procurementCase.purchaseRequisition.items.unit',
             'procurementCase.purchaseRequisition.procurementPlan'
         );
-        $items = $rfq->procurementCase?->purchaseRequisition?->items ?? collect();
+
+        $case = $rfq->procurementCase;
+        $pr = $case?->purchaseRequisition;
+        $items = $pr?->items ?? collect();
         $itemsByCategory = $items->groupBy(fn ($line) => $line->item->chartOfAccount->name ?? 'General');
 
-        $pdf = Pdf::loadView('documents.tender-schedule', [
+        [$signatoryName, $signatoryTitle, $signatoryEmail] = $this->conveningOfficer();
+        $convener = $this->committeeConvener();
+
+        return [
             'rfq' => $rfq,
+            'case' => $case,
+            'pr' => $pr,
             'itemsByCategory' => $itemsByCategory,
             'validityDays' => self::VALIDITY_DAYS,
             'performanceSecurityPercent' => self::PERFORMANCE_SECURITY_PERCENT,
             'delayPenaltyPercent' => self::DELAY_PENALTY_PERCENT_PER_WEEK,
             'technicalCriteria' => self::TECHNICAL_CRITERIA,
-        ]);
-
-        return $pdf->stream("Tender-Schedule-{$this->safe($rfq->rfq_number)}.pdf");
+            'eligibilityDocuments' => self::ELIGIBILITY_DOCUMENTS,
+            'signatoryName' => $signatoryName,
+            'signatoryTitle' => $signatoryTitle,
+            'signatoryEmail' => $signatoryEmail,
+            'convenerName' => $convener?->name ?? 'Convener',
+        ];
     }
 
     public function eligibilityReport(EligibilityReport $eligibilityReport)
@@ -339,6 +381,11 @@ class DocumentDownloadController extends Controller
      * Pulls the Convener/Member Secretary of the "Central Procurement
      * Committee" for the RFQ signature block, if seeded. Falls back to
      * a placeholder if not found.
+     *
+     * Returns [name, roleLabel, email] — email is a bonus 3rd element
+     * (added for the Tender Schedule's "Contact Person for Inquiries"
+     * row); existing `[$name, $title] = conveningOfficer()` call sites
+     * are unaffected since PHP list-destructuring ignores extra values.
      */
     protected function conveningOfficer(string $committeeType = ProcurementCommitteeMember::CENTRAL_PROCUREMENT): array
     {
@@ -349,10 +396,10 @@ class DocumentDownloadController extends Controller
             ->first();
 
         if ($member) {
-            return [$member->name, $member->roleLabel()];
+            return [$member->name, $member->roleLabel(), $member->email];
         }
 
-        return ['[Member Secretary Name]', 'Member Secretary/Convener'];
+        return ['[Member Secretary Name]', 'Member Secretary/Convener', null];
     }
 
     /** The committee Convener specifically (for meeting/RFQ minutes/notice sign-off). */
@@ -367,7 +414,7 @@ class DocumentDownloadController extends Controller
 
     public function meetingNotice(Meeting $meeting, NumberGeneratorService $numbers)
     {
-        $meeting->load('procurementCase.purchaseRequisition');
+        $meeting->load('procurementCase.purchaseRequisition.items.item.chartOfAccount');
 
         if (! $meeting->notice_number) {
             $meeting->update([
@@ -376,10 +423,15 @@ class DocumentDownloadController extends Controller
             ]);
         }
 
+        $convener = $this->committeeConvener();
+
         $pdf = Pdf::loadView('documents.meeting-notice', [
             'meeting' => $meeting,
             'case' => $meeting->procurementCase,
-            'convener' => $this->committeeConvener(),
+            'convener' => $convener,
+            // Central Procurement Committee is addressed as one office per notice — Dhaka by default.
+            'committeeLocation' => 'Dhaka',
+            'memberDesignation' => 'Committee Member',
         ]);
 
         return $pdf->download("Meeting-Notice-{$this->safe($meeting->notice_number)}.pdf");
@@ -387,7 +439,7 @@ class DocumentDownloadController extends Controller
 
     public function meetingAttendance(Meeting $meeting, NumberGeneratorService $numbers)
     {
-        $meeting->load('procurementCase.purchaseRequisition', 'attendees');
+        $meeting->load('procurementCase.purchaseRequisition.items.item.chartOfAccount', 'attendees');
 
         if (! $meeting->attendance_number) {
             $meeting->update([
@@ -398,6 +450,7 @@ class DocumentDownloadController extends Controller
         $pdf = Pdf::loadView('documents.meeting-attendance', [
             'meeting' => $meeting,
             'case' => $meeting->procurementCase,
+            'committeeLocation' => 'Dhaka',
             'roster' => ProcurementCommitteeMember::activeRoster(),
             'convener' => $this->committeeConvener(),
         ]);
@@ -405,17 +458,28 @@ class DocumentDownloadController extends Controller
         return $pdf->download("Meeting-Attendance-{$this->safe($meeting->attendance_number)}.pdf");
     }
 
-    public function meetingMinutes(Meeting $meeting)
+    public function meetingMinutes(Meeting $meeting, NumberGeneratorService $numbers)
     {
-        $meeting->load('procurementCase.purchaseRequisition', 'attendees', 'awards.vendor');
+        $meeting->load('procurementCase.purchaseRequisition.items.item.chartOfAccount', 'attendees', 'awards.vendor');
+
+        if (! $meeting->rezulation_no) {
+            $meeting->update([
+                'rezulation_no' => $numbers->nextDocMemo('Procurement', 'Rezulation'),
+            ]);
+        }
+
+        [$memberSecretaryName] = $this->conveningOfficer();
 
         $pdf = Pdf::loadView('documents.meeting-minutes', [
             'meeting' => $meeting,
             'case' => $meeting->procurementCase,
             'convener' => $this->committeeConvener(),
+            'memberSecretaryName' => $memberSecretaryName,
+            'committeeLocation' => 'Dhaka',
+            'roster' => ProcurementCommitteeMember::activeRoster(),
         ]);
 
-        return $pdf->download("Rezulation-Minutes-{$meeting->rezulation_no}.pdf");
+        return $pdf->download("Rezulation-Minutes-{$this->safe($meeting->rezulation_no)}.pdf");
     }
 
     public function annualPlanPdf(ProcurementAnnualPlan $procurementAnnualPlan)
