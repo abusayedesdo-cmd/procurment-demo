@@ -5,13 +5,13 @@
 <?php $__env->startSection('content'); ?>
     <div id="errorBox" class="error-box" style="display:none;"></div>
 
-    <div class="card" style="margin-bottom:1rem;">
+    <div class="card" style="margin-bottom:1rem;" id="createPlanCard">
         <h3>Create New Plan</h3>
 
         <div class="row">
             <div>
                 <label for="w_project_name">Project Name</label>
-                <input type="text" id="w_project_name" placeholder="e.g. FRR Noakhali Project">
+                <input type="text" id="w_project_name" readonly placeholder="No project assigned">
             </div>
             <div>
                 <label for="w_district">District</label>
@@ -80,9 +80,10 @@
         </div>
 
         <div style="margin-top:1rem;">
-            <button class="btn" onclick="createPlan()">Create Plan</button>
+            <button class="btn" id="createPlanBtn" onclick="createPlan()">Create Plan</button>
         </div>
     </div>
+    <p class="muted" id="createPlanReadOnlyNote" style="display:none;">Annual Plans are created by the Accountant. You can view existing plans and their packages below.</p>
 
     <div id="plansList">Loading...</div>
 <?php $__env->stopSection(); ?>
@@ -116,7 +117,7 @@
     }
 
     function validatePlan(data) {
-        if (!data.project_name) return 'Please provide Project Name.';
+        if (!data.project_name) return 'Your account has no Project assigned. Contact your Admin to be assigned to a Project before creating a Plan.';
         if (!data.fiscal_year_start || !data.fiscal_year_end) return 'Please provide Fiscal Year Start and End.';
         if (data.fiscal_year_end <= data.fiscal_year_start) return 'Fiscal Year End must be after Start.';
         return null;
@@ -126,7 +127,9 @@
         errorBox.style.display = 'none';
 
         const data = {
-            project_name: document.getElementById('w_project_name').value.trim(),
+            // Read-only field, auto-filled from the logged-in user's assigned
+            // Project (set by Super Admin) — never typed by the user.
+            project_name: window.currentUserProject || '',
             district_id: document.getElementById('w_district').value || null,
             upazila_id: document.getElementById('w_upazila').value || null,
             project_location: document.getElementById('w_project_location').value.trim(),
@@ -234,6 +237,25 @@
     loadPlans();
     loadDistricts();
     loadUpazilas();
+
+    // Project Name is not typed — it always reflects the Project the Super
+    // Admin assigned this user to.
+    document.getElementById('w_project_name').value = window.currentUserProject || '';
+
+    // Annual Plans are created by the Accountant — keep the form in the DOM
+    // (loadDistricts/loadUpazilas above reach into it unconditionally) but
+    // disable it for everyone else, same pattern as the package form on the
+    // plan detail page.
+    (function gateCreatePlanForm() {
+        const canManage = window.currentUserRole === 'admin' || window.currentUserRole === 'budget_checker';
+        if (canManage) return;
+
+        const card = document.getElementById('createPlanCard');
+        card.querySelectorAll('input, select, textarea, button').forEach(el => el.disabled = true);
+        card.style.opacity = '0.55';
+        card.style.pointerEvents = 'none';
+        document.getElementById('createPlanReadOnlyNote').style.display = 'block';
+    })();
 </script>
 <?php $__env->stopSection(); ?>
 <?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/annual-plan/index.blade.php ENDPATH**/ ?>

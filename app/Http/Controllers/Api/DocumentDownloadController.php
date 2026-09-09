@@ -451,7 +451,6 @@ class DocumentDownloadController extends Controller
             'meeting' => $meeting,
             'case' => $meeting->procurementCase,
             'committeeLocation' => 'Dhaka',
-            'roster' => ProcurementCommitteeMember::activeRoster(),
             'convener' => $this->committeeConvener(),
         ]);
 
@@ -476,7 +475,6 @@ class DocumentDownloadController extends Controller
             'convener' => $this->committeeConvener(),
             'memberSecretaryName' => $memberSecretaryName,
             'committeeLocation' => 'Dhaka',
-            'roster' => ProcurementCommitteeMember::activeRoster(),
         ]);
 
         return $pdf->download("Rezulation-Minutes-{$this->safe($meeting->rezulation_no)}.pdf");

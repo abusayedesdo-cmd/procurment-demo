@@ -11,7 +11,7 @@ class PurchaseCommitteeController extends Controller
     public function index(Request $request)
     {
         $query = PurchaseCommittee::query();
-        $query->with(['parentCommittee', 'members']);
+        $query->with(['parentCommittee', 'members.user', 'project']);
 
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
 
@@ -28,7 +28,7 @@ class PurchaseCommitteeController extends Controller
 
     public function show(PurchaseCommittee $purchaseCommittee)
     {
-        $purchaseCommittee->load(['parentCommittee', 'members']);
+        $purchaseCommittee->load(['parentCommittee', 'members.user', 'project']);
 
         return response()->json([
             'success' => true,
@@ -36,14 +36,32 @@ class PurchaseCommitteeController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    /**
+     * Policy §9: sub-committees are formed for remote/specific projects; the
+     * central committee is organization-wide. So project_id is required
+     * exactly when type=sub, and cleared for type=main regardless of what
+     * was submitted (a main/central committee never belongs to one project).
+     */
+    private function rulesFor(?string $type): array
     {
-        $validated = $request->validate([
+        $isSub = $type === 'sub';
+
+        return [
             'name' => 'required|string|max:255',
             'address' => 'nullable|string|max:255',
             'type' => 'required|in:main,sub',
-            'parent_committee_id' => 'nullable|exists:purchase_committees,id'
-        ]);
+            'parent_committee_id' => 'nullable|exists:purchase_committees,id',
+            'project_id' => ($isSub ? 'required' : 'nullable') . '|exists:projects,id',
+        ];
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate($this->rulesFor($request->input('type')));
+
+        if ($validated['type'] === 'main') {
+            $validated['project_id'] = null;
+        }
 
         $purchaseCommittee = PurchaseCommittee::create($validated);
 
@@ -56,12 +74,16 @@ class PurchaseCommitteeController extends Controller
 
     public function update(Request $request, PurchaseCommittee $purchaseCommittee)
     {
-        $validated = $request->validate([
-            'name' => 'sometimes|required|string|max:255',
-            'address' => 'nullable|string|max:255',
-            'type' => 'sometimes|required|in:main,sub',
-            'parent_committee_id' => 'nullable|exists:purchase_committees,id'
-        ]);
+        $type = $request->input('type', $purchaseCommittee->type);
+        $rules = $this->rulesFor($type);
+        $rules['name'] = 'sometimes|required|string|max:255';
+        $rules['type'] = 'sometimes|required|in:main,sub';
+
+        $validated = $request->validate($rules);
+
+        if ($type === 'main') {
+            $validated['project_id'] = null;
+        }
 
         $purchaseCommittee->update($validated);
 

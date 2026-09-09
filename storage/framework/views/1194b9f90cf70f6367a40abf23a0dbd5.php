@@ -98,13 +98,13 @@
             </tr>
         </thead>
         <tbody>
-            <?php $__empty_1 = true; $__currentLoopData = $roster; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i => $member): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+            <?php $__empty_1 = true; $__currentLoopData = $meeting->attendees; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i => $attendee): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                 <tr style="height:30px">
                     <td class="row-num"><?php echo e(str_pad($i + 1, 2, '0', STR_PAD_LEFT)); ?></td>
-                    <td><?php echo e($member->name); ?></td>
-                    <td><?php echo e($member->roleLabel() === 'Convener' ? 'Convener' : ($member->designation ?: $member->roleLabel())); ?></td>
+                    <td><?php echo e($attendee->name); ?></td>
+                    <td><?php echo e($attendee->designation); ?></td>
                     <td>&nbsp;</td>
-                    <td>&nbsp;</td>
+                    <td><?php echo e($attendee->remarks); ?></td>
                 </tr>
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                 <?php for($i = 0; $i < 3; $i++): ?>
@@ -120,8 +120,9 @@
     <h2 class="section">Meeting Agenda:</h2>
     <ol class="agenda">
         <li>Reading and approval of the minutes of the previous meeting.</li>
-        <li>Regarding the <i><?php echo e(Txt::verb($case)); ?> <?php echo e(Txt::subCategoryName($case)); ?></i> for the <i><?php echo e(Txt::categoryName($case)); ?></i>.</li>
-        <li>Miscellaneous.</li>
+        <?php $__currentLoopData = Txt::agendaItems($case, $meeting->agenda); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <li><?php echo e($item); ?></li>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
     </ol>
 
     <h2 class="section">Decisions of Today's Meeting:</h2>
@@ -134,17 +135,14 @@
         </li>
         <li>
             <span class="bold">Regarding the <?php echo e(Txt::verb($case)); ?> <?php echo e(Txt::subCategoryName($case)); ?> for the <?php echo e(Txt::categoryName($case)); ?>:</span>
-            A requisition was submitted to the Central Procurement Committee, <?php echo e($committeeLocation); ?> for the
-            <i><?php echo e(Txt::verb($case)); ?> <?php echo e(Txt::subCategoryName($case)); ?></i> for the <i><?php echo e(Txt::categoryName($case)); ?></i>
-            under the <i><?php echo e(Txt::projectName($case) ?? 'N/A'); ?></i> Project.
+            <?php echo e($meeting->decisions ?: 'A requisition was submitted to the Central Procurement Committee, ' . $committeeLocation . ' for the ' . Txt::verb($case) . ' ' . Txt::subCategoryName($case) . ' for the ' . Txt::categoryName($case) . ' under the ' . (Txt::projectName($case) ?? 'N/A') . ' Project.'); ?>
+
             <br><br>
 
             <?php if($meeting->meeting_type === 'first'): ?>
                 After discussion, all committee members agreed, and the Committee confirmed the following tender schedule:
                 <ul class="schedule">
                     <li><span class="bold">Tender/RFQ/Sole Sourcing/Framework Agreement Vendor Publication Date:</span> <i><?php echo e(optional($meeting->publish_date)->format('d F, Y') ?: 'N/A'); ?></i></li>
-                    <li><span class="bold">Published / Invite / Advertisement To:</span> <i><?php echo e($meeting->publish_channel ?: 'N/A'); ?></i></li>
-                    <li>According to procurement policy tender will be opening <i><?php echo e($meeting->notice_period_days ? $meeting->notice_period_days.' days' : 'N/A'); ?></i> from Tender/RFQ/Sole Sourcing/Framework Agreement Vendor published.</li>
                     <?php if($meeting->schedule_override_reason): ?>
                         <li><span class="bold">Special Note:</span> <i><?php echo e($meeting->schedule_override_reason); ?></i></li>
                     <?php endif; ?>

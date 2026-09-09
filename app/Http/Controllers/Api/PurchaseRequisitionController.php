@@ -25,7 +25,7 @@ class PurchaseRequisitionController extends Controller
 
     public function index(Request $request)
     {
-        $query = PurchaseRequisition::query()->with(['category', 'raisedBy']);
+        $query = PurchaseRequisition::query()->with(['category', 'raisedBy', 'procurementPlan']);
 
         if ($request->filled('status')) {
             $statuses = array_filter(explode(',', $request->string('status')));
@@ -106,7 +106,7 @@ class PurchaseRequisitionController extends Controller
             }
 
             $pr = PurchaseRequisition::create([
-                'pr_number' => $this->numberGenerator->next('pr', 'PR-'),
+                'pr_number' => $this->numberGenerator->nextUnique('pr', 'PR-', 'purchase_requisitions', 'pr_number'),
                 'window_type' => $validated['window_type'],
                 'category_id' => $validated['category_id'],
                 'project_name' => $validated['project_name'] ?? null,

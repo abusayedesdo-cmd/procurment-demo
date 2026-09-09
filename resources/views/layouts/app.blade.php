@@ -168,6 +168,11 @@
             padding: .1rem .45rem;
             border-radius: 999px;
         }
+        .user-designation {
+            font-size: .68rem;
+            color: rgba(255,255,255,.55);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
 
         /* ---- Mobile topbar (hidden on desktop) ---- */
         .mobile-topbar {
@@ -256,6 +261,24 @@
         .btn.danger { background: var(--red); border-color: var(--red); }
         .btn.danger:hover { background: #7F1D1D; border-color: #7F1D1D; }
         .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-outline { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+        .btn-outline:hover { background: var(--surface); border-color: #CBD5E1; }
+
+        /* Small pill label — committee names, statuses, tags. */
+        .chip {
+            display: inline-block;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: .2rem .65rem;
+            font-size: .78rem;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        /* Use alongside .card when a card needs its own padding
+           independent of any nested full-bleed content. */
+        .card-pad { padding: 1.35rem 1.5rem; }
 
         .sidebar-footer .btn.secondary {
             width: 100%;
@@ -330,6 +353,16 @@
         }
         .muted { color: var(--muted); font-size: .85rem; }
 
+        /* ---- Flash / validation banners (shown at the top of .container) ---- */
+        .flash-banner {
+            padding: .7rem 1rem;
+            border-radius: 8px;
+            font-size: .88rem;
+            margin-bottom: 1rem;
+        }
+        .flash-ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-line); }
+        .flash-error { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-line); }
+
         /* ---- Responsive: sidebar becomes an off-canvas drawer ---- */
         @media (max-width: 900px) {
             .sidebar {
@@ -370,6 +403,9 @@
 
             <nav class="nav-links">
                 <a href="{{ route('dashboard') }}">Dashboard</a>
+                @if (auth()->user()->committeeMemberships()->exists())
+                    <a href="{{ route('committee-work.index') }}">My Committee Work</a>
+                @endif
                 <a href="{{ route('purchase-requisitions.index') }}">Purchase Requisitions</a>
                 @if (in_array(auth()->user()->roleName(), [\App\Models\User::BUDGET_CHECKER, \App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN]))
                     <a href="{{ route('budget-dashboard') }}">Budget Dashboard</a>
@@ -404,6 +440,9 @@
                     <span class="user-meta">
                         <span class="user-name">{{ auth()->user()->name ?? '' }}</span>
                         <span class="user-role">{{ \App\Models\User::ROLE_LABELS[auth()->user()->roleName()] ?? auth()->user()->roleName() }}</span>
+                        @if (!empty(auth()->user()->designation))
+                            <span class="user-designation">{{ auth()->user()->designation }}</span>
+                        @endif
                     </span>
                 </div>
                 <form method="POST" action="{{ route('logout') }}">
@@ -424,12 +463,24 @@
             </div>
 
             <div class="container">
+                @if (session('ok'))
+                    <div class="flash-banner flash-ok">{{ session('ok') }}</div>
+                @endif
+                @if (session('error'))
+                    <div class="flash-banner flash-error">{{ session('error') }}</div>
+                @endif
+                @if ($errors->any() && ! request()->routeIs('meetings.notice.create', 'meetings.attendance.create', 'meetings.resolution.create'))
+                    {{-- Those 3 forms already show their own inline error box; avoid a duplicate. --}}
+                    <div class="flash-banner flash-error">{{ $errors->first() }}</div>
+                @endif
                 @yield('content')
             </div>
         </div>
     </div>
 
     <script>
+        window.currentUserRole = @json(auth()->user()->roleName());
+        window.currentUserProject = @json(optional(auth()->user()->project)->name);
         const sidebarEl = document.getElementById('sidebar');
         const backdropEl = document.getElementById('sidebarBackdrop');
 

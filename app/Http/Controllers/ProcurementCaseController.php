@@ -45,7 +45,7 @@ class ProcurementCaseController extends Controller
         );
 
         $case = ProcurementCase::create($validated + [
-            'ref' => $numbers->next('case_ref', 'PC-', 4),
+            'ref' => $numbers->nextUnique('case_ref', 'PC-', 'procurement_cases', 'ref', 4),
             'current_step' => 0,
         ]);
 
@@ -56,7 +56,13 @@ class ProcurementCaseController extends Controller
 
     public function show(ProcurementCase $case)
     {
-        $case->load(['steps', 'meetings']);
+        $case->load([
+            'steps',
+            'meetings',
+            'purchaseRequisition.procurementPlan.subCommitteeTransfers' => function ($q) {
+                $q->latest('transfer_date')->with(['fromCommittee', 'toCommittee']);
+            },
+        ]);
         $phases = $case->steps->groupBy('phase');
         return view('cases.show', ['case' => $case, 'phases' => $phases]);
     }

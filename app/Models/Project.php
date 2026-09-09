@@ -24,4 +24,9 @@ class Project extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    public function committees()
+    {
+        return $this->hasMany(PurchaseCommittee::class);
+    }
 }

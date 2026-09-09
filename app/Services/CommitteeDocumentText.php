@@ -57,6 +57,32 @@ class CommitteeDocumentText
         return (float) ($case->purchaseRequisition?->total_estimated_amount ?? $case->amount);
     }
 
+    /**
+     * Splits the officer's own free-text agenda (from the Notice step form)
+     * into one list item per line, so what they actually typed shows up on
+     * the Notice/Attendance/Minutes documents instead of a fixed line.
+     * "Miscellaneous." is always appended as the closing item, matching
+     * every real ESDO meeting document. Falls back to the auto-derived
+     * "Regarding the ..." line only for older meetings recorded before the
+     * agenda textbox existed (so their documents don't render empty).
+     */
+    public static function agendaItems(ProcurementCase $case, ?string $agendaText): array
+    {
+        $lines = collect(preg_split('/\r\n|\r|\n/', trim((string) $agendaText)))
+            ->map(fn ($line) => trim($line))
+            ->filter()
+            ->values()
+            ->all();
+
+        if (! $lines) {
+            $lines = [self::verb($case) . ' ' . self::subCategoryName($case) . ' for the ' . self::categoryName($case)];
+        }
+
+        $lines[] = 'Miscellaneous.';
+
+        return $lines;
+    }
+
     /** "Tender" / "RFQ" / "Sole Sourcing" / "Framework Agreement" label for the solicitation method. */
     public static function solicitationLabel(ProcurementCase $case): string
     {

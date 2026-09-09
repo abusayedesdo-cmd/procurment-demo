@@ -11,6 +11,12 @@ use App\Http\Controllers\Api\ComparativeStatementItemController;
 use App\Http\Controllers\Api\ContractAgreementController;
 use App\Http\Controllers\Api\ContractAwardController;
 use App\Http\Controllers\Api\DeliveryReceiptController;
+use App\Http\Controllers\Api\FixedAssetController;
+use App\Http\Controllers\Api\GoodsReceiptNoteController;
+use App\Http\Controllers\Api\GoodsReceiptNoteItemController;
+use App\Http\Controllers\Api\StockLedgerEntryController;
+use App\Http\Controllers\Api\IndentSlipController;
+use App\Http\Controllers\Api\DispatchNoteController;
 use App\Http\Controllers\Api\DesignDrawingController;
 use App\Http\Controllers\Api\DocumentDownloadController;
 use App\Http\Controllers\Api\ProfileController;
@@ -27,11 +33,13 @@ use App\Http\Controllers\Api\PrApprovalController;
 use App\Http\Controllers\Api\PrItemController;
 use App\Http\Controllers\Api\ProcurementAnnualPlanController;
 use App\Http\Controllers\Api\ProcurementDistrictController;
+use App\Http\Controllers\Api\ProcurementCommitteeMemberController;
 use App\Http\Controllers\Api\ProcurementUpazilaController;
 use App\Http\Controllers\Api\ProcurementPlanPackageController;
 use App\Http\Controllers\Api\ProcurementCategoryController;
 use App\Http\Controllers\Api\ProcurementPlanController;
 use App\Http\Controllers\Api\PurchaseCommitteeController;
+use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\PurchaseRequisitionController;
 use App\Http\Controllers\Api\QuotationController;
 use App\Http\Controllers\Api\RfqController;
@@ -110,8 +118,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('chart-of-accounts', ChartOfAccountController::class);
     Route::apiResource('items', ItemController::class);
     Route::apiResource('units', UnitController::class);
-    Route::apiResource('purchase-committees', PurchaseCommitteeController::class);
-    Route::apiResource('committee-members', CommitteeMemberController::class);
+    // Committees are formed by the Super Admin only (ESDO Procurement
+    // Policy §9 puts committee composition under central control). Every
+    // logged-in user can still READ the committee list — the Procurement
+    // Officer needs it to pick a committee when raising a sub-committee
+    // transfer — but only Admin may create/edit/delete a committee or its
+    // membership.
+    Route::apiResource('purchase-committees', PurchaseCommitteeController::class)->only(['index', 'show']);
+    Route::apiResource('committee-members', CommitteeMemberController::class)->only(['index', 'show']);
+    // Projects — read-open (needed for the sub-committee's Project dropdown,
+    // Annual Plan references, etc.), Admin-only writes.
+    Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
+    Route::middleware('role:admin')->group(function () {
+        Route::apiResource('purchase-committees', PurchaseCommitteeController::class)->except(['index', 'show']);
+        Route::apiResource('committee-members', CommitteeMemberController::class)->except(['index', 'show']);
+        Route::apiResource('projects', ProjectController::class)->except(['index', 'show']);
+    });
     Route::apiResource('vendors', VendorController::class);
     Route::apiResource('vendor-documents', VendorDocumentController::class);
 
@@ -137,6 +159,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('budget-categories', [BudgetCategoryController::class, 'index']);
     Route::get('procurement-plan-packages', [ProcurementPlanPackageController::class, 'all']);
 
+    // Annual Plan — the Accountant (Budget Checker) owns creating/editing it;
+    // Procurement Officer (and everyone else logged in) keeps read-only
+    // access, since they still need to reference it — e.g. picking a
+    // package while raising a PR or building an RFQ/OTM case.
+    Route::get('procurement-annual-plans', [ProcurementAnnualPlanController::class, 'index']);
+    Route::get('procurement-annual-plans/{procurementAnnualPlan}', [ProcurementAnnualPlanController::class, 'show']);
+    Route::get('procurement-annual-plans/{procurementAnnualPlan}/packages', [ProcurementPlanPackageController::class, 'index']);
+    Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf', [DocumentDownloadController::class, 'annualPlanPdf']);
+    Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf/preview', [DocumentDownloadController::class, 'annualPlanPdfPreview']);
+    Route::get('procurement-annual-plans/{procurementAnnualPlan}/excel', [DocumentDownloadController::class, 'annualPlanExcel']);
+
+    // District/Upazila lookups — readable by everyone logged in. These back
+    // the Annual Plan create form (Accountant/budget_checker) as well as
+    // Procurement Officer's own screens, so they can't sit behind the
+    // procurement_officer/admin-only group below.
+    Route::get('procurement-districts', [ProcurementDistrictController::class, 'index']);
+    Route::get('procurement-upazilas', [ProcurementUpazilaController::class, 'index']);
+    Route::get('procurement-committee-members', [ProcurementCommitteeMemberController::class, 'index']);
+
      Route::middleware('role:budget_checker,admin')->group(function () {
         Route::post('budget-categories', [BudgetCategoryController::class, 'store']);
         Route::put('budget-categories/{budgetCategory}', [BudgetCategoryController::class, 'update']);
@@ -145,6 +186,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('budget-lines', [BudgetLineController::class, 'store']);
         Route::put('budget-lines/{budgetLine}', [BudgetLineController::class, 'update']);
         Route::delete('budget-lines/{budgetLine}', [BudgetLineController::class, 'destroy']);
+
+        // Annual Plan — Accountant-only writes (create/edit/delete the plan
+        // and its packages). This is the role/access change requested: it
+        // used to sit under Procurement Officer, it now sits here.
+        Route::post('procurement-annual-plans', [ProcurementAnnualPlanController::class, 'store']);
+        Route::put('procurement-annual-plans/{procurementAnnualPlan}', [ProcurementAnnualPlanController::class, 'update']);
+        Route::delete('procurement-annual-plans/{procurementAnnualPlan}', [ProcurementAnnualPlanController::class, 'destroy']);
+        Route::post('procurement-annual-plans/{procurementAnnualPlan}/packages', [ProcurementPlanPackageController::class, 'store']);
+        Route::put('procurement-plan-packages/{procurementPlanPackage}', [ProcurementPlanPackageController::class, 'update']);
+        Route::delete('procurement-plan-packages/{procurementPlanPackage}', [ProcurementPlanPackageController::class, 'destroy']);
     });
 
 
@@ -160,16 +211,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // B, C, D, E — Procurement Officer's desk.
     Route::middleware('role:procurement_officer,admin')->group(function () {
     Route::apiResource('procurement-plans', ProcurementPlanController::class)->except(['destroy']);
-    Route::apiResource('procurement-annual-plans', ProcurementAnnualPlanController::class);
-    Route::get('procurement-annual-plans/{procurementAnnualPlan}/packages', [ProcurementPlanPackageController::class, 'index']);
-    Route::post('procurement-annual-plans/{procurementAnnualPlan}/packages', [ProcurementPlanPackageController::class, 'store']);
-    Route::put('procurement-plan-packages/{procurementPlanPackage}', [ProcurementPlanPackageController::class, 'update']);
-    Route::delete('procurement-plan-packages/{procurementPlanPackage}', [ProcurementPlanPackageController::class, 'destroy']);
-    Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf', [DocumentDownloadController::class, 'annualPlanPdf']);
-    Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf/preview', [DocumentDownloadController::class, 'annualPlanPdfPreview']);
-    Route::get('procurement-annual-plans/{procurementAnnualPlan}/excel', [DocumentDownloadController::class, 'annualPlanExcel']);
-    Route::get('procurement-districts', [ProcurementDistrictController::class, 'index']);
-    Route::get('procurement-upazilas', [ProcurementUpazilaController::class, 'index']);
 
         Route::apiResource('meetings', MeetingController::class);
         Route::apiResource('meeting-attendances', MeetingAttendanceController::class);
@@ -199,6 +240,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('contract-agreements', ContractAgreementController::class);
         Route::apiResource('work-orders', WorkOrderController::class);
         Route::apiResource('delivery-receipts', DeliveryReceiptController::class);
+
+        // Stock / Inventory Management (ESDO Procurement Policy §26) —
+        // Fixed Assets register, Goods Receipt Notes (posts the received
+        // side of the stock ledger), Indent Slips + Dispatch Notes (posts
+        // the disbursed side). Read access is open to everyone above via
+        // the outer auth:sanctum group where relevant selects need it;
+        // these writes stay at procurement_officer/admin like the rest of
+        // this group.
+        Route::apiResource('fixed-assets', FixedAssetController::class);
+        Route::apiResource('goods-receipt-notes', GoodsReceiptNoteController::class);
+        Route::apiResource('goods-receipt-note-items', GoodsReceiptNoteItemController::class)->only(['index', 'show', 'store']);
+        Route::apiResource('stock-ledger-entries', StockLedgerEntryController::class)->only(['index', 'show']);
+        Route::apiResource('indent-slips', IndentSlipController::class);
+        Route::apiResource('dispatch-notes', DispatchNoteController::class)->only(['index', 'show', 'store']);
+
 
         Route::apiResource('framework-agreements', FrameworkAgreementController::class);
         Route::apiResource('sole-sourcing-requests', SoleSourcingRequestController::class);

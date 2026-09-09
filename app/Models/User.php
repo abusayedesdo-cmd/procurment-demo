@@ -32,7 +32,7 @@ class User extends Authenticatable
         self::REQUESTER            => 'Requester',
         self::PROGRAM_MANAGER      => 'Program Manager',
         self::REVIEWER             => 'Department Manager (Reviewer)',
-        self::BUDGET_CHECKER       => 'Department Manager (Budget Checker)',
+        self::BUDGET_CHECKER       => 'Accountant',
         self::APPROVER             => 'Department Manager (Approver)',
         self::FOCAL_PERSON         => 'Focal Person',
         self::EXECUTIVE_DIRECTOR   => 'Executive Director (ED)',

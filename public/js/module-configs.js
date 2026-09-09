@@ -102,6 +102,11 @@ const MODULE_CONFIGS = {
     'committee-members': {
         title: 'Committee Members',
         apiPath: '/committee-members',
+        // ESDO Procurement Policy §9 — committee membership is formed by
+        // Super Admin only. Everyone can still see who's on a committee;
+        // only Admin gets the "Add New" form.
+        adminOnly: true,
+        adminOnlyNote: 'Committee membership is managed by the Super Admin. Ask an Admin to add or change members.',
         listColumns: [
             { key: 'committee.name', label: 'Committee' },
             { key: 'user.name', label: 'User' },
@@ -117,16 +122,28 @@ const MODULE_CONFIGS = {
     'purchase-committees': {
         title: 'Committees',
         apiPath: '/purchase-committees',
+        // ESDO Procurement Policy §9 — only the Super Admin forms
+        // committees (main or sub). Procurement Officers still need to
+        // read this list (e.g. to pick a committee on Sub-Committee
+        // Transfer), so only the create/edit/delete form is hidden.
+        adminOnly: true,
+        adminOnlyNote: 'Committees are formed by the Super Admin. Ask an Admin to create or change a committee.',
         listColumns: [
             { key: 'name', label: 'Name' },
             { key: 'address', label: 'Address' },
             { key: 'type', label: 'Type' },
+            { key: 'project.name', label: 'Project' },
             { key: 'parent_committee.name', label: 'Parent Committee' },
         ],
         formFields: [
             { name: 'name', label: 'Committee Name', type: 'text', required: true },
             { name: 'address', label: 'Address', type: 'text' },
             { name: 'type', label: 'Type', type: 'enum', options: ['main', 'sub'], required: true },
+            // Policy §9: sub-committees are formed for a specific project;
+            // the main/central committee is organization-wide and has no
+            // project. Required only when Type = sub (server enforces this
+            // too — see PurchaseCommitteeController::rulesFor()).
+            { name: 'project_id', label: 'Project (required for Sub-committee)', type: 'select', source: '/projects', labelField: 'name' },
             { name: 'parent_committee_id', label: 'Parent Committee', type: 'select', source: '/purchase-committees', labelField: 'name' },
         ],
     },
@@ -281,6 +298,14 @@ const MODULE_CONFIGS = {
             { name: 'bin_submitted', label: 'BIN Submitted', type: 'checkbox' },
             { name: 'opening_remarks', label: 'Opening Remarks', type: 'textarea' },
             { name: 'file_path', label: 'File (path/URL)', type: 'file' },
+            // Earnest Money (ESDO Procurement Policy §24) — required for
+            // enlistment/OTM purchases; tracked per bidder since each vendor's
+            // EM is refunded, forfeited, or (if they win) converted to a
+            // Security Deposit on the Contract Award independently.
+            { name: 'earnest_money_required', label: 'Earnest Money Required', type: 'checkbox' },
+            { name: 'earnest_money_amount', label: 'Earnest Money Amount', type: 'number', step: '0.01' },
+            { name: 'earnest_money_status', label: 'Earnest Money Status', type: 'enum', options: ['not_required', 'held', 'refunded', 'forfeited'] },
+            { name: 'earnest_money_notes', label: 'Earnest Money Notes', type: 'textarea' },
         ],
     },
 
@@ -457,6 +482,17 @@ const MODULE_CONFIGS = {
             { name: 'noa_number', label: 'NOA Number', type: 'text', required: true },
             { name: 'noa_date', label: 'NOA Date', type: 'date', required: true },
             { name: 'file_path', label: 'File (path/URL)', type: 'file' },
+            // Security Deposit (ESDO Procurement Policy §23) — the winning
+            // bidder's Earnest Money converted and held until the warranty
+            // period ends; rate is set by the Project Coordinator per the
+            // nature/volume of the award (tender documents call this
+            // "Performance Security", e.g. 2% held for 90 days).
+            { name: 'security_deposit_required', label: 'Security Deposit Required', type: 'checkbox' },
+            { name: 'security_deposit_amount', label: 'Security Deposit Amount', type: 'number', step: '0.01' },
+            { name: 'security_deposit_percentage', label: 'Security Deposit %', type: 'number', step: '0.01' },
+            { name: 'security_deposit_status', label: 'Security Deposit Status', type: 'enum', options: ['held', 'returned', 'waived'] },
+            { name: 'warranty_period_ends_at', label: 'Warranty Period Ends', type: 'date' },
+            { name: 'security_deposit_returned_at', label: 'Security Deposit Returned On', type: 'date' },
         ],
     },
 

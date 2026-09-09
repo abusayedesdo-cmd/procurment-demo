@@ -20,7 +20,7 @@ class CommitteeMemberController extends Controller
     public function index(Request $request)
     {
         $query = CommitteeMember::query();
-        $query->with(['committee', 'user']);
+        $query->with(['committee', 'user', 'procurementCommitteeMember']);
 
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
 
@@ -37,7 +37,7 @@ class CommitteeMemberController extends Controller
 
     public function show(CommitteeMember $committeeMember)
     {
-        $committeeMember->load(['committee', 'user']);
+        $committeeMember->load(['committee', 'user', 'procurementCommitteeMember']);
 
         return response()->json([
             'success' => true,
@@ -49,8 +49,9 @@ class CommitteeMemberController extends Controller
     {
         $validated = $request->validate([
             'committee_id' => 'required|exists:purchase_committees,id',
-            'user_id' => 'required|exists:users,id',
-            'designation_in_committee' => 'nullable|string|max:255'
+            'user_id' => 'nullable|required_without:procurement_committee_member_id|exists:users,id',
+            'procurement_committee_member_id' => 'nullable|required_without:user_id|exists:procurement_committee_members,id',
+            'designation_in_committee' => 'nullable|string|max:255',
         ]);
 
         $this->assertWithinMaxSize($validated['committee_id']);
@@ -68,14 +69,15 @@ class CommitteeMemberController extends Controller
     {
         $validated = $request->validate([
             'committee_id' => 'sometimes|required|exists:purchase_committees,id',
-            'user_id' => 'sometimes|required|exists:users,id',
-            'designation_in_committee' => 'nullable|string|max:255'
+            'user_id' => 'nullable|exists:users,id',
+            'procurement_committee_member_id' => 'nullable|exists:procurement_committee_members,id',
+            'designation_in_committee' => 'nullable|string|max:255',
         ]);
 
-        // Only re-check the ceiling if this member is moving to a
-        // different committee — moving within the same committee (just
-        // changing designation) never changes headcount.
         if (isset($validated['committee_id']) && $validated['committee_id'] != $committeeMember->committee_id) {
+            // Only re-check the ceiling if this member is moving to a
+            // different committee — moving within the same committee (just
+            // changing designation) never changes headcount.
             $this->assertWithinMaxSize($validated['committee_id']);
         }
 

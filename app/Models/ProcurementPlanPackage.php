@@ -151,27 +151,41 @@ class ProcurementPlanPackage extends Model
 
     public function getAlreadyProcuredAttribute(): float
     {
-        return (float) $this->purchaseRequisitions()->where('status', 'approved')->sum('total_estimated_amount');
+        // Mirrors the Budget Line side: a PR's spend is reserved as soon as
+        // it clears the Budget Check ('checked' or later — 'approved'), not
+        // only once it reaches final sign-off. Otherwise the Remaining
+        // Budget C/F shown at check time never carries forward into the
+        // next PR's Remaining Budget B/F for package-linked PRs.
+        return (float) $this->purchaseRequisitions()->whereIn('status', ['checked', 'approved'])->sum('total_estimated_amount');
     }
 
     public function getRemainingBalanceAttribute(): float
     {
         $grand = $this->periods->firstWhere('period_type', 'grand_total');
 
-        return (float) ($grand->total ?? 0) - $this->already_procured;
+        // Packages that never had their period matrix filled in (bulk
+        // imports, quick-add, seeded data) have no 'grand_total' period
+        // row yet. Falling back to estimated_cost keeps this in sync with
+        // what the package was actually created/saved with, instead of
+        // silently reporting a 0 balance.
+        $total = $grand ? (float) $grand->total : (float) $this->estimated_cost;
+
+        return $total - $this->already_procured;
     }
 
     /**
-     * Takes the 7 manually-entered period slots (each optionally broken down
-     * into 12 monthly or 4 quarterly entries), computes Year-1 Total (sum of
-     * its 3 quarters) and the Grand Total, and upserts all 9 period rows plus
-     * their child entries. Nothing here trusts a client-submitted total —
-     * every total is derived from no_of_unit * rate, or summed from children.
+     * Takes the manually-entered period slots (Previous 2 years, Current
+     * Year, Year-2, Year-3 — each optionally broken down into 12 monthly or
+     * 4 quarterly entries), computes Year-1 Total (= Current Year's own
+     * total, whichever entry mode was used to build it) and the Grand
+     * Total, and upserts all period rows plus their child entries. Nothing
+     * here trusts a client-submitted total — every total is derived from
+     * no_of_unit * rate, or summed from children.
      */
     public function syncPeriods(array $input): void
     {
         $slots = $this->plan()->firstOrFail()->periodSlots();
-        $manualKeys = ['previous_2nd_year', 'previous_1st_year', 'current_year', 'quarter_1', 'quarter_2', 'quarter_3', 'year_2_total', 'year_3_total'];
+        $manualKeys = ['previous_2nd_year', 'previous_1st_year', 'current_year', 'year_2_total', 'year_3_total'];
         $computed = [];
 
         foreach ($manualKeys as $key) {
@@ -232,10 +246,17 @@ class ProcurementPlanPackage extends Model
             $computed[$key] = ['no_of_unit' => $noOfUnit, 'rate' => $rate, 'total' => $total];
         }
 
-        // Year-1 Total = sum of its 3 quarters (never manually entered).
-        $y1NoOfUnit = $computed['quarter_1']['no_of_unit'] + $computed['quarter_2']['no_of_unit'] + $computed['quarter_3']['no_of_unit'];
-        $y1Total = $computed['quarter_1']['total'] + $computed['quarter_2']['total'] + $computed['quarter_3']['total'];
-        $y1Rate = $computed['quarter_1']['rate'];
+        // Year-1 Total = Current Year's own total. Previously this summed
+        // three separate, hardcoded Quarter-1/2/3 fields that sat outside
+        // the "Select Year" flow entirely — a package could have real money
+        // in Current Year (any entry mode: monthly/yearly/quarterly) while
+        // those quarter fields stayed at their default 0, silently zeroing
+        // out Year-1 Total and the Grand Total downstream. Current Year's
+        // own "Quarterly" entry mode already covers that granularity, so
+        // there's no longer a second, disconnected place to enter it.
+        $y1NoOfUnit = $computed['current_year']['no_of_unit'];
+        $y1Total = $computed['current_year']['total'];
+        $y1Rate = $computed['current_year']['rate'];
 
         $y1Slot = $slots['year_1_total'];
         $this->periods()->updateOrCreate(

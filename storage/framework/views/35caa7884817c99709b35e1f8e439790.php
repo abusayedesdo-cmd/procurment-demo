@@ -129,7 +129,19 @@
             <?php else: ?>
                 <div class="case-grid">
                     <?php $__currentLoopData = $cases; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $case): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                        <a href="<?php echo e(route('cases.show', $case)); ?>?focus=meetings&step=<?php echo e($slug); ?>" class="case-card">
+                        <?php
+                            // Meeting-step pages jump straight into that step's own
+                            // form — the case is only listed here because it's
+                            // actually ready for this specific action.
+                            $firstMeeting = $case->relationLoaded('meetings') ? $case->meetings->first() : null;
+                            $cardUrl = match ($slug) {
+                                'meeting-notice' => route('meetings.notice.create', [$case, 'first']),
+                                'meeting-attendance' => $firstMeeting ? route('meetings.attendance.create', $firstMeeting) : route('cases.show', $case),
+                                'meeting-resolution' => $firstMeeting ? route('meetings.resolution.create', $firstMeeting) : route('cases.show', $case),
+                                default => route('cases.show', $case),
+                            };
+                        ?>
+                        <a href="<?php echo e($cardUrl); ?>" class="case-card">
                             <div class="top-row">
                                 <span><?php echo e($case->method); ?></span>
                                 <span>&middot;</span>

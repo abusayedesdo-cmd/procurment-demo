@@ -16,10 +16,21 @@ class ContractAward extends Model
         'noa_number',
         'noa_date',
         'file_path',
+        'security_deposit_required',
+        'security_deposit_amount',
+        'security_deposit_percentage',
+        'security_deposit_status',
+        'warranty_period_ends_at',
+        'security_deposit_returned_at',
     ];
 
     protected $casts = [
         'noa_date' => 'date',
+        'security_deposit_required' => 'boolean',
+        'security_deposit_amount' => 'decimal:2',
+        'security_deposit_percentage' => 'decimal:2',
+        'warranty_period_ends_at' => 'date',
+        'security_deposit_returned_at' => 'date',
     ];
 
     public function procurementPlan()

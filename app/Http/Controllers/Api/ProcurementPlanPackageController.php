@@ -48,6 +48,7 @@ class ProcurementPlanPackageController extends Controller
             'estimated_cost' => (float) $p->estimated_cost,
             'already_procured' => $p->already_procured,
             'remaining_balance' => $p->remaining_balance,
+            'budget_line_id' => $p->budget_line_id,
         ]);
 
         return response()->json(['success' => true, 'data' => $packages]);
@@ -82,7 +83,7 @@ class ProcurementPlanPackageController extends Controller
                 'specification' => $validated['specification'] ?? null,
                 'unit' => $validated['unit'] ?? null,
                 'remarks' => $validated['remarks'] ?? null,
-                'package_number' => app(NumberGeneratorService::class)->next('package', 'PKG-'),
+                'package_number' => app(NumberGeneratorService::class)->nextUnique('package', 'PKG-', 'procurement_plan_packages', 'package_number'),
             ]);
 
             $package->syncPeriods($validated['periods']);

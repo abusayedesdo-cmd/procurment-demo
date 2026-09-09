@@ -88,7 +88,9 @@
       // through unchanged.
       const categoryMap = { 'Goods': 'Goods', 'Works': 'Works', 'Service': 'Services', 'Services': 'Services' };
 
-      document.getElementById('prSelect').addEventListener('change', function () {
+      const prSelect = document.getElementById('prSelect');
+
+      prSelect.addEventListener('change', function () {
         const opt = this.selectedOptions[0];
         if (!opt || !opt.value) return;
 

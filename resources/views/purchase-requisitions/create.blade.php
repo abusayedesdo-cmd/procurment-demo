@@ -26,10 +26,10 @@
                 <label for="project_name">Project/Program Name</label>
                 <input type="text" id="project_name">
             </div>
-            <div>
+            <!-- <div>
                 <label for="budget_line_id">Budget Line</label>
                 <select id="budget_line_id"></select>
-            </div>
+            </div> -->
             <div>
                 <label for="package_id">Annual Plan Package</label>
                 <select id="package_id"></select>
@@ -266,13 +266,18 @@
                 categoriesRes.data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
             document.getElementById('category_id').addEventListener('change', refreshRowDropdownsForCategory);
 
-            document.getElementById('budget_line_id').innerHTML =
-                '<option value="">-- (Budget checker will assign later) --</option>' +
-                budgetLinesRes.data.map(l => `<option value="${l.id}">${l.code} — ${l.name}</option>`).join('');
 
             document.getElementById('package_id').innerHTML =
                 '<option value="">-- None --</option>' +
-                packagesRes.data.map(p => `<option value="${p.id}">${p.package_number ?? ''} — ${p.budgeted_head} (${p.plan_title})</option>`).join('');
+                packagesRes.data.map(p => `<option value="${p.id}" data-budget-line-id="${p.budget_line_id ?? ''}">${p.package_number ?? ''} — ${p.budgeted_head} (${p.plan_title})</option>`).join('');
+
+            // Picking an Annual Plan package locks the Budget Line to that
+            // package's own budget line — a PR raised against a package is
+            // checked against that package's allocation (see the
+            // Accountant's budget-check step). The Budget Line field itself
+            // is hidden from this form (see the commented-out block above)
+            // since the package already carries it — the server derives
+            // budget_line_id from procurement_plan_package_id on save.
 
             const me = meRes.data ?? meRes;
             if (me?.name) document.getElementById('requestor_name').value = me.name;
@@ -383,7 +388,7 @@
                 window_type: document.getElementById('window_type').value,
                 category_id: document.getElementById('category_id').value,
                 project_name: document.getElementById('project_name').value.trim() || null,
-                budget_line_id: document.getElementById('budget_line_id').value || null,
+                budget_line_id: null, // derived server-side from procurement_plan_package_id — see note above
                 procurement_plan_package_id: document.getElementById('package_id').value || null,
                 requisition_date: document.getElementById('requisition_date').value,
                 estimated_delivery_date: document.getElementById('estimated_delivery_date').value || null,

@@ -290,10 +290,21 @@
     function renderCheckForm(prId, checkData) {
         const pr = checkData.pr;
         const line = checkData.budget_line;
+        const fromPackage = checkData.budget_source === 'package';
 
         const lineOptions = (sharedBudgetLines || []).map(l => `
-            <option value="${l.id}" ${line && line.id === l.id ? 'selected' : ''}>${l.code} — ${l.name} (${l.category}) · balance ৳ ${money(l.balance)}</option>
+            <option value="${l.id}" ${!fromPackage && line && line.id === l.id ? 'selected' : ''}>${l.code} — ${l.name} (${l.category}) · balance ৳ ${money(l.balance)}</option>
         `).join('');
+
+        // When the PR was raised against a specific Annual Plan package, the
+        // Budget Line dropdown should reflect that package automatically
+        // (that's what the Budgetary Check figures below are computed
+        // against) instead of defaulting to "-- None --" — a package's id
+        // isn't a budget_lines row, so it gets its own pseudo-option rather
+        // than being matched against sharedBudgetLines.
+        const packageOption = fromPackage
+            ? `<option value="__package__" selected>Annual Plan Package: ${line.code} — ${line.name}</option>`
+            : '';
 
         return `
             <div class="card" style="margin-bottom:1rem;">
@@ -306,20 +317,23 @@
 
                 <label for="budgetLineSelect">Budget Line (optional — for linking the eventual expense)</label>
                 <select id="budgetLineSelect">
-                    <option value="">-- None --</option>
+                    ${packageOption}
+                    <option value="" ${!fromPackage && !line ? 'selected' : ''}>-- None --</option>
                     ${lineOptions}
                 </select>
+                ${fromPackage ? `<p class="muted" style="margin:.25rem 0 0;">This PR was raised against Annual Plan package <strong>${line.code}</strong> — the figures below are that package's own allocation. Pick a different Budget Line here only if you also want the eventual expense linked there.</p>` : ''}
 
                 <div class="row" style="margin-top:.75rem;">
                     <div>
                         <label for="allocatedBudget">Total Allocated Budget (৳)</label>
-                        <input type="number" id="allocatedBudget" step="0.01" value="${line ? line.total_allocated_budget : ''}">
+                        <input type="number" id="allocatedBudget" step="0.01" value="${line ? line.total_allocated_budget : ''}" ${line ? 'readonly' : ''}>
                     </div>
                     <div>
                         <label for="remainingBf">Remaining Budget B/F (৳)</label>
-                        <input type="number" id="remainingBf" step="0.01" value="${line ? line.remaining_budget_bf : ''}">
+                        <input type="number" id="remainingBf" step="0.01" value="${line ? line.remaining_budget_bf : ''}" ${line ? 'readonly' : ''}>
                     </div>
                 </div>
+                ${line ? '' : '<p class="muted" style="margin:.25rem 0 0;">This PR isn\'t linked to an Annual Plan package or Budget Line, so enter these figures manually.</p>'}
 
                 <table style="margin-top:.75rem;">
                     <tr><td class="muted">Amount of PR</td><td class="bold">৳ ${money(pr.total_estimated_amount)}</td></tr>
@@ -393,12 +407,28 @@
         bfInput.addEventListener('input', recalc);
 
         // Picking a different Budget Line re-fills Allocated Budget / Remaining B/F
-        // from that line's live figures — still editable afterwards.
+        // from that line's live figures — kept read-only/auto-set as long as
+        // a source (package or budget line) backs them; only "-- None --"
+        // opens them up for manual entry. The package pseudo-option (auto-
+        // selected when the PR came from an Annual Plan package) is skipped
+        // here since its figures are already prefilled from the package
+        // itself on initial render.
         lineSelect.addEventListener('change', (e) => {
+            if (e.target.value === '__package__') {
+                recalc();
+                return;
+            }
             const picked = sharedBudgetLines.find(l => String(l.id) === e.target.value);
             if (picked) {
                 allocatedInput.value = picked.approved_budget;
                 bfInput.value = picked.balance;
+                allocatedInput.readOnly = true;
+                bfInput.readOnly = true;
+            } else {
+                // "-- None --" — nothing to auto-set from, let the
+                // accountant enter the figures manually.
+                allocatedInput.readOnly = false;
+                bfInput.readOnly = false;
             }
             recalc();
         });
@@ -427,7 +457,9 @@
         }
 
         const payload = {
-            budget_line_id: lineSelect.value || null,
+            // The package pseudo-option isn't a real budget_lines row — send
+            // null so the "exists:budget_lines,id" validation still passes.
+            budget_line_id: (lineSelect.value && lineSelect.value !== '__package__') ? lineSelect.value : null,
             allocated_budget: Number(allocatedBudget),
             remaining_budget_bf: Number(remainingBf),
             is_budget_code_verified: document.getElementById('codeVerified').checked,

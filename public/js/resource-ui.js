@@ -30,11 +30,22 @@ async function initResourcePage(config) {
     errorBox.className = 'error-box';
     errorBox.style.display = 'none';
 
+    const successBox = document.createElement('div');
+    successBox.className = 'success-box';
+    successBox.style.cssText = 'display:none; background:#F0FDF4; color:#15803D; border:1px solid #BBF7D0; border-radius:8px; padding:.7rem 1rem; margin-bottom:1rem; font-size:.85rem; font-weight:600;';
+
     const selectCache = {};
 
     function showError(err) {
+        successBox.style.display = 'none';
         errorBox.textContent = err.message || String(err);
         errorBox.style.display = 'block';
+    }
+
+    function showSuccess(msg) {
+        errorBox.style.display = 'none';
+        successBox.textContent = msg;
+        successBox.style.display = 'block';
     }
 
     // ---- 1. Load every 'select' field's options FIRST, before drawing
@@ -173,16 +184,40 @@ async function initResourcePage(config) {
         }
     }
 
+    // Builds a human-readable label for a select field's chosen value, e.g.
+    // "Thakurgao Sub-Committee" instead of just its id — used to confirm
+    // what a submit actually did (see handleSubmit below).
+    function selectedLabel(fieldName, id) {
+        const field = config.formFields.find(f => f.name === fieldName);
+        if (!field || id == null) return null;
+        const rec = (selectCache[fieldName] || []).find(r => String(r.id) === String(id));
+        return rec ? optionLabel(field, rec) : null;
+    }
+
     async function handleSubmit(e) {
         e.preventDefault();
         errorBox.style.display = 'none';
+        successBox.style.display = 'none';
 
         const payload = {};
         config.formFields.forEach(f => { payload[f.name] = fieldValue(f); });
 
         try {
             await api.post(config.apiPath, payload);
+
+            // Generic "what just happened" confirmation. Rich only for
+            // modules that actually have these two fields (today: Sub-
+            // Committee Transfer) — everything else just gets "Saved.".
+            const toLabel = selectedLabel('to_committee_id', payload.to_committee_id);
+            const planLabel = selectedLabel('procurement_plan_id', payload.procurement_plan_id);
+            showSuccess(
+                toLabel
+                    ? `Sent — ${planLabel ?? 'this record'} has been transferred to ${toLabel}.`
+                    : 'Saved.'
+            );
+
             document.getElementById('resourceForm').reset();
+            applyQueryPrefill(); // keep any URL-driven prefill/lock after the reset
             await loadList();
         } catch (err) {
             showError(err);
@@ -194,6 +229,28 @@ async function initResourcePage(config) {
 
     const visibleFields = config.formFields.filter(f => f.type !== 'currentUser');
     const sectionTitleStyle = 'margin:0 0 1rem; font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--accent-dark);';
+
+    // Some modules (e.g. Committees, Committee Members) are formed by the
+    // Super Admin only — everyone can still read the list above, but the
+    // create form itself is hidden for non-admin users. The API enforces
+    // this too (role:admin on store/update/destroy); this is just so the
+    // form doesn't sit there inviting a 403. A few others (e.g. Stock
+    // Register) are pure running records — no form at all, for anyone.
+    const isAdmin = window.currentUserRole === 'admin';
+    const isReadOnly = config.readOnly === true;
+    const addFormBlock = (isReadOnly || (config.adminOnly && !isAdmin))
+        ? `<div class="card">
+               <h3 style="${sectionTitleStyle}">Add New</h3>
+               <p class="muted" style="margin:0;">${isReadOnly ? (config.readOnlyNote || 'This is a running record — entries are posted automatically and are not created here.') : (config.adminOnlyNote || 'This is managed by the Super Admin.')}</p>
+           </div>`
+        : `<div class="card">
+               <h3 style="${sectionTitleStyle}">Add New</h3>
+               <div id="prefillNotice"></div>
+               <form id="resourceForm">
+                   <div class="form-grid">${visibleFields.map(renderField).join('')}</div>
+                   <button type="submit" class="btn primary" style="margin-top:1rem;">Save</button>
+               </form>
+           </div>`;
 
     root.innerHTML = `
         <div id="errorBoxPlaceholder"></div>
@@ -208,18 +265,45 @@ async function initResourcePage(config) {
             </div>
         </div>
 
-        <div class="card">
-            <h3 style="${sectionTitleStyle}">Add New</h3>
-            <form id="resourceForm">
-                <div class="form-grid">${visibleFields.map(renderField).join('')}</div>
-                <button type="submit" class="btn primary" style="margin-top:1rem;">Save</button>
-            </form>
-        </div>
+        ${addFormBlock}
     `;
 
+    // Pre-fills a form field from the URL, e.g. `?new=1&field_procurement_plan_id=42`
+    // — used when arriving here from a specific record's own page (a case,
+    // a PR) so the officer doesn't have to hunt for it again in the
+    // dropdown. Locks the field once filled so it can't be changed by
+    // accident; only applies to fields that actually exist on this module.
+    // An optional `context_label` (e.g. a PR number) is shown above the
+    // form so it's clear what this submission is for.
+    function applyQueryPrefill() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('new') !== '1') return;
+
+        config.formFields.forEach(field => {
+            const raw = params.get(`field_${field.name}`);
+            if (raw === null) return;
+            const el = document.getElementById(`field_${field.name}`);
+            if (!el) return;
+            el.value = raw;
+            if (field.type === 'select' || field.type === 'enum') el.disabled = true;
+        });
+
+        const label = params.get('context_label');
+        const notice = document.getElementById('prefillNotice');
+        if (label && notice) {
+            notice.innerHTML = `<div style="background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; border-radius:8px; padding:.5rem .8rem; margin-bottom:.9rem; font-size:.82rem;">Prefilled for <b>${label}</b> — the linked field below is locked to it.</div>`;
+        }
+
+        document.getElementById('resourceForm')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     document.getElementById('errorBoxPlaceholder').replaceWith(errorBox);
-    document.getElementById('resourceForm').addEventListener('submit', handleSubmit);
-    wireAutofill();
+    errorBox.after(successBox);
+    if (!isReadOnly && (!config.adminOnly || isAdmin)) {
+        document.getElementById('resourceForm').addEventListener('submit', handleSubmit);
+        wireAutofill();
+        applyQueryPrefill();
+    }
 
     await loadList();
 }

@@ -159,6 +159,46 @@
     td.view-link a { color: var(--accent-dark); font-weight: 600; text-decoration: none; font-size: .85rem; }
     td.view-link a:hover { text-decoration: underline; }
 
+    /* ---- Action dropdown (Procurement Officer, approved PRs) ---- */
+    .action-menu { position: relative; display: inline-block; }
+    .action-menu .action-btn {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: .4rem .75rem;
+        font-size: .8rem;
+        font-weight: 600;
+        color: var(--ink);
+        cursor: pointer;
+        font-family: inherit;
+    }
+    .action-menu .action-btn:hover { border-color: #CBD5E1; background: var(--surface); }
+    .action-menu .action-dropdown {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 4px);
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+        min-width: 240px;
+        z-index: 20;
+        overflow: hidden;
+    }
+    .action-menu.open .action-dropdown { display: block; }
+    .action-dropdown a {
+        display: block;
+        padding: .6rem .85rem;
+        font-size: .82rem;
+        color: var(--ink);
+        text-decoration: none;
+        border-bottom: 1px solid var(--line);
+    }
+    .action-dropdown a:last-child { border-bottom: none; }
+    .action-dropdown a:hover { background: var(--surface); color: var(--accent-dark); }
+    .action-dropdown a.view-case { color: var(--accent-dark); font-weight: 600; }
+
     .badge {
         display: inline-block;
         padding: .2rem .65rem;
@@ -241,7 +281,7 @@
         <div class="page-header">
             <div>
                 <p class="eyebrow">Procurement</p>
-                <h1>Purchase Requisitions</h1>
+                <h1 id="pageTitle">Purchase Requisitions</h1>
             </div>
             <?php if(auth()->user()->isPrCreator()): ?>
                 <a href="<?php echo e(route('purchase-requisitions.create')); ?>" class="btn primary">+ New PR</a>
@@ -251,6 +291,7 @@
         <div class="panel">
             <div class="toolbar">
                 <div class="status-filters" id="statusFilters"></div>
+                <a href="<?php echo e(route('purchase-requisitions.index')); ?>" id="viewAllLink" class="btn secondary" style="display:none">← View all Purchase Requisitions</a>
             </div>
 
             <div id="errorBox" class="error-box" style="display:none;"></div>
@@ -265,11 +306,14 @@
                             <th>Date</th>
                             <th class="num">Total (৳)</th>
                             <th>Status</th>
+                            <?php if(auth()->user()->canManageProcurement()): ?>
+                                <th>Action</th>
+                            <?php endif; ?>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody id="prTableBody">
-                        <tr><td colspan="7" class="muted-cell">Loading…</td></tr>
+                        <tr><td colspan="<?php echo e(auth()->user()->canManageProcurement() ? 8 : 7); ?>" class="muted-cell">Loading…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -282,6 +326,35 @@
     const tbody = document.getElementById('prTableBody');
     const errorBox = document.getElementById('errorBox');
     const statusFilters = document.getElementById('statusFilters');
+    const CAN_MANAGE_PROCUREMENT = <?php echo json_encode(auth()->user()->canManageProcurement(), 15, 512) ?>;
+    const COLSPAN = CAN_MANAGE_PROCUREMENT ? 8 : 7;
+
+    // The 4 process steps the Procurement Officer starts from an approved
+    // PR — these link straight to the existing /process-steps/{slug} pages
+    // (ProcessStepPageController::STEPS), whose step numbers already match
+    // ESDO's own numbering (3rd/7th/8th/9th).
+    const ACTION_OPTIONS = [
+        { label: 'Transfer to Sub-Committee (3rd Step)', href: '/process-steps/sub-committee' },
+        { label: 'RFQ (7th Step)', href: '/process-steps/rfq' },
+        { label: 'RFP/RFI/Hiring Vendor/Consultant (8th Step)', href: '/process-steps/rfp-rfi' },
+        { label: 'Tender/OTM/Press tender/STD (9th Step)', href: '/process-steps/tender-otm' },
+    ];
+
+    function actionCell(pr) {
+        if (!CAN_MANAGE_PROCUREMENT || pr.status !== 'approved') {
+            return '<td></td>';
+        }
+
+        const options = ACTION_OPTIONS.map(o => `<a href="${o.href}">${o.label}</a>`).join('');
+        return `
+            <td>
+                <div class="action-menu">
+                    <button type="button" class="action-btn">Action ▾</button>
+                    <div class="action-dropdown">${options}</div>
+                </div>
+            </td>
+        `;
+    }
 
     const STATUS_OPTIONS = [
         { value: '', label: 'All', tone: 'all' },
@@ -293,10 +366,19 @@
         { value: 'rejected', label: 'Rejected', tone: 'rejected' },
     ];
 
-    // Pre-select status from ?status= query param (used by dashboard cards)
+    // Pre-select status from ?status= query param (used by dashboard cards).
+    // When arriving this way, it's a focused deep-link — show only that
+    // filtered list, not the full tab bar of every other status too.
     const urlParams = new URLSearchParams(window.location.search);
     let currentStatus = urlParams.get('status') ?? '';
     if (!STATUS_OPTIONS.some(o => o.value === currentStatus)) currentStatus = '';
+    const isDeepLink = urlParams.has('status') && currentStatus !== '';
+
+    if (isDeepLink) {
+        document.getElementById('viewAllLink').style.display = '';
+        const match = STATUS_OPTIONS.find(o => o.value === currentStatus);
+        if (match) document.getElementById('pageTitle').textContent = match.label + ' Purchase Requisitions';
+    }
 
     let allPrs = []; // full, unfiltered list — used both for counts and client-side filtering
 
@@ -314,6 +396,10 @@
     }
 
     function renderFilters(counts) {
+        if (isDeepLink) {
+            statusFilters.style.display = 'none';
+            return;
+        }
         statusFilters.innerHTML = STATUS_OPTIONS.map(o => `
             <button type="button" class="status-card ${o.value === currentStatus ? 'active' : ''}" data-tone="${o.tone}" data-value="${o.value}">
                 <span class="dot"></span>${o.label}
@@ -328,7 +414,7 @@
 
     function renderTable(prs) {
         if (!prs.length) {
-            tbody.innerHTML = '<tr><td colspan="7" class="muted-cell">No purchase requisitions found.</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="${COLSPAN}" class="muted-cell">No purchase requisitions found.</td></tr>`;
             return;
         }
 
@@ -340,10 +426,28 @@
                 <td>${pr.requisition_date}</td>
                 <td class="num">${Number(pr.total_estimated_amount).toLocaleString('en-BD', {minimumFractionDigits: 2})}</td>
                 <td>${badge(pr.status)}</td>
+                ${actionCell(pr)}
                 <td class="view-link"><a href="/purchase-requisitions/${pr.id}">View</a></td>
             </tr>
         `).join('');
     }
+
+    // Open/close the Action dropdown. Delegated on tbody since rows are
+    // re-rendered on every filter change.
+    tbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.action-btn');
+        const menu = e.target.closest('.action-menu');
+        if (btn && menu && btn === menu.querySelector('.action-btn')) {
+            const wasOpen = menu.classList.contains('open');
+            document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+            if (!wasOpen) menu.classList.add('open');
+        }
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.action-menu')) {
+            document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+        }
+    });
 
     function applyFilter() {
         const filtered = currentStatus
@@ -363,13 +467,17 @@
     });
 
     async function loadPrs() {
-        tbody.innerHTML = '<tr><td colspan="7" class="muted-cell">Loading…</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${COLSPAN}" class="muted-cell">Loading…</td></tr>`;
         errorBox.style.display = 'none';
         renderFilters({}); // show filter bar immediately with 0s while loading
 
         try {
-            // Fetch the full unfiltered list once — counts and table filtering are done client-side
-            const { data } = await api.get('/purchase-requisitions');
+            // Fetch the full unfiltered list once — counts and table filtering
+            // are done client-side. per_page must be set explicitly: the API
+            // defaults to 20 per page, which was silently truncating this
+            // list and made the dashboard's totals (from a direct DB count)
+            // disagree with what this page could see.
+            const { data } = await api.get('/purchase-requisitions?per_page=5000');
             allPrs = data;
 
             renderFilters(computeCounts(allPrs));

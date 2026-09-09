@@ -100,13 +100,13 @@
             </tr>
         </thead>
         <tbody>
-            @forelse ($roster as $i => $member)
+            @forelse ($meeting->attendees as $i => $attendee)
                 <tr style="height:30px">
                     <td class="row-num">{{ str_pad($i + 1, 2, '0', STR_PAD_LEFT) }}</td>
-                    <td>{{ $member->name }}</td>
-                    <td>{{ $member->roleLabel() === 'Convener' ? 'Convener' : ($member->designation ?: $member->roleLabel()) }}</td>
+                    <td>{{ $attendee->name }}</td>
+                    <td>{{ $attendee->designation }}</td>
                     <td>&nbsp;</td>
-                    <td>&nbsp;</td>
+                    <td>{{ $attendee->remarks }}</td>
                 </tr>
             @empty
                 @for ($i = 0; $i < 3; $i++)
@@ -122,8 +122,9 @@
     <h2 class="section">Meeting Agenda:</h2>
     <ol class="agenda">
         <li>Reading and approval of the minutes of the previous meeting.</li>
-        <li>Regarding the <i>{{ Txt::verb($case) }} {{ Txt::subCategoryName($case) }}</i> for the <i>{{ Txt::categoryName($case) }}</i>.</li>
-        <li>Miscellaneous.</li>
+        @foreach (Txt::agendaItems($case, $meeting->agenda) as $item)
+            <li>{{ $item }}</li>
+        @endforeach
     </ol>
 
     <h2 class="section">Decisions of Today's Meeting:</h2>
@@ -136,17 +137,13 @@
         </li>
         <li>
             <span class="bold">Regarding the {{ Txt::verb($case) }} {{ Txt::subCategoryName($case) }} for the {{ Txt::categoryName($case) }}:</span>
-            A requisition was submitted to the Central Procurement Committee, {{ $committeeLocation }} for the
-            <i>{{ Txt::verb($case) }} {{ Txt::subCategoryName($case) }}</i> for the <i>{{ Txt::categoryName($case) }}</i>
-            under the <i>{{ Txt::projectName($case) ?? 'N/A' }}</i> Project.
+            {{ $meeting->decisions ?: 'A requisition was submitted to the Central Procurement Committee, ' . $committeeLocation . ' for the ' . Txt::verb($case) . ' ' . Txt::subCategoryName($case) . ' for the ' . Txt::categoryName($case) . ' under the ' . (Txt::projectName($case) ?? 'N/A') . ' Project.' }}
             <br><br>
 
             @if ($meeting->meeting_type === 'first')
                 After discussion, all committee members agreed, and the Committee confirmed the following tender schedule:
                 <ul class="schedule">
                     <li><span class="bold">Tender/RFQ/Sole Sourcing/Framework Agreement Vendor Publication Date:</span> <i>{{ optional($meeting->publish_date)->format('d F, Y') ?: 'N/A' }}</i></li>
-                    <li><span class="bold">Published / Invite / Advertisement To:</span> <i>{{ $meeting->publish_channel ?: 'N/A' }}</i></li>
-                    <li>According to procurement policy tender will be opening <i>{{ $meeting->notice_period_days ? $meeting->notice_period_days.' days' : 'N/A' }}</i> from Tender/RFQ/Sole Sourcing/Framework Agreement Vendor published.</li>
                     @if ($meeting->schedule_override_reason)
                         <li><span class="bold">Special Note:</span> <i>{{ $meeting->schedule_override_reason }}</i></li>
                     @endif

@@ -125,8 +125,9 @@
 
         <h2 class="section">Meeting Agenda:</h2>
         <ol class="agenda">
-            <li>Regarding the <i>{{ Txt::verb($case) }} {{ Txt::subCategoryName($case) }}</i> for the <i>{{ Txt::categoryName($case) }}</i>.</li>
-            <li>Miscellaneous.</li>
+            @foreach (Txt::agendaItems($case, $meeting->agenda) as $item)
+                <li>{{ $item }}</li>
+            @endforeach
         </ol>
 
         <p style="margin-top:24px;">With Thanks</p>

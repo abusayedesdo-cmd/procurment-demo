@@ -55,12 +55,25 @@ class PurchaseRequisition extends Model
                 return;
             }
 
-            $packageProjectId = ProcurementPlanPackage::withoutGlobalScopes()
-                ->whereKey($pr->procurement_plan_package_id)
-                ->value('project_id');
+            $package = ProcurementPlanPackage::withoutGlobalScopes()
+                ->find($pr->procurement_plan_package_id);
 
-            if ($packageProjectId) {
-                $pr->project_id = $packageProjectId;
+            if (! $package) {
+                return;
+            }
+
+            if ($package->project_id) {
+                $pr->project_id = $package->project_id;
+            }
+
+            // The package's own budget line always wins over whatever the
+            // requester picked separately — a PR raised against a specific
+            // Annual Plan package is checked against that package's
+            // allocation (see PrBudgetCheckController), and its rollup
+            // budget line follows automatically rather than being a second,
+            // independently-chosen field that could point somewhere else.
+            if ($package->budget_line_id) {
+                $pr->budget_line_id = $package->budget_line_id;
             }
         });
     }

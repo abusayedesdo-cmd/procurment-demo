@@ -151,7 +151,8 @@
             <p>Create accounts, assign roles, and manage access for everyone using the Procurement system.</p>
         </div>
         <div style="display:flex; gap:.6rem;">
-            <a href="<?php echo e(route('admin.database.index')); ?>?table=projects" class="btn outline">Manage Projects</a>
+            <a href="<?php echo e(route('admin.projects.index')); ?>" class="btn outline">Manage Projects</a>
+            <a href="<?php echo e(route('admin.committees.index')); ?>" class="btn outline">Manage Committees</a>
             <button class="btn primary" id="btnNewUser">+ New User</button>
         </div>
     </div>

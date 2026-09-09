@@ -101,6 +101,15 @@ class ProcessStepPageController extends Controller
         ],
     ];
 
+    /**
+     * The 1st meeting's Notice/Attendance/Resolution are 3 separate steps
+     * sharing one Meeting record. Each of these pages should only list
+     * cases that are actually ready for that specific step — not every
+     * case, or a case would sit on all 3 pages at once with no way to
+     * tell which action is actually next.
+     */
+    private const MEETING_STEP_SLUGS = ['meeting-notice', 'meeting-attendance', 'meeting-resolution'];
+
     public function show(string $slug)
     {
         abort_unless(array_key_exists($slug, self::STEPS), 404);
@@ -109,7 +118,9 @@ class ProcessStepPageController extends Controller
         $cases = null;
 
         $usesCasesFlow = collect($step['modules'])->contains(fn ($m) => ($m['route'] ?? null) === 'cases.index');
-        if ($usesCasesFlow) {
+        if ($usesCasesFlow && in_array($slug, self::MEETING_STEP_SLUGS, true)) {
+            $cases = $this->casesReadyForMeetingStep($slug);
+        } elseif ($usesCasesFlow) {
             $cases = \App\Models\ProcurementCase::latest()->get();
         }
 
@@ -118,5 +129,27 @@ class ProcessStepPageController extends Controller
             'step' => $step,
             'cases' => $cases,
         ]);
+    }
+
+    private function casesReadyForMeetingStep(string $slug)
+    {
+        $query = \App\Models\ProcurementCase::query();
+
+        return match ($slug) {
+            // Ready for Notice: the 1st meeting hasn't been scheduled yet.
+            'meeting-notice' => $query->whereDoesntHave('meetings', fn ($q) => $q->where('meeting_type', 'first'))
+                ->latest()->get(),
+            // Ready for Attendance: notice sent, attendance not recorded yet.
+            'meeting-attendance' => $query->whereHas('meetings', fn ($q) => $q
+                ->where('meeting_type', 'first')->whereNull('attendance_number'))
+                ->with(['meetings' => fn ($q) => $q->where('meeting_type', 'first')])
+                ->latest()->get(),
+            // Ready for Resolution: attendance recorded, not yet finalized.
+            'meeting-resolution' => $query->whereHas('meetings', fn ($q) => $q
+                ->where('meeting_type', 'first')->whereNotNull('attendance_number')->whereNull('rezulation_no'))
+                ->with(['meetings' => fn ($q) => $q->where('meeting_type', 'first')])
+                ->latest()->get(),
+            default => $query->latest()->get(),
+        };
     }
 }

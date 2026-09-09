@@ -168,6 +168,11 @@
             padding: .1rem .45rem;
             border-radius: 999px;
         }
+        .user-designation {
+            font-size: .68rem;
+            color: rgba(255,255,255,.55);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
 
         /* ---- Mobile topbar (hidden on desktop) ---- */
         .mobile-topbar {
@@ -256,6 +261,24 @@
         .btn.danger { background: var(--red); border-color: var(--red); }
         .btn.danger:hover { background: #7F1D1D; border-color: #7F1D1D; }
         .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-outline { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+        .btn-outline:hover { background: var(--surface); border-color: #CBD5E1; }
+
+        /* Small pill label — committee names, statuses, tags. */
+        .chip {
+            display: inline-block;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: .2rem .65rem;
+            font-size: .78rem;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        /* Use alongside .card when a card needs its own padding
+           independent of any nested full-bleed content. */
+        .card-pad { padding: 1.35rem 1.5rem; }
 
         .sidebar-footer .btn.secondary {
             width: 100%;
@@ -330,6 +353,16 @@
         }
         .muted { color: var(--muted); font-size: .85rem; }
 
+        /* ---- Flash / validation banners (shown at the top of .container) ---- */
+        .flash-banner {
+            padding: .7rem 1rem;
+            border-radius: 8px;
+            font-size: .88rem;
+            margin-bottom: 1rem;
+        }
+        .flash-ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-line); }
+        .flash-error { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-line); }
+
         /* ---- Responsive: sidebar becomes an off-canvas drawer ---- */
         @media (max-width: 900px) {
             .sidebar {
@@ -370,6 +403,9 @@
 
             <nav class="nav-links">
                 <a href="<?php echo e(route('dashboard')); ?>">Dashboard</a>
+                <?php if(auth()->user()->committeeMemberships()->exists()): ?>
+                    <a href="<?php echo e(route('committee-work.index')); ?>">My Committee Work</a>
+                <?php endif; ?>
                 <a href="<?php echo e(route('purchase-requisitions.index')); ?>">Purchase Requisitions</a>
                 <?php if(in_array(auth()->user()->roleName(), [\App\Models\User::BUDGET_CHECKER, \App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN])): ?>
                     <a href="<?php echo e(route('budget-dashboard')); ?>">Budget Dashboard</a>
@@ -404,6 +440,9 @@
                     <span class="user-meta">
                         <span class="user-name"><?php echo e(auth()->user()->name ?? ''); ?></span>
                         <span class="user-role"><?php echo e(\App\Models\User::ROLE_LABELS[auth()->user()->roleName()] ?? auth()->user()->roleName()); ?></span>
+                        <?php if(!empty(auth()->user()->designation)): ?>
+                            <span class="user-designation"><?php echo e(auth()->user()->designation); ?></span>
+                        <?php endif; ?>
                     </span>
                 </div>
                 <form method="POST" action="<?php echo e(route('logout')); ?>">
@@ -424,12 +463,24 @@
             </div>
 
             <div class="container">
+                <?php if(session('ok')): ?>
+                    <div class="flash-banner flash-ok"><?php echo e(session('ok')); ?></div>
+                <?php endif; ?>
+                <?php if(session('error')): ?>
+                    <div class="flash-banner flash-error"><?php echo e(session('error')); ?></div>
+                <?php endif; ?>
+                <?php if($errors->any() && ! request()->routeIs('meetings.notice.create', 'meetings.attendance.create', 'meetings.resolution.create')): ?>
+                    
+                    <div class="flash-banner flash-error"><?php echo e($errors->first()); ?></div>
+                <?php endif; ?>
                 <?php echo $__env->yieldContent('content'); ?>
             </div>
         </div>
     </div>
 
     <script>
+        window.currentUserRole = <?php echo json_encode(auth()->user()->roleName(), 15, 512) ?>;
+        window.currentUserProject = <?php echo json_encode(optional(auth()->user()->project)->name, 15, 512) ?>;
         const sidebarEl = document.getElementById('sidebar');
         const backdropEl = document.getElementById('sidebarBackdrop');
 

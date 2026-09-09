@@ -3,9 +3,12 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\AdminDatabasePageController;
 use App\Http\Controllers\AdminUserPageController;
+use App\Http\Controllers\AdminProjectPageController;
+use App\Http\Controllers\AdminCommitteePageController;
 use App\Http\Controllers\AnnualPlanPageController;
 use App\Http\Controllers\BudgetDashboardPageController;
 use App\Http\Controllers\CommitteeController;
+use App\Http\Controllers\CommitteeWorkController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\ModulePageController;
@@ -34,6 +37,7 @@ Route::post('/logout', [LoginController::class, 'logout'])
 
 Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/committee-work', [CommitteeWorkController::class, 'index'])->name('committee-work.index');
     Route::get('/budget-dashboard', [BudgetDashboardPageController::class, 'index'])->name('budget-dashboard');
     Route::get('/annual-plans', [AnnualPlanPageController::class, 'index'])->name('annual-plans.index');
     Route::get('/annual-plans/{id}', [AnnualPlanPageController::class, 'show'])->name('annual-plans.show');
@@ -73,10 +77,25 @@ Route::middleware('auth')->group(function () {
             Route::post('/{case}/complete-step', [ProcurementCaseController::class, 'completeStep'])->name('complete-step');
         });
 
-        Route::get('/cases/{case}/meetings/{type}/create', [MeetingController::class, 'create'])
-            ->name('meetings.create')->where('type', 'first|second');
-        Route::post('/cases/{case}/meetings/{type}', [MeetingController::class, 'store'])
-            ->name('meetings.store')->where('type', 'first|second');
+        // The 1st/2nd meeting is recorded in 3 separate steps — Notice (before
+        // the meeting), Attendance (who showed up), Resolution (decisions +
+        // rezulation) — matching the 3 separate sidebar/process-step pages,
+        // instead of one combined form.
+        Route::get('/cases/{case}/meetings/{type}/notice/create', [MeetingController::class, 'createNotice'])
+            ->name('meetings.notice.create')->where('type', 'first|second');
+        Route::post('/cases/{case}/meetings/{type}/notice', [MeetingController::class, 'storeNotice'])
+            ->name('meetings.notice.store')->where('type', 'first|second');
+
+        Route::get('/meetings/{meeting}/attendance/create', [MeetingController::class, 'createAttendance'])
+            ->name('meetings.attendance.create');
+        Route::post('/meetings/{meeting}/attendance', [MeetingController::class, 'storeAttendance'])
+            ->name('meetings.attendance.store');
+
+        Route::get('/meetings/{meeting}/resolution/create', [MeetingController::class, 'createResolution'])
+            ->name('meetings.resolution.create');
+        Route::post('/meetings/{meeting}/resolution', [MeetingController::class, 'storeResolution'])
+            ->name('meetings.resolution.store');
+
         Route::get('/meetings/{meeting}', [MeetingController::class, 'show'])->name('meetings.show');
 
         Route::prefix('settings/committee')->name('settings.committee.')->group(function () {
@@ -90,6 +109,8 @@ Route::middleware('auth')->group(function () {
     // Super Admin — User Management dashboard.
     Route::middleware('role:admin')->group(function () {
         Route::get('/admin/users', [AdminUserPageController::class, 'index'])->name('admin.users.index');
+        Route::get('/admin/projects', [AdminProjectPageController::class, 'index'])->name('admin.projects.index');
+        Route::get('/admin/committees', [AdminCommitteePageController::class, 'index'])->name('admin.committees.index');
         Route::get('/admin/database', [AdminDatabasePageController::class, 'index'])->name('admin.database.index');
     });
 });

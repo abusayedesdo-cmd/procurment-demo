@@ -125,8 +125,9 @@
 
         <h2 class="section">Meeting Agenda:</h2>
         <ol class="agenda">
-            <li>Regarding the <i><?php echo e(Txt::verb($case)); ?> <?php echo e(Txt::subCategoryName($case)); ?></i> for the <i><?php echo e(Txt::categoryName($case)); ?></i>.</li>
-            <li>Miscellaneous.</li>
+            <?php $__currentLoopData = Txt::agendaItems($case, $meeting->agenda); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <li><?php echo e($item); ?></li>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
         </ol>
 
         <p style="margin-top:24px;">With Thanks</p>

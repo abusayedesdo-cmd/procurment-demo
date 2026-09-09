@@ -41,6 +41,34 @@ class NumberGeneratorService
     }
 
     /**
+     * Same as next(), but self-healing: if the counter has fallen behind
+     * the data actually in the table (e.g. rows imported/seeded outside
+     * this service, or a counter reset during a migration), it keeps
+     * advancing past any number that's already taken instead of returning
+     * a duplicate and letting the insert fail with a constraint violation.
+     *
+     * Usage: nextUnique('pr', 'PR-', 'purchase_requisitions', 'pr_number')
+     */
+    public function nextUnique(string $key, string $prefix, string $table, string $column, int $pad = 6): string
+    {
+        return DB::transaction(function () use ($key, $prefix, $table, $column, $pad) {
+            $counter = SequenceCounter::lockForUpdate()->firstOrCreate(
+                ['key' => $key],
+                ['last_value' => 0]
+            );
+
+            do {
+                $counter->last_value += 1;
+                $candidate = $prefix . str_pad((string) $counter->last_value, $pad, '0', STR_PAD_LEFT);
+            } while (DB::table($table)->where($column, $candidate)->exists());
+
+            $counter->save();
+
+            return $candidate;
+        });
+    }
+
+    /**
      * Fiscal-year memo sequence shared by RFQ/NOA/Work Order/Tender
      * Notice numbers, matching the real ESDO memo format:
      * .../126/652/2025-2026

@@ -91,6 +91,13 @@
         letter-spacing: .04em;
     }
 
+    .user-meta .designation {
+        display: block;
+        font-size: .74rem;
+        color: var(--muted);
+        margin-top: .2rem;
+    }
+
     form.logout-form { margin: 0; }
 
     button.logout {
@@ -253,6 +260,9 @@
                 <div class="user-meta">
                     <div class="name">{{ $user->name ?? '' }}</div>
                     <span class="role">{{ $user->roleLabel() ?? '' }}</span>
+                    @if (!empty($user->designation))
+                        <span class="designation">{{ $user->designation }}</span>
+                    @endif
                 </div>
                 <!-- <form class="logout-form" method="POST" action="{{ route('logout') }}">
                     @csrf

@@ -626,7 +626,7 @@
 
         const budgetCheck = latestBudgetCheck(pr);
         const endorsedBy = approvalByRole(pr, 'Reviewer');
-        const financeRequestedBy = approvalByRole(pr, 'Budget Checker');
+        const financeRequestedBy = approvalByRole(pr, 'Accountant') || approvalByRole(pr, 'Budget Checker');
         const recommendedBy = approvalByRole(pr, 'Focal Person');
         const approvedBy = approvalByRole(pr, 'Executive Director');
         const dash = '.................';
@@ -854,7 +854,7 @@
                     <div id="livePreview"></div>
                 ` : `
                     <div class="field-grid" style="margin-bottom:.5rem;">
-                        <div class="field"><span class="field-label">Budget Code</span><span class="field-value mono">${esc(line.code)}</span></div>
+                        <div class="field"><span class="field-label">${check.data.budget_source === 'package' ? 'Annual Plan Package' : 'Budget Code'}</span><span class="field-value mono">${esc(line.code)}${check.data.budget_source === 'package' ? ' (Annual Plan package)' : ''}</span></div>
                         <div class="field"><span class="field-label">Spent so far</span><span class="field-value">৳ ${money(line.spent)}</span></div>
                     </div>
                     <table class="budget-summary-table">

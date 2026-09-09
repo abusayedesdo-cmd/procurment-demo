@@ -23,6 +23,10 @@ class Quotation extends Model
         'tin_submitted',
         'bin_submitted',
         'opening_remarks',
+        'earnest_money_required',
+        'earnest_money_amount',
+        'earnest_money_status',
+        'earnest_money_notes',
     ];
 
     protected $casts = [
@@ -32,6 +36,8 @@ class Quotation extends Model
         'trade_license_submitted' => 'boolean',
         'tin_submitted' => 'boolean',
         'bin_submitted' => 'boolean',
+        'earnest_money_required' => 'boolean',
+        'earnest_money_amount' => 'decimal:2',
     ];
 
     public function rfq()

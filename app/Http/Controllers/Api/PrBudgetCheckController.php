@@ -26,30 +26,65 @@ class PrBudgetCheckController extends Controller
     // Amount of PR / Remaining Budget C/F / Name of Accountant).
     public function show(PurchaseRequisition $purchaseRequisition)
     {
-        $purchaseRequisition->load('budgetLine.category');
+        $purchaseRequisition->load(['budgetLine.category', 'package.plan']);
         $line = $purchaseRequisition->budgetLine;
+        $package = $purchaseRequisition->package;
         $prAmount = (float) $purchaseRequisition->total_estimated_amount;
+
+        // Per §6/§8 policy intent and the Accountant's own workflow: when the
+        // PR was raised against a specific Annual Plan package, the budget
+        // check is against that package's own allocation, not the wider
+        // budget line it happens to roll up into. Falls back to the budget
+        // line when no package is linked (unchanged behaviour).
+        $budgetBlock = null;
+        $source = null;
+
+        if ($package) {
+            $source = 'package';
+            // "Total allocated Budget" must always match the Annual Plan's
+            // own latest Grand Total row — not the `estimated_cost` column,
+            // which only refreshes when the plan's matrix form is re-saved
+            // and can go stale. remaining_balance is already computed live
+            // from the period rows, so grand total = remaining + spent
+            // keeps both figures on the same, always-current basis.
+            $grandTotal = $package->remaining_balance + $package->already_procured;
+            $budgetBlock = [
+                'id' => $package->id,
+                'code' => $package->package_number,
+                'name' => $package->budgeted_head,
+                'total_allocated_budget' => $grandTotal,
+                'spent' => $package->already_procured,
+                'remaining_budget_bf' => $package->remaining_balance,
+                'amount_of_pr' => $prAmount,
+                'remaining_budget_cf' => $package->remaining_balance - $prAmount,
+                'is_sufficient' => $package->remaining_balance >= $prAmount,
+            ];
+        } elseif ($line) {
+            $source = 'budget_line';
+            $budgetBlock = [
+                'id' => $line->id,
+                'code' => $line->item_code,
+                'name' => $line->item_name,
+                // "Total allocated Budget"
+                'total_allocated_budget' => (float) $line->approved_budget,
+                'spent' => $line->totalExpense(),
+                // "Remaining Budget B/F" — balance before this PR is deducted
+                'remaining_budget_bf' => $line->balance(),
+                // "Amount of PR"
+                'amount_of_pr' => $prAmount,
+                // "Remaining Budget C/F" — balance after this PR is deducted
+                'remaining_budget_cf' => $line->balance() - $prAmount,
+                'is_sufficient' => $line->hasSufficientBalance($prAmount),
+            ];
+        }
 
         return response()->json([
             'success' => true,
             'data' => [
                 'pr' => $purchaseRequisition,
                 'accountant_name' => request()->user()->name,
-                'budget_line' => $line ? [
-                    'id' => $line->id,
-                    'code' => $line->item_code,
-                    'name' => $line->item_name,
-                    // "Total allocated Budget"
-                    'total_allocated_budget' => (float) $line->approved_budget,
-                    'spent' => $line->totalExpense(),
-                    // "Remaining Budget B/F" — balance before this PR is deducted
-                    'remaining_budget_bf' => $line->balance(),
-                    // "Amount of PR"
-                    'amount_of_pr' => $prAmount,
-                    // "Remaining Budget C/F" — balance after this PR is deducted
-                    'remaining_budget_cf' => $line->balance() - $prAmount,
-                    'is_sufficient' => $line->hasSufficientBalance($prAmount),
-                ] : null,
+                'budget_source' => $source,
+                'budget_line' => $budgetBlock,
             ],
         ]);
     }
@@ -61,7 +96,7 @@ class PrBudgetCheckController extends Controller
         if ($userRole !== \App\Models\User::BUDGET_CHECKER && $userRole !== \App\Models\User::ADMIN) {
             return response()->json([
                 'success' => false,
-                'message' => "This step needs a Budget Checker, not a {$userRole}.",
+                'message' => "This step needs an Accountant, not a {$userRole}.",
             ], 403);
         }
         if ($purchaseRequisition->window_type !== 'PR' || $purchaseRequisition->status !== 'reviewed') {
@@ -93,6 +128,20 @@ class PrBudgetCheckController extends Controller
         $line = ($validated['budget_line_id'] ?? null)
             ? BudgetLine::find($validated['budget_line_id'])
             : $purchaseRequisition->budgetLine;
+
+        // Total Allocated Budget / Remaining Budget B/F are auto-set from
+        // whichever source backs this PR's Budgetary Check — matches
+        // show()'s package-first logic. Only when the PR has neither a
+        // linked Annual Plan package nor a resolved Budget Line is the
+        // accountant's own manual entry trusted.
+        $package = $purchaseRequisition->package;
+        if ($package) {
+            $validated['allocated_budget'] = (float) $package->estimated_cost;
+            $validated['remaining_budget_bf'] = (float) $package->remaining_balance;
+        } elseif ($line) {
+            $validated['allocated_budget'] = (float) $line->approved_budget;
+            $validated['remaining_budget_bf'] = (float) $line->balance();
+        }
 
         // Remaining Budget C/F = Remaining Budget B/F − Amount of PR, computed
         // server-side from what the accountant actually entered (not silently
@@ -126,7 +175,7 @@ class PrBudgetCheckController extends Controller
             $approval = PrApproval::create([
                 'pr_id' => $purchaseRequisition->id,
                 'user_id' => $request->user()->id,
-                'role_at_action' => 'Budget Checker',
+                'role_at_action' => 'Accountant',
                 'action' => $action,
                 'acted_at' => now()->toDateString(),
                 'remarks' => $validated['remarks'] ?? null,

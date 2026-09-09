@@ -35,6 +35,12 @@ class ProcurementAnnualPlanController extends Controller
         $validated['prepared_by'] = $request->user()->id;
         $validated['status'] = 'draft';
 
+        // Project Name is never taken from client input — it always reflects
+        // the Project the logged-in user is assigned to (set by Admin).
+        // project_id itself is auto-stamped from the user by the
+        // BelongsToProject trait on the model.
+        $validated['project_name'] = optional($request->user()->project)->name;
+
         $plan = ProcurementAnnualPlan::create($validated);
 
         return response()->json(['success' => true, 'data' => $plan], 201);

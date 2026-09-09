@@ -10,41 +10,148 @@ use App\Services\NumberGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
+/**
+ * The 1st/2nd meeting is recorded in 3 separate steps, matching the 3
+ * separate sidebar/process-step pages (Notice, Attendance, Resolution)
+ * instead of one combined form:
+ *
+ *   1. Notice     — location/date/time/agenda, before the meeting happens.
+ *   2. Attendance — who actually attended, once the meeting has been held.
+ *   3. Resolution — decisions + tender schedule (1st) / awards (2nd),
+ *                   assigns the Rezulation No. and finalizes the minutes.
+ *
+ * Each step can only be recorded once the previous one is done, so a case
+ * only ever shows up on the process-step page for the step it's actually
+ * ready for.
+ */
 class MeetingController extends Controller
 {
-    /** Form to record a new meeting against a case. */
-    public function create(ProcurementCase $case, string $type)
+    /** Step 1 — Notice: form to schedule a new meeting against a case. */
+    public function createNotice(ProcurementCase $case, string $type)
     {
         abort_unless(in_array($type, ['first', 'second'], true), 404);
 
-        // A case normally has at most one of each meeting type.
         if ($case->meetings()->where('meeting_type', $type)->exists()) {
-            return redirect()->route('cases.show', $case)->with('ok', ucfirst($type) . ' meeting already recorded for this case.');
+            return redirect()->route('cases.show', $case)->with('ok', ucfirst($type) . ' meeting notice already sent for this case.');
         }
 
-        return view('meetings.create', [
-            'case' => $case,
-            'type' => $type,
-            'roster' => ProcurementCommitteeMember::activeRoster(),
-            'vendors' => $type === 'second' ? Vendor::orderBy('name')->get() : collect(),
-        ]);
+        return view('meetings.create-notice', ['case' => $case, 'type' => $type]);
     }
 
-    public function store(Request $request, ProcurementCase $case, string $type, NumberGeneratorService $numbers)
+    public function storeNotice(Request $request, ProcurementCase $case, string $type, NumberGeneratorService $numbers)
     {
         abort_unless(in_array($type, ['first', 'second'], true), 404);
 
-        $data = $request->validate([
+        abort_if(
+            $case->meetings()->where('meeting_type', $type)->exists(),
+            422,
+            ucfirst($type) . ' meeting notice already sent for this case.'
+        );
+
+        $validator = Validator::make($request->all(), [
             'location' => 'required|string|max:120',
             'meeting_date' => 'required|date',
             'meeting_time' => 'nullable|string|max:40',
             'agenda' => 'required|string',
-            'decisions' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            // Redirect explicitly to this same form (not the framework's
+            // automatic back(), which can land on the dashboard instead if
+            // the "previous URL" isn't tracked reliably on this host).
+            return redirect()->route('meetings.notice.create', [$case, $type])
+                ->withErrors($validator)->withInput();
+        }
+        $data = $validator->validated();
+
+        $meeting = Meeting::create([
+            'procurement_case_id' => $case->id,
+            'meeting_type' => $type,
+            'location' => $data['location'],
+            'meeting_date' => $data['meeting_date'],
+            'meeting_time' => $data['meeting_time'] ?? null,
+            'agenda' => $data['agenda'],
+            'notice_number' => $numbers->nextDocMemo('Procurement', 'Notice'),
+            'notice_date' => now(),
+            'recorded_by' => Auth::id(),
+        ]);
+
+        // Email the notice to the roster now, before the meeting happens —
+        // attendance (who actually showed up) isn't recorded until step 2.
+        $sentCount = $this->emailNoticeToRoster($meeting);
+        $noticeMsg = $sentCount > 0 ? " Notice emailed to {$sentCount} committee member(s)." : '';
+
+        return redirect()->route('cases.show', $case)->with('ok', 'Meeting notice recorded — ' . $meeting->notice_number . '.' . $noticeMsg . ' Attendance can now be recorded once the meeting is held.');
+    }
+
+    /** Step 2 — Attendance: who attended the already-noticed meeting. */
+    public function createAttendance(Meeting $meeting)
+    {
+        abort_if($meeting->attendance_number, 422, 'Attendance has already been recorded for this meeting.');
+
+        $meeting->load('procurementCase');
+
+        return view('meetings.create-attendance', [
+            'meeting' => $meeting,
+            'roster' => ProcurementCommitteeMember::activeRoster(),
+        ]);
+    }
+
+    public function storeAttendance(Request $request, Meeting $meeting, NumberGeneratorService $numbers)
+    {
+        abort_if($meeting->attendance_number, 422, 'Attendance has already been recorded for this meeting.');
+
+        $validator = Validator::make($request->all(), [
             'attendees' => 'required|array|min:1',
             'attendees.*.name' => 'required|string|max:120',
             'attendees.*.designation' => 'required|string|max:120',
             'attendees.*.committee_member_id' => 'nullable|exists:procurement_committee_members,id',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->route('meetings.attendance.create', $meeting)
+                ->withErrors($validator)->withInput();
+        }
+        $data = $validator->validated();
+
+        DB::transaction(function () use ($data, $meeting, $numbers) {
+            foreach ($data['attendees'] as $i => $a) {
+                $meeting->attendees()->create([
+                    'committee_member_id' => $a['committee_member_id'] ?? null,
+                    'name' => $a['name'], 'designation' => $a['designation'], 'sort_order' => $i,
+                ]);
+            }
+
+            $meeting->update(['attendance_number' => $numbers->nextDocMemo('Procurement', 'Attendence')]);
+        });
+
+        return redirect()->route('cases.show', $meeting->procurementCase)
+            ->with('ok', 'Attendance recorded — ' . $meeting->attendance_number . '.');
+    }
+
+    /** Step 3 — Resolution: decisions + tender schedule / award, finalizes the minutes. */
+    public function createResolution(Meeting $meeting)
+    {
+        abort_unless($meeting->attendance_number, 422, 'Record attendance before finalizing the resolution.');
+        abort_if($meeting->rezulation_no, 422, 'Resolution has already been finalized for this meeting.');
+
+        $meeting->load('procurementCase');
+
+        return view('meetings.create-resolution', [
+            'meeting' => $meeting,
+            'vendors' => $meeting->meeting_type === 'second' ? Vendor::orderBy('name')->get() : collect(),
+        ]);
+    }
+
+    public function storeResolution(Request $request, Meeting $meeting, NumberGeneratorService $numbers)
+    {
+        abort_unless($meeting->attendance_number, 422, 'Record attendance before finalizing the resolution.');
+        abort_if($meeting->rezulation_no, 422, 'Resolution has already been finalized for this meeting.');
+
+        $validator = Validator::make($request->all(), [
+            'decisions' => 'required|string',
             // 1st-meeting tender schedule fields
             'publish_date' => 'nullable|date',
             'closing_date' => 'nullable|date|after_or_equal:publish_date',
@@ -58,30 +165,24 @@ class MeetingController extends Controller
             'awards.*.amount' => 'nullable|numeric|min:0',
         ]);
 
-        $meeting = DB::transaction(function () use ($data, $case, $type, $numbers) {
-            $meeting = Meeting::create([
-                'rezulation_no' => $numbers->nextRezulation(),
-                'procurement_case_id' => $case->id,
-                'meeting_type' => $type,
-                'location' => $data['location'],
-                'meeting_date' => $data['meeting_date'],
-                'meeting_time' => $data['meeting_time'] ?? null,
-                'agenda' => $data['agenda'],
+        if ($validator->fails()) {
+            return redirect()->route('meetings.resolution.create', $meeting)
+                ->withErrors($validator)->withInput();
+        }
+        $data = $validator->validated();
+
+        $case = $meeting->procurementCase;
+
+        DB::transaction(function () use ($data, $meeting, $numbers) {
+            $meeting->update([
                 'decisions' => $data['decisions'],
                 'publish_date' => $data['publish_date'] ?? null,
                 'closing_date' => $data['closing_date'] ?? null,
                 'opening_date' => $data['opening_date'] ?? null,
                 'schedule_override_reason' => $data['schedule_override_reason'] ?? null,
+                'rezulation_no' => $numbers->nextRezulation(),
                 'held_at' => now(),
-                'recorded_by' => Auth::id(),
             ]);
-
-            foreach ($data['attendees'] as $i => $a) {
-                $meeting->attendees()->create([
-                    'committee_member_id' => $a['committee_member_id'] ?? null,
-                    'name' => $a['name'], 'designation' => $a['designation'], 'sort_order' => $i,
-                ]);
-            }
 
             foreach ($data['awards'] ?? [] as $a) {
                 $meeting->awards()->create([
@@ -91,50 +192,45 @@ class MeetingController extends Controller
                     'amount' => $a['amount'] ?? 0,
                 ]);
             }
-
-            return $meeting;
         });
 
         // Mark the related checklist step done: step 4 (Tender Schedule) for
         // the 1st meeting, step 16 (NOA/Work Order regulation) for the 2nd.
-        $stepNo = $type === 'first' ? 4 : 16;
+        $stepNo = $meeting->meeting_type === 'first' ? 4 : 16;
         $case->steps()->where('step_no', $stepNo)->whereNull('completed_at')->update(['completed_at' => now()]);
         if ($case->current_step < $stepNo) {
             $case->update(['current_step' => $stepNo]);
         }
 
-        $sentCount = $this->sendMeetingNotices($meeting);
-        $noticeMsg = $sentCount > 0 ? " Notice emailed to {$sentCount} attendee(s)." : '';
-
-        return redirect()->route('meetings.show', $meeting)->with('ok', 'Meeting recorded — Rezulation No. ' . $meeting->rezulation_no . '.' . $noticeMsg);
+        return redirect()->route('meetings.show', $meeting)->with('ok', 'Meeting resolution finalized — Rezulation No. ' . $meeting->rezulation_no . '.');
     }
 
     /**
-     * Email every attendee who is linked to a roster member with an email
-     * on file. Sent synchronously (no queue worker available on shared
-     * hosting) — failures are logged, not thrown, so a bad/missing SMTP
-     * setup never blocks saving the meeting itself. Returns how many were
-     * actually sent.
+     * Email the notice to every active roster member with an email on
+     * file — sent at Step 1, before the meeting happens, since attendance
+     * (who actually showed up) isn't known until Step 2. Sent synchronously
+     * (no queue worker available on shared hosting) — failures are logged,
+     * not thrown, so a bad/missing SMTP setup never blocks saving the
+     * notice itself. Returns how many were actually sent.
      */
-    private function sendMeetingNotices(Meeting $meeting): int
+    private function emailNoticeToRoster(Meeting $meeting): int
     {
-        $meeting->load('attendees.committeeMember', 'procurementCase');
+        $meeting->load('procurementCase');
         $sent = 0;
 
-        foreach ($meeting->attendees as $attendee) {
-            $email = $attendee->committeeMember?->email;
-            if (! $email) {
+        foreach (ProcurementCommitteeMember::activeRoster() as $member) {
+            if (! $member->email) {
                 continue;
             }
 
             try {
-                \Illuminate\Support\Facades\Mail::to($email)
-                    ->send(new \App\Mail\MeetingNoticeMail($meeting, $attendee->name));
+                \Illuminate\Support\Facades\Mail::to($member->email)
+                    ->send(new \App\Mail\MeetingNoticeMail($meeting, $member->name));
                 $sent++;
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning('Meeting notice email failed', [
                     'meeting_id' => $meeting->id,
-                    'email' => $email,
+                    'email' => $member->email,
                     'error' => $e->getMessage(),
                 ]);
             }

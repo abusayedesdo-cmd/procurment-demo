@@ -76,8 +76,9 @@
 
     <h2 class="section">Meeting Agenda:</h2>
     <ol class="agenda">
-        <li>Regarding the <i>{{ Txt::verb($case) }} {{ Txt::subCategoryName($case) }}</i> for the <i>{{ Txt::categoryName($case) }}</i>.</li>
-        <li>Miscellaneous.</li>
+        @foreach (Txt::agendaItems($case, $meeting->agenda) as $item)
+            <li>{{ $item }}</li>
+        @endforeach
     </ol>
 
     <h2 class="section">Attendance of Procurement Committee Meeting:</h2>
@@ -92,13 +93,13 @@
             </tr>
         </thead>
         <tbody>
-            @forelse ($roster as $i => $member)
+            @forelse ($meeting->attendees as $i => $attendee)
                 <tr style="height:22px">
                     <td class="row-num">{{ str_pad($i + 1, 2, '0', STR_PAD_LEFT) }}</td>
-                    <td>{{ $member->name }}</td>
-                    <td>{{ $member->roleLabel() === 'Convener' ? 'Convener' : ($member->designation ?: $member->roleLabel()) }}</td>
+                    <td>{{ $attendee->name }}</td>
+                    <td>{{ $attendee->designation }}</td>
                     <td>&nbsp;</td>
-                    <td>&nbsp;</td>
+                    <td>{{ $attendee->remarks }}</td>
                 </tr>
             @empty
                 @for ($i = 0; $i < 4; $i++)

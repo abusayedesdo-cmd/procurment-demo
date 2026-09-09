@@ -89,6 +89,13 @@
         letter-spacing: .04em;
     }
 
+    .user-meta .designation {
+        display: block;
+        font-size: .74rem;
+        color: var(--muted);
+        margin-top: .2rem;
+    }
+
     form.logout-form { margin: 0; }
 
     button.logout {
@@ -251,6 +258,9 @@
                 <div class="user-meta">
                     <div class="name"><?php echo e($user->name ?? ''); ?></div>
                     <span class="role"><?php echo e($user->roleLabel() ?? ''); ?></span>
+                    <?php if(!empty($user->designation)): ?>
+                        <span class="designation"><?php echo e($user->designation); ?></span>
+                    <?php endif; ?>
                 </div>
                 <!-- <form class="logout-form" method="POST" action="<?php echo e(route('logout')); ?>">
                     <?php echo csrf_field(); ?>
@@ -373,5 +383,4 @@
         </div>
     </div>
 <?php $__env->stopSection(); ?>
-
 <?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/dashboard.blade.php ENDPATH**/ ?>

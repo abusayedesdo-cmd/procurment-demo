@@ -32,19 +32,87 @@
 </div>
 
 <div class="card card-pad">
+  <?php
+    $plan = $case->purchaseRequisition?->procurementPlan;
+    $latestTransfer = $plan?->subCommitteeTransfers->first();
+  ?>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div>
+      <b style="font-size:14px">Sub-Committee</b>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">
+        <?php if($latestTransfer): ?>
+          Currently with <b style="color:var(--ink)"><?php echo e($latestTransfer->toCommittee?->name); ?></b>
+          (from <?php echo e($latestTransfer->fromCommittee?->name ?? '—'); ?>, <?php echo e($latestTransfer->transfer_date->format('d M Y')); ?>) — that committee's members can see this case on their dashboard.
+        <?php else: ?>
+          Not yet transferred to a sub-committee — it's still with the main/central committee.
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php if($plan): ?>
+      <a href="<?php echo e(route('modules.show', 'sub-committee-transfers')); ?>?new=1&field_procurement_plan_id=<?php echo e($plan->id); ?>"
+         class="btn btn-primary" style="padding:6px 12px;font-size:12.5px">
+        <?php echo e($latestTransfer ? 'Transfer again' : 'Transfer to Sub-Committee'); ?>
+
+      </a>
+    <?php else: ?>
+      <span style="font-size:12px;color:var(--muted)">No Procurement Plan linked to this case's PR yet.</span>
+    <?php endif; ?>
+  </div>
+</div>
+
+<div class="card card-pad">
   <b style="font-size:14px">Committee Meetings</b>
-  <div style="font-size:12px;color:var(--muted);margin-top:2px">1st meeting sets the tender schedule; 2nd meeting records the tender opening &amp; award decision.</div>
-  <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+  <div style="font-size:12px;color:var(--muted);margin-top:2px">1st meeting sets the tender schedule; 2nd meeting records the tender opening &amp; award decision. Each one is recorded in 3 steps — Notice, Attendance, Resolution.</div>
+  <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
     <?php $__currentLoopData = ['first' => '1st Meeting — Tender Schedule', 'second' => '2nd Meeting — Opening & Award']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $type => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
       <?php $m = $case->meetings->firstWhere('meeting_type', $type); ?>
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--line-soft);border-radius:10px">
-        <div style="flex:1;font-size:13px;font-weight:600"><?php echo e($label); ?></div>
-        <?php if($m): ?>
-          <span style="font-size:12px;color:var(--muted)">Rezulation No. <?php echo e($m->rezulation_no); ?> — <?php echo e($m->meeting_date->format('d M Y')); ?></span>
-          <a href="<?php echo e(route('meetings.show', $m)); ?>" class="btn btn-outline" style="padding:6px 12px;font-size:12px">View minutes</a>
-        <?php else: ?>
-          <a href="<?php echo e(route('meetings.create', [$case, $type])); ?>" class="btn btn-primary" style="padding:6px 12px;font-size:12px">Record meeting</a>
-        <?php endif; ?>
+      <div style="border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="font-size:13px;font-weight:600"><?php echo e($label); ?></div>
+          <?php if($m && $m->rezulation_no): ?>
+            <span style="font-size:12px;color:var(--muted)">Rezulation No. <?php echo e($m->rezulation_no); ?> — <?php echo e($m->meeting_date->format('d M Y')); ?></span>
+          <?php endif; ?>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+          
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="width:18px;font-size:12px;color:<?php echo e($m ? 'var(--good, #0D9488)' : 'var(--muted)'); ?>"><?php echo e($m ? '✓' : '1'); ?></span>
+            <span style="flex:1;font-size:12.5px">Notice<?php echo e($m ? ' — ' . $m->notice_number : ''); ?></span>
+            <?php if(! $m): ?>
+              <a href="<?php echo e(route('meetings.notice.create', [$case, $type])); ?>" class="btn btn-primary" style="padding:5px 10px;font-size:12px">Send notice</a>
+            <?php else: ?>
+              <a href="<?php echo e(route('api.meetings.notice-document', $m)); ?>" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Notice PDF</a>
+            <?php endif; ?>
+          </div>
+
+          
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="width:18px;font-size:12px;color:<?php echo e($m?->attendance_number ? 'var(--good, #0D9488)' : 'var(--muted)'); ?>"><?php echo e($m?->attendance_number ? '✓' : '2'); ?></span>
+            <span style="flex:1;font-size:12.5px">Attendance<?php echo e($m?->attendance_number ? ' — ' . $m->attendance_number : ''); ?></span>
+            <?php if($m && ! $m->attendance_number): ?>
+              <a href="<?php echo e(route('meetings.attendance.create', $m)); ?>" class="btn btn-primary" style="padding:5px 10px;font-size:12px">Record attendance</a>
+            <?php elseif($m?->attendance_number): ?>
+              <a href="<?php echo e(route('api.meetings.attendance-document', $m)); ?>" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Attendance PDF</a>
+            <?php else: ?>
+              <span style="font-size:12px;color:var(--muted)">Waiting on notice</span>
+            <?php endif; ?>
+          </div>
+
+          
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="width:18px;font-size:12px;color:<?php echo e($m?->rezulation_no ? 'var(--good, #0D9488)' : 'var(--muted)'); ?>"><?php echo e($m?->rezulation_no ? '✓' : '3'); ?></span>
+            <span style="flex:1;font-size:12.5px">Resolution<?php echo e($m?->rezulation_no ? ' — Rezulation No. ' . $m->rezulation_no : ''); ?></span>
+            <?php if($m?->attendance_number && ! $m->rezulation_no): ?>
+              <a href="<?php echo e(route('meetings.resolution.create', $m)); ?>" class="btn btn-primary" style="padding:5px 10px;font-size:12px">Finalize resolution</a>
+            <?php elseif($m?->rezulation_no): ?>
+              <a href="<?php echo e(route('api.meetings.minutes-document', $m)); ?>" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Resolution PDF</a>
+              <a href="<?php echo e(route('meetings.show', $m)); ?>" class="btn btn-outline" style="padding:5px 10px;font-size:12px">View minutes</a>
+            <?php else: ?>
+              <span style="font-size:12px;color:var(--muted)">Waiting on attendance</span>
+            <?php endif; ?>
+          </div>
+        </div>
       </div>
     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
   </div>

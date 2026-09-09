@@ -7,7 +7,7 @@
     <div id="planHeader">Loading...</div>
 
 
-    <div class="card">
+    <div class="card" id="packageFormCard">
         <h3 id="formTitle">Add New Package</h3>
         <input type="hidden" id="editingId" value="">
 
@@ -86,19 +86,7 @@
             <div id="yearUnitsContainer" style="margin-top:.75rem;"></div>
         </div>
 
-        <div id="quarterSection">
-        <div class="row">
-            <div><label>Quarter-1 (July-October) — No. of Unit</label><input type="number" id="q1_unit" value="0"></div>
-            <div><label>Quarter-1 — Rate</label><input type="number" id="q1_rate" value="0"></div>
-            <div><label>Quarter-2 (November-February) — No. of Unit</label><input type="number" id="q2_unit" value="0"></div>
-            <div><label>Quarter-2 — Rate</label><input type="number" id="q2_rate" value="0"></div>
-        </div>
-        <div class="row">
-            <div><label>Quarter-3 (March-June) — No. of Unit</label><input type="number" id="q3_unit" value="0"></div>
-            <div><label>Quarter-3 — Rate</label><input type="number" id="q3_rate" value="0"></div>
-            <div class="muted" style="align-self:flex-end;">Year-1 Total and Grand Total are calculated automatically by the system after submission.</div>
-        </div>
-        </div>
+        <div class="muted" style="margin-top:.5rem;">Year-1 Total and Grand Total are calculated automatically by the system after submission, from whatever you enter for Current Year above.</div>
 
         <div class="row">
             <div style="flex:1;">
@@ -108,11 +96,12 @@
         </div>
 
         <div style="margin-top:1rem; display:flex; gap:.5rem;">
-            <button class="btn" onclick="savePackage()">Save Package</button>
+            <button class="btn" id="savePackageBtn" onclick="savePackage()">Save Package</button>
             <button class="btn secondary" onclick="resetForm()">Cancel</button>
         </div>
     </div>
-    
+    <p class="muted" id="packageFormReadOnlyNote" style="display:none;">Packages are added by the Accountant. You're viewing this plan's packages below.</p>
+
     <div class="card" style="margin:1rem 0;overflow-x:auto;">
         <table id="matrixTable" style="min-width:1400px;">
             <thead id="matrixThead"></thead>
@@ -399,14 +388,20 @@ function renderHeader(plan) {
     `;
 }
 
+// Positions here must match ProcurementPlanPackage::SLOT_ORDER exactly —
+// this array is indexed positionally against pkg.periods (which the API
+// returns ordered by slot_order), not by label. Quarter-1/2/3 stay in the
+// list (so later slots keep their correct position) but will never show:
+// nothing writes to them any more, so computeVisiblePeriods() always finds
+// them empty.
 const MATRIX_GROUP_LABELS = [
-    'Previous 2nd Year', 'Previous 1st Year', 'Quarter-1', 'Quarter-2', 'Quarter-3',
+    'Previous 2nd Year', 'Previous 1st Year', 'Current Year', 'Quarter-1', 'Quarter-2', 'Quarter-3',
     'Total of Year-1', 'Total of Year-2', 'Total of Year-3', 'Grand Total',
 ];
 
 function computeVisiblePeriods(packages) {
-    if (!packages.length) return new Array(9).fill(true);
-    const visible = new Array(9).fill(false);
+    if (!packages.length) return new Array(10).fill(true);
+    const visible = new Array(10).fill(false);
     packages.forEach(pkg => {
         (pkg.periods || []).forEach((p, i) => {
             if (Number(p.no_of_unit || 0) !== 0 || Number(p.rate || 0) !== 0 || Number(p.total || 0) !== 0) {
@@ -475,7 +470,7 @@ function renderMatrix(plan) {
     }).join('') || `<tr><td colspan="${5 + visibleCount * 3 + 4}" class="muted">No packages yet — add one using the form below.</td></tr>`;
 
     if (packages.length) {
-        const periodTotals = new Array(9).fill(0);
+        const periodTotals = new Array(10).fill(0);
         let alreadyProcuredSum = 0, remainingBalanceSum = 0;
 
         packages.forEach(pkg => {
@@ -520,13 +515,7 @@ function editPackage(id) {
     document.getElementById('unit').value = pkg.unit ?? '';
     document.getElementById('remarks').value = pkg.remarks ?? '';
 
-    const find = (label) => pkg.periods.find(p => p.period_label === label);
     const byType = (type, year) => pkg.periods.find(p => p.period_type === type && p.year_number === year);
-
-    const q1 = find('Quarter-1 (July-October)') || {}, q2 = find('Quarter-2 (November-February)') || {}, q3 = find('Quarter-3 (March-June)') || {};
-    document.getElementById('q1_unit').value = q1.no_of_unit ?? 0; document.getElementById('q1_rate').value = q1.rate ?? 0;
-    document.getElementById('q2_unit').value = q2.no_of_unit ?? 0; document.getElementById('q2_rate').value = q2.rate ?? 0;
-    document.getElementById('q3_unit').value = q3.no_of_unit ?? 0; document.getElementById('q3_rate').value = q3.rate ?? 0;
 
     const previousYears = pkg.periods.filter(p => p.period_type === 'previous_year');
     loadYearSlotFromPeriod('previous_2nd_year', previousYears[0]);
@@ -548,7 +537,6 @@ function resetForm() {
     document.getElementById('editingId').value = '';
     document.getElementById('formTitle').textContent = 'Add New Package';
     ['budgetedHead', 'specification', 'unit', 'remarks', 'itemSelect', 'itemId'].forEach(id => document.getElementById(id).value = '');
-    ['q1_unit', 'q1_rate', 'q2_unit', 'q2_rate', 'q3_unit', 'q3_rate'].forEach(id => document.getElementById(id).value = 0);
 
     YEAR_SLOT_KEYS.forEach(key => { yearSlotData[key] = freshYearSlot(); });
     currentYearSlot = defaultYearSlot();
@@ -581,9 +569,6 @@ async function savePackage() {
             previous_2nd_year: buildYearSlotPayload('previous_2nd_year'),
             previous_1st_year: buildYearSlotPayload('previous_1st_year'),
             current_year: buildYearSlotPayload('current_year'),
-            quarter_1: { no_of_unit: document.getElementById('q1_unit').value, rate: document.getElementById('q1_rate').value },
-            quarter_2: { no_of_unit: document.getElementById('q2_unit').value, rate: document.getElementById('q2_rate').value },
-            quarter_3: { no_of_unit: document.getElementById('q3_unit').value, rate: document.getElementById('q3_rate').value },
             year_2_total: buildYearSlotPayload('year_2_total'),
             year_3_total: buildYearSlotPayload('year_3_total'),
         },
@@ -607,6 +592,21 @@ async function savePackage() {
 
 renderYearPanel();
 load();
+
+// Packages are formed by the Accountant (see Annual Plan role change) — the
+// form itself stays in the DOM (a lot of this page's JS reaches into it
+// unconditionally), but for anyone else it's disabled and the note above
+// takes its place visually.
+(function gatePackageForm() {
+    const canManage = window.currentUserRole === 'admin' || window.currentUserRole === 'budget_checker';
+    if (canManage) return;
+
+    const card = document.getElementById('packageFormCard');
+    card.querySelectorAll('input, select, textarea, button').forEach(el => el.disabled = true);
+    card.style.opacity = '0.55';
+    card.style.pointerEvents = 'none';
+    document.getElementById('packageFormReadOnlyNote').style.display = 'block';
+})();
 </script>
 <?php $__env->stopSection(); ?>
 <?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/annual-plan/show.blade.php ENDPATH**/ ?>
