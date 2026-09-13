@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\ContractAward;
 use App\Models\ProcurementPlan;
 use App\Models\PurchaseRequisition;
+use App\Models\SubCommitteeTransfer;
+use App\Support\CommitteeScope;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -26,46 +28,59 @@ class DashboardController extends Controller
         $canFocalReview = in_array($role, [\App\Models\User::FOCAL_PERSON, \App\Models\User::ADMIN]);
         $canEdApprove = in_array($role, [\App\Models\User::EXECUTIVE_DIRECTOR, \App\Models\User::ADMIN]);
 
-        // Chain: draft (Reviewer) -> reviewed (Budget Checker) -> checked
-        // (Focal Person OR Executive Director, per the Budget Checker's own
-        // 'route_to' choice, stored as routed_to) -> approved. For PRs
-        // checked before routed_to existed (routed_to is null), fall back
-        // to the old amount-based rule (see
-        // PrApprovalController::HIGH_VALUE_THRESHOLD). 'focal_reviewed' is
-        // a legacy status kept for PRs already routed through the Focal
-        // Person before this branching existed — those still need the ED.
-        // Each role gets a direct list of the PRs actually waiting on them,
-        // not just a generic unfiltered list.
+       
+        $committeeIds = CommitteeScope::committeeIdsForUser($user);
+        $isCommitteeOnly = ! empty($committeeIds) && ! CommitteeScope::hasUnrestrictedAccess($user);
+
+        $scopedPlanIds = collect();
+        $scopedPrIds = collect();
+
+        if ($isCommitteeOnly) {
+            $scopedPlanIds = SubCommitteeTransfer::query()
+                ->orderByDesc('transfer_date')
+                ->orderByDesc('id')
+                ->get()
+                ->unique('procurement_plan_id')
+                ->filter(fn ($t) => in_array($t->to_committee_id, $committeeIds))
+                ->pluck('procurement_plan_id');
+
+            $scopedPrIds = ProcurementPlan::whereIn('id', $scopedPlanIds)->pluck('pr_id')->filter()->values();
+        }
+
+        $scopePrs = function ($query) use ($isCommitteeOnly, $scopedPrIds) {
+            return $isCommitteeOnly ? $query->whereIn('id', $scopedPrIds) : $query;
+        };
+
         $awaitingReview = $canReview
-            ? PurchaseRequisition::where('status', 'draft')->orderBy('id')->get(['id', 'pr_number'])
+            ? $scopePrs(PurchaseRequisition::where('status', 'draft'))->orderBy('id')->get(['id', 'pr_number'])
             : collect();
 
         $awaitingBudgetCheck = $canCheckBudget
-            ? PurchaseRequisition::where('status', 'reviewed')->orderBy('id')->get(['id', 'pr_number'])
+            ? $scopePrs(PurchaseRequisition::where('status', 'reviewed'))->orderBy('id')->get(['id', 'pr_number'])
             : collect();
 
         // 'checked' status is exclusive to the PR window and now belongs to
         // Focal Person (see below). The Approver role only still acts on
         // the BOQ/TOR/Design & Drawing windows, at their 'reviewed' stage.
         $awaitingApproval = $canApprove
-            ? PurchaseRequisition::where('status', 'reviewed')->where('window_type', '!=', 'PR')->orderBy('id')->get(['id', 'pr_number'])
+            ? $scopePrs(PurchaseRequisition::where('status', 'reviewed')->where('window_type', '!=', 'PR'))->orderBy('id')->get(['id', 'pr_number'])
             : collect();
 
         $threshold = \App\Http\Controllers\Api\PrApprovalController::HIGH_VALUE_THRESHOLD;
 
         $awaitingFocalReview = $canFocalReview
-            ? PurchaseRequisition::where('status', 'checked')
+            ? $scopePrs(PurchaseRequisition::where('status', 'checked')
                 ->where(function ($q) use ($threshold) {
                     $q->where('routed_to', 'focal_person')
                         ->orWhere(function ($q2) use ($threshold) {
                             $q2->whereNull('routed_to')->where('total_estimated_amount', '<', $threshold);
                         });
-                })
+                }))
                 ->orderBy('id')->get(['id', 'pr_number'])
             : collect();
 
         $awaitingEdApproval = $canEdApprove
-            ? PurchaseRequisition::where(function ($q) use ($threshold) {
+            ? $scopePrs(PurchaseRequisition::where(function ($q) use ($threshold) {
                 $q->where('status', 'focal_reviewed')
                     ->orWhere(function ($q2) use ($threshold) {
                         $q2->where('status', 'checked')
@@ -76,17 +91,21 @@ class DashboardController extends Controller
                                     });
                             });
                     });
-            })
+            }))
                 ->orderBy('id')->get(['id', 'pr_number'])
             : collect();
 
         return view('dashboard', [
             'user' => $user,
-            'draftPrs' => PurchaseRequisition::where('status', 'draft')->count(),
-            'pendingPrs' => PurchaseRequisition::whereIn('status', ['reviewed', 'checked', 'focal_reviewed'])->count(),
-            'approvedPrs' => PurchaseRequisition::where('status', 'approved')->count(),
-            'activePlans' => ProcurementPlan::whereIn('status', ['planned', 'ongoing'])->count(),
-            'contractsAwarded' => ContractAward::count(),
+            'draftPrs' => $scopePrs(PurchaseRequisition::where('status', 'draft'))->count(),
+            'pendingPrs' => $scopePrs(PurchaseRequisition::whereIn('status', ['reviewed', 'checked', 'focal_reviewed']))->count(),
+            'approvedPrs' => $scopePrs(PurchaseRequisition::where('status', 'approved'))->count(),
+            'activePlans' => $isCommitteeOnly
+                ? ProcurementPlan::whereIn('id', $scopedPlanIds)->whereIn('status', ['planned', 'ongoing'])->count()
+                : ProcurementPlan::whereIn('status', ['planned', 'ongoing'])->count(),
+            'contractsAwarded' => $isCommitteeOnly
+                ? ContractAward::whereIn('procurement_plan_id', $scopedPlanIds)->count()
+                : ContractAward::count(),
             'awaitingReview' => $awaitingReview,
             'awaitingBudgetCheck' => $awaitingBudgetCheck,
             'awaitingApproval' => $awaitingApproval,

@@ -16,7 +16,7 @@
         <span style="margin-left:auto;font-size:11.5px;font-weight:700;color:var(--muted)">{{ $case->ref }}</span>
       </div>
       <div style="font-size:14.5px;font-weight:700;line-height:1.4">{{ $case->title }}</div>
-      <div style="font-size:12.5px;color:var(--muted)">{{ $case->purchaseRequisition?->pr_no ?? '—' }} · ৳ {{ number_format($case->amount, 2) }}</div>
+      <div style="font-size:12.5px;color:var(--muted)">{{ $case->purchaseRequisition?->pr_number ?? '—' }} · ৳ {{ number_format($case->amount, 2) }}</div>
       <div style="display:flex;align-items:center;gap:10px">
         <div class="progress" style="flex:1"><div style="width:{{ $case->progressPct() }}%"></div></div>
         <span style="font-size:11.5px;font-weight:700;color:var(--brand);white-space:nowrap">Step {{ min($case->current_step + 1, 23) }}/23</span>

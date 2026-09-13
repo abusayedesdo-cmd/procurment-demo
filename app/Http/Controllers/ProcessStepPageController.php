@@ -6,13 +6,19 @@ class ProcessStepPageController extends Controller
 {
     /**
      * Step -> Subject -> module mapping, derived from
-     * "7. Process Action Windows Mapping.docx". Steps 1st/2nd are handled
-     * by the existing Purchase Requisition / Case-creation pages, not
-     * shown here. Each module slug/title pair links to the existing
-     * generic /modules/{slug} page; 'route' overrides that for steps
-     * whose real UI lives elsewhere (the Case-based meeting flow).
+     * "7. Process Action Windows Mapping.docx". Step 1st is handled by the
+     * existing Purchase Requisition page, not shown here. Each module
+     * slug/title pair links to the existing generic /modules/{slug} page;
+     * 'route' overrides that for steps whose real UI lives elsewhere (the
+     * Case-based meeting flow).
      */
     public const STEPS = [
+        'pr-receive' => [
+            'step_no' => '2nd',
+            'subject' => 'PR Receive',
+            'modules' => [],
+            'is_pr_picker' => true,
+        ],
         'sub-committee' => [
             'step_no' => '3rd',
             'subject' => 'Sub-Committee',
@@ -102,6 +108,29 @@ class ProcessStepPageController extends Controller
     ];
 
     /**
+     * Which of a module's own form fields holds "the record we're already
+     * working on" — used together with the resolved PR/Plan/Case/RFQ chain
+     * below to prefill+lock that field via the same
+     * `?new=1&field_x=y&context_label=...` mechanism the generic module
+     * engine (public/js/resource-ui.js) already understands.
+     */
+    private const PREFILL_FIELD_BY_SLUG = [
+        'procurement-plans' => 'pr_id',
+        'sub-committee-transfers' => 'procurement_plan_id',
+        'rfqs' => 'procurement_case_id',
+        'tender-schedules' => 'rfq_id',
+        'tender-proposals' => 'rfq_id',
+        'tender-advertisements' => 'rfq_id',
+        'quotations' => 'rfq_id',
+        'tender-openings' => 'rfq_id',
+        'eligibility-reports' => 'rfq_id',
+        'technical-evaluation-reports' => 'rfq_id',
+        'financial-evaluation-reports' => 'rfq_id',
+        'comparative-statements' => 'rfq_id',
+        'contract-awards' => 'procurement_plan_id',
+    ];
+
+    /**
      * The 1st meeting's Notice/Attendance/Resolution are 3 separate steps
      * sharing one Meeting record. Each of these pages should only list
      * cases that are actually ready for that specific step — not every
@@ -117,6 +146,103 @@ class ProcessStepPageController extends Controller
         $step = self::STEPS[$slug];
         $cases = null;
 
+        // "Active PR" (design item: "PR Receive"): once an officer picks a
+        // PR — either on the PR Receive page, or via a PR's own "Transfer
+        // to Sub-Committee" action — every step in this sidebar stays
+        // scoped to just that PR for the rest of the session. We resolve
+        // its Plan/Case/RFQ chain below and prefill+lock the matching
+        // field on each step's module link, so the officer never has to
+        // re-pick it from a system-wide dropdown while working a single PR
+        // through the process.
+        $activePrId = request()->query('pr_id');
+        if (request()->query('clear_pr')) {
+            session()->forget('active_pr_id');
+            $activePrId = null;
+        } elseif ($activePrId) {
+            session(['active_pr_id' => (int) $activePrId]);
+        } else {
+            $activePrId = session('active_pr_id');
+        }
+
+        $activePr = $activePrId ? \App\Models\PurchaseRequisition::find($activePrId) : null;
+        if (! $activePr) {
+            // Stale/invalid session value — don't keep carrying a dead reference.
+            session()->forget('active_pr_id');
+        }
+
+        $planId = null;
+        $caseId = null;
+        $rfqId = null;
+        $missingPlanForPr = null;
+
+        if ($activePr) {
+            $planId = \App\Models\ProcurementPlan::where('pr_id', $activePr->id)->latest('id')->value('id');
+            $caseId = \App\Models\ProcurementCase::where('purchase_requisition_id', $activePr->id)->latest('id')->value('id');
+            $rfqId = $caseId ? \App\Models\Rfq::where('procurement_case_id', $caseId)->latest('id')->value('id') : null;
+
+            // Sub-Committee step specifically needs a Plan to transfer —
+            // if the active PR doesn't have one yet, point the officer at
+            // the "B. Procurement Plan" module instead of an empty dropdown.
+            if ($slug === 'sub-committee' && ! $planId) {
+                $missingPlanForPr = $activePr;
+            }
+        }
+
+        // Sub-Committee Transfer auto-fill: "From" is whichever committee
+        // currently holds the plan (the to_committee of its most recent
+        // transfer), or the Main Committee if it's never been transferred.
+        // "To" is a toggle: Main -> this project's own Sub-Committee, or
+        // that Sub-Committee -> back to Main. Anywhere else, leave "To"
+        // for manual pick.
+        $fromCommitteeId = null;
+        $toCommitteeId = null;
+
+        $mainCommitteeId = \App\Models\PurchaseCommittee::where('type', 'main')->value('id');
+        $projectSubCommitteeId = ($activePr && $activePr->project_id)
+            ? \App\Models\PurchaseCommittee::where('type', 'sub')
+                ->where('project_id', $activePr->project_id)
+                ->value('id')
+            : null;
+
+        if ($planId) {
+            $lastTransfer = \App\Models\SubCommitteeTransfer::where('procurement_plan_id', $planId)
+                ->orderByDesc('transfer_date')
+                ->orderByDesc('id')
+                ->first();
+
+            $fromCommitteeId = $lastTransfer ? $lastTransfer->to_committee_id : $mainCommitteeId;
+
+            if ($fromCommitteeId === $mainCommitteeId) {
+                $toCommitteeId = $projectSubCommitteeId;
+            } elseif ($fromCommitteeId === $projectSubCommitteeId) {
+                $toCommitteeId = $mainCommitteeId;
+            }
+        }
+
+        // Active PR + Sub-Committee step + Plan already exists -> skip the
+        // "Committees / Committee Members / Sub-Committee Transfer" list
+        // entirely and jump straight into the Transfer form, prefilled.
+        if ($slug === 'sub-committee' && $activePr && $planId) {
+            $url = route('modules.show', 'sub-committee-transfers')
+                . '?new=1&field_procurement_plan_id=' . $planId
+                . '&context_label=' . urlencode($activePr->pr_number ?? ('PR-' . $activePr->id));
+
+            if (! empty($fromCommitteeId)) {
+                $url .= '&field_from_committee_id=' . $fromCommitteeId;
+            }
+            if (! empty($toCommitteeId)) {
+                $url .= '&field_to_committee_id=' . $toCommitteeId;
+            }
+
+            return redirect($url);
+        }
+
+        $prReceiveList = null;
+        if (! empty($step['is_pr_picker'])) {
+            $prReceiveList = \App\Models\PurchaseRequisition::where('status', 'approved')
+                ->latest('id')->get(['id', 'pr_number', 'total_estimated_amount']);
+        }
+
         $usesCasesFlow = collect($step['modules'])->contains(fn ($m) => ($m['route'] ?? null) === 'cases.index');
         if ($usesCasesFlow && in_array($slug, self::MEETING_STEP_SLUGS, true)) {
             $cases = $this->casesReadyForMeetingStep($slug);
@@ -124,10 +250,38 @@ class ProcessStepPageController extends Controller
             $cases = \App\Models\ProcurementCase::latest()->get();
         }
 
+        // "শুধু সেই পিআর নিয়ে" — with an active PR that already has its own
+        // Case, narrow the meeting-step case picker down to just that one.
+        if ($cases !== null && $caseId) {
+            $cases = $cases->filter(fn ($c) => $c->id === $caseId)->values();
+        }
+        if ($activePr && in_array($slug, self::MEETING_STEP_SLUGS, true) && $cases !== null && $cases->count() === 1) {
+            $case = $cases->first();
+            $firstMeeting = $case->relationLoaded('meetings') ? $case->meetings->first() : null;
+
+            $url = match ($slug) {
+                'meeting-notice' => route('meetings.notice.create', [$case, 'first']),
+                'meeting-attendance' => $firstMeeting ? route('meetings.attendance.create', $firstMeeting) : route('cases.show', $case),
+                'meeting-resolution' => $firstMeeting ? route('meetings.resolution.create', $firstMeeting) : route('cases.show', $case),
+                default => route('cases.show', $case),
+            };
+
+            return redirect($url);
+        }
+
         return view('process-steps.show', [
             'slug' => $slug,
             'step' => $step,
             'cases' => $cases,
+            'planId' => $planId,
+            'caseId' => $caseId,
+            'rfqId' => $rfqId,
+            'activePr' => $activePr,
+            'missingPlanForPr' => $missingPlanForPr,
+            'prReceiveList' => $prReceiveList,
+            'prefillFieldBySlug' => self::PREFILL_FIELD_BY_SLUG,
+            'fromCommitteeId' => $fromCommitteeId,
+            'toCommitteeId' => $toCommitteeId,
         ]);
     }
 

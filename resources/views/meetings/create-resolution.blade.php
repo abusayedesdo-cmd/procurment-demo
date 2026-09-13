@@ -2,7 +2,9 @@
 @section('title', $meeting->typeLabel() . ' Resolution')
 @section('content')
 
-<div><a href="{{ route('cases.show', $meeting->procurementCase) }}" style="font-size:12.5px;font-weight:600;text-decoration:none">← {{ $meeting->procurementCase->ref }}</a></div>
+<div><a href="{{ url()->previous() ?: route('cases.show', $meeting->procurementCase) }}"
+        onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"
+        style="font-size:12.5px;font-weight:600;text-decoration:none">← Back</a></div>
 
 <form method="POST" action="{{ route('meetings.resolution.store', $meeting) }}" class="card card-pad" style="display:flex;flex-direction:column;gap:16px">
   @csrf
@@ -48,7 +50,9 @@
   @endif
 
   <div style="display:flex;gap:10px;justify-content:flex-end">
-    <a href="{{ route('cases.show', $meeting->procurementCase) }}" class="btn btn-outline">Cancel</a>
+    <a href="{{ url()->previous() ?: route('cases.show', $meeting->procurementCase) }}"
+      onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"
+      class="btn btn-outline">Cancel</a>
     <button class="btn btn-primary">Finalize resolution</button>
   </div>
 </form>

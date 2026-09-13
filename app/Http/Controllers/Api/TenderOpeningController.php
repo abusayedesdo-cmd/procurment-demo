@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Rfq;
 use App\Models\TenderOpening;
+use App\Support\CommitteeScope;
 use Illuminate\Http\Request;
 
 class TenderOpeningController extends Controller
@@ -31,13 +32,20 @@ class TenderOpeningController extends Controller
     public function index(Request $request)
     {
         $query = TenderOpening::query();
-        $query->with(['rfq', 'openedBy']);
+        $query->with(['rfq.procurementCase', 'openedBy']);
 
         if ($request->filled('rfq_id')) {
             $query->where('rfq_id', $request->integer('rfq_id'));
         }
 
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
+
+        $user = $request->user();
+        $items->setCollection(
+            $items->getCollection()
+                ->filter(fn ($to) => CommitteeScope::userCanActOnCase($user, $to->rfq?->procurementCase))
+                ->values()
+        );
 
         return response()->json([
             'success' => true,
@@ -53,9 +61,15 @@ class TenderOpeningController extends Controller
     public function show(TenderOpening $tenderOpening)
     {
         $tenderOpening->load([
-            'rfq', 'openedBy', 'committeeMembers',
+            'rfq.procurementCase', 'openedBy', 'committeeMembers',
             'rfq.quotations.vendor',
         ]);
+
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $tenderOpening->rfq?->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
 
         return response()->json([
             'success' => true,
@@ -75,6 +89,13 @@ class TenderOpeningController extends Controller
             'remarks' => 'nullable|string'
         ]);
 
+        $rfq = Rfq::with('procurementCase')->findOrFail($validated['rfq_id']);
+        abort_unless(
+            CommitteeScope::userCanActOnCase($request->user(), $rfq->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $this->assertMinimumQuotations($validated['rfq_id']);
 
         $tenderOpening = TenderOpening::create($validated);
@@ -88,6 +109,13 @@ class TenderOpeningController extends Controller
 
     public function update(Request $request, TenderOpening $tenderOpening)
     {
+        $tenderOpening->loadMissing('rfq.procurementCase');
+        abort_unless(
+            CommitteeScope::userCanActOnCase($request->user(), $tenderOpening->rfq?->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $validated = $request->validate([
             'rfq_id' => 'sometimes|required|exists:rfqs,id',
             'opening_date' => 'sometimes|required|date',
@@ -113,6 +141,13 @@ class TenderOpeningController extends Controller
 
     public function destroy(TenderOpening $tenderOpening)
     {
+        $tenderOpening->loadMissing('rfq.procurementCase');
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $tenderOpening->rfq?->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $tenderOpening->delete();
 
         return response()->json([

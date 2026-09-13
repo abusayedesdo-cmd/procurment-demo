@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PrItem;
 use App\Models\PurchaseRequisition;
 use App\Services\NumberGeneratorService;
+use App\Support\CommitteeScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -37,6 +38,18 @@ class PurchaseRequisitionController extends Controller
 
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
 
+        // Committee scoping: a sub-committee member should only see the PR(s)
+        // currently transferred to their own committee, not every PR in the
+        // project. Users on no committee at all are unaffected. Filtered
+        // post-paginate, same known cosmetic-count caveat as the other
+        // committee-scoped list endpoints.
+        $user = $request->user();
+        $items->setCollection(
+            $items->getCollection()
+                ->filter(fn ($pr) => CommitteeScope::prVisibleToUser($user, $pr))
+                ->values()
+        );
+
         return response()->json([
             'success' => true,
             'data' => $items->items(),
@@ -50,6 +63,12 @@ class PurchaseRequisitionController extends Controller
 
     public function show(PurchaseRequisition $purchaseRequisition)
     {
+        abort_unless(
+            CommitteeScope::prVisibleToUser(request()->user(), $purchaseRequisition),
+            403,
+            'This PR is currently with a different committee.'
+        );
+
         // $purchaseRequisition->load([
         //     'category', 'raisedBy', 'items.item', 'items.unit',
         //     'approvals.user', 'boqDetail', 'torDetail', 'designDrawing', 'procurementPlan',

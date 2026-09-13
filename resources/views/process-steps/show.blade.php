@@ -91,8 +91,65 @@
     .case-card .progress-fill { height: 100%; background: var(--accent); }
     .case-card .step-label { font-size: .72rem; font-weight: 700; color: var(--accent-dark); }
     .case-card .now { font-size: .78rem; font-weight: 600; color: var(--ink); }
+
+        .action-menu { position: relative; display: inline-block; }
+    .action-menu .action-btn {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: .4rem .75rem;
+        font-size: .8rem;
+        font-weight: 600;
+        color: var(--ink);
+        cursor: pointer;
+        font-family: inherit;
+    }
+    .action-menu .action-btn:hover { border-color: #CBD5E1; background: var(--surface); }
+    .action-menu .action-dropdown {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 4px);
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+        min-width: 240px;
+        z-index: 20;
+        overflow: hidden;
+        text-align: left;
+    }
+    .action-menu.open .action-dropdown { display: block; }
+    .action-dropdown a {
+        display: block;
+        padding: .6rem .85rem;
+        font-size: .82rem;
+        color: var(--ink);
+        text-decoration: none;
+        border-bottom: 1px solid var(--line);
+    }
+    .action-dropdown a:last-child { border-bottom: none; }
+    .action-dropdown a:hover { background: var(--surface); color: var(--accent-dark); }
     .no-cases { text-align: center; padding: 2rem 1rem; color: var(--muted); font-size: .88rem; }
     .no-cases a { color: var(--accent-dark); font-weight: 600; }
+
+    .missing-plan-notice {
+        display: flex; flex-direction: column; gap: .6rem;
+        background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;
+        border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1.25rem; font-size: .88rem;
+    }
+    .missing-plan-notice a {
+        align-self: flex-start; background: #1D4ED8; color: #fff; text-decoration: none;
+        font-weight: 600; padding: .5rem .95rem; border-radius: 7px; font-size: .84rem;
+    }
+
+    .active-pr-banner {
+        display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+        padding: .8rem 1.1rem; margin-bottom: 1.25rem; font-size: .86rem; color: var(--ink);
+    }
+    .active-pr-banner a { color: var(--muted); font-weight: 600; font-size: .8rem; text-decoration: none; }
+    .active-pr-banner a:hover { color: var(--accent-dark); }
 
     @media (max-width: 560px) {
         .shell { padding: 1.5rem 1.1rem 3rem; }
@@ -109,22 +166,68 @@
                 <h1>{{ $step['subject'] }}</h1>
             </div>
             <div style="display:flex; align-items:center; gap:.6rem; flex-shrink:0;">
-                @isset($cases)
-                    <a href="{{ route('cases.create') }}" class="back-link" style="background: var(--accent); border-color: var(--accent); color: #fff;">+ New Case</a>
-                @endisset
-                <a href="{{ route('dashboard') }}" class="back-link">&larr; Dashboard</a>
+                <a href="{{ url()->previous() ?: route('dashboard') }}"
+                   onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"
+                   class="back-link">&larr; Back</a>
             </div>
         </div>
+
+        @isset($activePr)
+            <div class="active-pr-banner">
+                <span>Working on <b>PR-{{ $activePr->pr_number ?? $activePr->id }}</b> — every step below stays scoped to this PR.</span>
+                <a href="{{ route('process-steps.show', $slug) }}?clear_pr=1">Change / clear &times;</a>
+            </div>
+        @endisset
+
+        @isset($missingPlanForPr)
+            <div class="missing-plan-notice">
+                <div>
+                    <b>PR-{{ $missingPlanForPr->pr_number ?? $missingPlanForPr->id }}</b>-এর জন্য এখনো কোনো Procurement Plan তৈরি হয়নি — Sub-Committee-তে ট্রান্সফার করার আগে প্রথমে একটা Procurement Plan লাগবে।
+                </div>
+                <a href="{{ route('modules.show', 'procurement-plans') }}?new=1&field_pr_id={{ $missingPlanForPr->id }}&context_label=PR-{{ $missingPlanForPr->pr_number ?? $missingPlanForPr->id }}">
+                    Create Procurement Plan for PR-{{ $missingPlanForPr->pr_number ?? $missingPlanForPr->id }} &rarr;
+                </a>
+                <div style="font-size:.8rem; opacity:.85;">Plan তৈরি হয়ে গেলে Purchase Requisitions লিস্টে ফিরে গিয়ে আবার "Transfer to Sub-Committee (3rd Step)" চাপুন — তখন এটা এখানে auto-select হয়ে আসবে।</div>
+            </div>
+        @endisset
 
         @if (!empty($step['coming_soon']))
             <div class="group-panel">
                 <div class="coming-soon">This step's module is coming soon.</div>
             </div>
+        @elseif (!empty($step['is_pr_picker']))
+            <p class="case-hint">একটা Approved PR বেছে নিন — এরপর Process Steps-এর প্রতিটা ধাপ শুধু এই PR নিয়েই কাজ করবে।</p>
+            @if ($prReceiveList->isEmpty())
+                <div class="group-panel">
+                    <div class="no-cases">No approved PR is waiting to be picked up right now.</div>
+                </div>
+            @else
+                <div class="group-panel">
+                    <div class="module-list">
+                        @foreach ($prReceiveList as $pr)
+                            <div class="module-row" style="cursor:default;">
+                                <span>{{ $pr->pr_number ?? ('PR-' . $pr->id) }} — ৳ {{ number_format($pr->total_estimated_amount ?? 0, 2) }}</span>
+                                <div class="action-menu">
+                                    <button type="button" class="action-btn">Action &#9662;</button>
+                                <div class="action-dropdown">
+                                    <a href="{{ route('process-steps.show', 'sub-committee') }}?pr_id={{ $pr->id }}">Transfer to Sub-Committee</a>
+                                    <a href="{{ route('process-steps.show', 'meeting-notice') }}?pr_id={{ $pr->id }}">1st Meeting Notice</a>
+                                 
+                                    <a href="{{ route('process-steps.show', 'rfq') }}?pr_id={{ $pr->id }}">RFQ </a>
+                                    <a href="{{ route('process-steps.show', 'rfp-rfi') }}?pr_id={{ $pr->id }}">RFP/RFI/Hiring Vendor/Consultant </a>
+                                    <a href="{{ route('process-steps.show', 'tender-otm') }}?pr_id={{ $pr->id }}">Tender/OTM/Press Tender/STD </a>
+                                </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
         @elseif (isset($cases))
             <p class="case-hint">Pick a case below to record this step directly on it.</p>
             @if ($cases->isEmpty())
                 <div class="group-panel">
-                    <div class="no-cases">No procurement cases yet. <a href="{{ route('cases.create') }}">Open a new case</a> to get started.</div>
+                   <div class="no-cases">No procurement cases yet. <a href="{{ route('cases.create', $activePr ? ['pr_id' => $activePr->id] : []) }}">Open a new case</a> to get started.</div>
                 </div>
             @else
                 <div class="case-grid">
@@ -158,7 +261,33 @@
             <div class="group-panel">
                 <div class="module-list">
                     @foreach ($step['modules'] as $m)
-                        <a class="module-row" href="{{ isset($m['route']) ? route($m['route']) : route('modules.show', $m['slug']) }}">
+                        @php
+                            $moduleUrl = isset($m['route']) ? route($m['route']) : route('modules.show', $m['slug']);
+                            $prefillField = $prefillFieldBySlug[$m['slug'] ?? null] ?? null;
+                            $prefillValue = match ($prefillField) {
+                                'pr_id' => $activePr?->id,
+                                'procurement_plan_id' => $planId,
+                                'procurement_case_id' => $caseId,
+                                'rfq_id' => $rfqId,
+                                default => null,
+                            };
+                        if ($prefillField && $prefillValue) {
+                            $moduleUrl .= '?new=1&field_' . $prefillField . '=' . $prefillValue;
+                            if ($activePr) {
+                                $moduleUrl .= '&context_label=' . urlencode($activePr->pr_number ?? ('PR-' . $activePr->id));
+                            }
+                            // Sub-Committee Transfer's From/To committee auto-fill.
+                            if (($m['slug'] ?? null) === 'sub-committee-transfers') {
+                                if ($fromCommitteeId) {
+                                    $moduleUrl .= '&field_from_committee_id=' . $fromCommitteeId;
+                                }
+                                if ($toCommitteeId) {
+                                    $moduleUrl .= '&field_to_committee_id=' . $toCommitteeId;
+                                }
+                            }
+                        }
+                        @endphp
+                        <a class="module-row" href="{{ $moduleUrl }}">
                             <span>{{ $m['title'] }}</span>
                             <span class="chevron">&rarr;</span>
                         </a>
@@ -167,4 +296,22 @@
             </div>
         @endif
     </div>
+@endsection
+
+@section('scripts')
+<script>
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('.action-btn');
+        const menu = e.target.closest('.action-menu');
+        if (btn && menu && btn === menu.querySelector('.action-btn')) {
+            const wasOpen = menu.classList.contains('open');
+            document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+            if (!wasOpen) menu.classList.add('open');
+            return;
+        }
+        if (!e.target.closest('.action-menu')) {
+            document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
+        }
+    });
+</script>
 @endsection

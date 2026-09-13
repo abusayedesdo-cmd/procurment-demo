@@ -10,7 +10,9 @@
         <a href="{{ route('process-steps.show', $backToStep) }}" style="font-size:12.5px;font-weight:600;text-decoration:none">← Back to Step</a>
         <a href="{{ route('cases.create') }}" class="btn btn-primary" style="font-size:12.5px">+ New Case</a>
     @else
-        <a href="{{ route('dashboard') }}" style="font-size:12.5px;font-weight:600;text-decoration:none">← Dashboard</a>
+        <a href="{{ url()->previous() ?: route('dashboard') }}"
+        onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"
+        style="font-size:12.5px;font-weight:600;text-decoration:none">← back </a>
     @endif
 </div>
 
@@ -22,17 +24,17 @@
   </div>
   <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--muted)">
     <span>Ref: <b style="color:var(--ink)">{{ $case->ref }}</b></span>
-    <span>Source PR: <b style="color:var(--ink)">{{ $case->purchaseRequisition?->pr_no ?? '—' }}</b></span>
+    <span>Source PR: <b style="color:var(--ink)">{{ $case->purchaseRequisition?->pr_number ?? '—' }}</b></span>
     <span>Estimate: <b style="color:var(--ink)">৳ {{ number_format($case->amount, 2) }}</b></span>
     <span>Solicitation docs: <b style="color:var(--ink)">{{ ['RFQ' => 'Specification', 'RFP' => 'TOR', 'RFT' => 'BOQ, drawing & design'][$case->method] }}</b></span>
   </div>
   <div style="display:flex;align-items:center;gap:12px;margin-top:16px">
     <div class="progress" style="flex:1;height:8px"><div style="width:{{ $case->progressPct() }}%"></div></div>
-    <span style="font-size:12.5px;font-weight:700;color:var(--brand)">Step {{ min($case->current_step + 1, 23) }} of 23</span>
+    <!-- <span style="font-size:12.5px;font-weight:700;color:var(--brand)">Step {{ min($case->current_step + 1, 23) }} of 23</span> -->
   </div>
 </div>
 
-<div class="card card-pad">
+<!-- <div class="card card-pad">
   @php
     $plan = $case->purchaseRequisition?->procurementPlan;
     $latestTransfer = $plan?->subCommitteeTransfers->first();
@@ -58,7 +60,7 @@
       <span style="font-size:12px;color:var(--muted)">No Procurement Plan linked to this case's PR yet.</span>
     @endif
   </div>
-</div>
+</div> -->
 
 <div class="card card-pad">
   <b style="font-size:14px">Committee Meetings</b>

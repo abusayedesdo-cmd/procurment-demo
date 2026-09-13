@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProcurementCase;
 use App\Models\Rfq;
 use App\Services\NumberGeneratorService;
+use App\Support\CommitteeScope;
 use Illuminate\Http\Request;
 
 /**
@@ -35,6 +36,13 @@ class RfqController extends Controller
 
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
 
+        $user = $request->user();
+        $items->setCollection(
+            $items->getCollection()
+                ->filter(fn ($rfq) => CommitteeScope::userCanActOnCase($user, $rfq->procurementCase))
+                ->values()
+        );
+
         return response()->json([
             'success' => true,
             'data' => $items->items(),
@@ -48,6 +56,12 @@ class RfqController extends Controller
 
     public function show(Rfq $rfq)
     {
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $rfq->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $rfq->load([
             'procurementCase', 'tenderSchedules', 'tenderProposals', 'tenderAdvertisements',
             'items.unit', 'quotations.vendor', 'quotations.items', 'tenderOpenings.committeeMembers',
@@ -73,6 +87,11 @@ class RfqController extends Controller
         ]);
 
         $case = ProcurementCase::findOrFail($validated['procurement_case_id']);
+        abort_unless(
+            CommitteeScope::userCanActOnCase($request->user(), $case),
+            403,
+            'This case is currently with a different committee.'
+        );
         $this->assertTypeMatchesPolicy($case, $validated['type']);
 
         $rfq = Rfq::create($validated + [
@@ -88,6 +107,12 @@ class RfqController extends Controller
 
     public function update(Request $request, Rfq $rfq)
     {
+        abort_unless(
+            CommitteeScope::userCanActOnCase($request->user(), $rfq->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $validated = $request->validate([
             'type' => 'sometimes|required|in:RFQ,OTM',
             'issue_date' => 'sometimes|required|date',
@@ -110,6 +135,12 @@ class RfqController extends Controller
 
     public function destroy(Rfq $rfq)
     {
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $rfq->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $rfq->delete();
 
         return response()->json([

@@ -16,6 +16,7 @@ use App\Models\TechnicalEvaluationReport;
 use App\Models\FinancialEvaluationReport;
 use App\Models\ComparativeStatement;
 use App\Models\CommitteeMember;
+use App\Support\CommitteeScope;
 use App\Services\CommitteeDocumentText;
 use App\Services\NumberGeneratorService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -53,8 +54,26 @@ class DocumentDownloadController extends Controller
         'Work Experience of similar works',
     ];
 
+    /**
+     * Sub-committee scoping (design item 8) for document downloads: same
+     * rule as the API controllers — Admin/Procurement Officer always may,
+     * anyone else only if they're on the case's currently-transferred-to
+     * committee.
+     */
+    protected function assertCanActOnRfq(Rfq $rfq): void
+    {
+        $rfq->loadMissing('procurementCase');
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $rfq->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+    }
+
     public function rfq(Rfq $rfq)
     {
+        $this->assertCanActOnRfq($rfq);
+
         $pdf = Pdf::loadView('documents.rfq', $this->rfqViewData($rfq));
 
         return $pdf->download("RFQ-{$this->safe($rfq->rfq_number)}.pdf");
@@ -67,6 +86,8 @@ class DocumentDownloadController extends Controller
      */
     public function rfqPreview(Rfq $rfq)
     {
+        $this->assertCanActOnRfq($rfq);
+
         $pdf = Pdf::loadView('documents.rfq', $this->rfqViewData($rfq));
 
         return $pdf->stream("RFQ-{$this->safe($rfq->rfq_number)}.pdf");
@@ -97,6 +118,8 @@ class DocumentDownloadController extends Controller
 
     public function tenderSchedule(Rfq $rfq)
     {
+        $this->assertCanActOnRfq($rfq);
+
         $pdf = Pdf::loadView('documents.tender-schedule', $this->tenderScheduleViewData($rfq));
 
         return $pdf->download("Tender-Schedule-{$this->safe($rfq->rfq_number)}.pdf");
@@ -109,6 +132,8 @@ class DocumentDownloadController extends Controller
      */
     public function tenderSchedulePreview(Rfq $rfq)
     {
+        $this->assertCanActOnRfq($rfq);
+
         $pdf = Pdf::loadView('documents.tender-schedule', $this->tenderScheduleViewData($rfq));
 
         return $pdf->stream("Tender-Schedule-{$this->safe($rfq->rfq_number)}.pdf");
@@ -229,7 +254,14 @@ class DocumentDownloadController extends Controller
 
     public function comparativeStatement(ComparativeStatement $comparativeStatement)
     {
-        $comparativeStatement->loadMissing('rfq', 'preparedBy', 'lowestEvaluatedVendor', 'items.vendor');
+        $comparativeStatement->loadMissing('rfq.procurementCase');
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $comparativeStatement->rfq?->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
+        $comparativeStatement->loadMissing('preparedBy', 'lowestEvaluatedVendor', 'items.vendor');
 
         $pdf = Pdf::loadView('documents.comparative-statement', [
             'statement' => $comparativeStatement,
@@ -241,7 +273,14 @@ class DocumentDownloadController extends Controller
 
     public function comparativeStatementPreview(ComparativeStatement $comparativeStatement)
     {
-        $comparativeStatement->loadMissing('rfq', 'preparedBy', 'lowestEvaluatedVendor', 'items.vendor');
+        $comparativeStatement->loadMissing('rfq.procurementCase');
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $comparativeStatement->rfq?->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
+        $comparativeStatement->loadMissing('preparedBy', 'lowestEvaluatedVendor', 'items.vendor');
 
         $pdf = Pdf::loadView('documents.comparative-statement', [
             'statement' => $comparativeStatement,
@@ -254,6 +293,12 @@ class DocumentDownloadController extends Controller
     public function tenderOpening(TenderOpening $tenderOpening)
     {
         $tenderOpening->loadMissing('rfq.procurementCase.purchaseRequisition', 'openedBy');
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $tenderOpening->rfq?->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $rfq = $tenderOpening->rfq;
 
         $quotations = Quotation::query()->where('rfq_id', $rfq->id)->with('vendor')->get();

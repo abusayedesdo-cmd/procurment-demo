@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ContractAward;
 use App\Services\NumberGeneratorService;
+use App\Support\CommitteeScope;
 use Illuminate\Http\Request;
 
 /**
@@ -28,6 +29,13 @@ class ContractAwardController extends Controller
 
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
 
+        $user = $request->user();
+        $items->setCollection(
+            $items->getCollection()
+                ->filter(fn ($award) => CommitteeScope::userCanActOnPlan($user, $award->procurement_plan_id))
+                ->values()
+        );
+
         return response()->json([
             'success' => true,
             'data' => $items->items(),
@@ -41,6 +49,12 @@ class ContractAwardController extends Controller
 
     public function show(ContractAward $contractAward)
     {
+        abort_unless(
+            CommitteeScope::userCanActOnPlan(request()->user(), $contractAward->procurement_plan_id),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $contractAward->load(['procurementPlan', 'vendor', 'payOrders', 'contractAgreements']);
 
         return response()->json([
@@ -59,6 +73,12 @@ class ContractAwardController extends Controller
             'file_path' => 'nullable|string|max:255',
         ]);
 
+        abort_unless(
+            CommitteeScope::userCanActOnPlan($request->user(), $validated['procurement_plan_id']),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $award = ContractAward::create($validated + [
             'noa_number' => $this->numberGenerator->nextMemo(),
         ]);
@@ -74,6 +94,12 @@ class ContractAwardController extends Controller
 
     public function update(Request $request, ContractAward $contractAward)
     {
+        abort_unless(
+            CommitteeScope::userCanActOnPlan($request->user(), $contractAward->procurement_plan_id),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $validated = $request->validate([
             'noa_date' => 'sometimes|required|date',
             'file_path' => 'nullable|string|max:255',
@@ -90,6 +116,12 @@ class ContractAwardController extends Controller
 
     public function destroy(ContractAward $contractAward)
     {
+        abort_unless(
+            CommitteeScope::userCanActOnPlan(request()->user(), $contractAward->procurement_plan_id),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $contractAward->delete();
 
         return response()->json([

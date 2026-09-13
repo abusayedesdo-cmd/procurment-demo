@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ComparativeStatement;
+use App\Models\Rfq;
+use App\Support\CommitteeScope;
 use Illuminate\Http\Request;
 
 class ComparativeStatementController extends Controller
@@ -11,9 +13,16 @@ class ComparativeStatementController extends Controller
     public function index(Request $request)
     {
         $query = ComparativeStatement::query();
-        $query->with(['rfq', 'preparedBy', 'lowestEvaluatedVendor', 'items']);
+        $query->with(['rfq.procurementCase', 'preparedBy', 'lowestEvaluatedVendor', 'items']);
 
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
+
+        $user = $request->user();
+        $items->setCollection(
+            $items->getCollection()
+                ->filter(fn ($cs) => CommitteeScope::userCanActOnCase($user, $cs->rfq?->procurementCase))
+                ->values()
+        );
 
         return response()->json([
             'success' => true,
@@ -28,7 +37,13 @@ class ComparativeStatementController extends Controller
 
     public function show(ComparativeStatement $comparativeStatement)
     {
-        $comparativeStatement->load(['rfq', 'preparedBy', 'lowestEvaluatedVendor', 'items']);
+        $comparativeStatement->load(['rfq.procurementCase', 'preparedBy', 'lowestEvaluatedVendor', 'items']);
+
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $comparativeStatement->rfq?->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
 
         return response()->json([
             'success' => true,
@@ -45,6 +60,13 @@ class ComparativeStatementController extends Controller
             'file_path' => 'nullable|string|max:255'
         ]);
 
+        $rfq = Rfq::with('procurementCase')->findOrFail($validated['rfq_id']);
+        abort_unless(
+            CommitteeScope::userCanActOnCase($request->user(), $rfq->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $comparativeStatement = ComparativeStatement::create($validated);
 
         return response()->json([
@@ -56,6 +78,13 @@ class ComparativeStatementController extends Controller
 
     public function update(Request $request, ComparativeStatement $comparativeStatement)
     {
+        $comparativeStatement->loadMissing('rfq.procurementCase');
+        abort_unless(
+            CommitteeScope::userCanActOnCase($request->user(), $comparativeStatement->rfq?->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $validated = $request->validate([
             'rfq_id' => 'sometimes|required|exists:rfqs,id',
             'prepared_by' => 'sometimes|required|exists:users,id',
@@ -74,6 +103,13 @@ class ComparativeStatementController extends Controller
 
     public function destroy(ComparativeStatement $comparativeStatement)
     {
+        $comparativeStatement->loadMissing('rfq.procurementCase');
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $comparativeStatement->rfq?->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $comparativeStatement->delete();
 
         return response()->json([

@@ -336,10 +336,10 @@
     // (ProcessStepPageController::STEPS), whose step numbers already match
     // ESDO's own numbering (3rd/7th/8th/9th).
     const ACTION_OPTIONS = [
-        { label: 'Transfer to Sub-Committee (3rd Step)', href: '/process-steps/sub-committee' },
-        { label: 'RFQ (7th Step)', href: '/process-steps/rfq' },
-        { label: 'RFP/RFI/Hiring Vendor/Consultant (8th Step)', href: '/process-steps/rfp-rfi' },
-        { label: 'Tender/OTM/Press tender/STD (9th Step)', href: '/process-steps/tender-otm' },
+        { label: 'Transfer to Sub-Committee (3rd Step)', href: pr => `/process-steps/sub-committee?pr_id=${pr.id}` },
+        { label: 'RFQ (7th Step)', href: () => '/process-steps/rfq' },
+        { label: 'RFP/RFI/Hiring Vendor/Consultant (8th Step)', href: () => '/process-steps/rfp-rfi' },
+        { label: 'Tender/OTM/Press tender/STD (9th Step)', href: () => '/process-steps/tender-otm' },
     ];
 
     function actionCell(pr) {
@@ -347,7 +347,7 @@
             return '<td></td>';
         }
 
-        const options = ACTION_OPTIONS.map(o => `<a href="${o.href}">${o.label}</a>`).join('');
+    const options = ACTION_OPTIONS.map(o => `<a href="${o.href(pr)}">${o.label}</a>`).join('');
         return `
             <td>
                 <div class="action-menu">

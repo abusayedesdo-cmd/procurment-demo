@@ -6,17 +6,48 @@ use App\Models\ProcurementCase;
 use App\Models\ProcurementPolicy;
 use App\Models\PurchaseRequisition;
 use App\Services\NumberGeneratorService;
+use App\Support\CommitteeScope;
 use Illuminate\Http\Request;
 
 class ProcurementCaseController extends Controller
 {
     public function index()
     {
-        return view('cases.index', ['cases' => ProcurementCase::latest()->get()]);
+        // Sub-committee scoping (design item 8): once a case's PR has been
+        // transferred to a Sub-Committee, only Admin/Procurement Officer or
+        // a member of that Sub-Committee should see it on this list.
+        $user = request()->user();
+        $cases = ProcurementCase::latest()->get()
+            ->filter(fn ($case) => CommitteeScope::userCanActOnCase($user, $case))
+            ->values();
+
+        return view('cases.index', ['cases' => $cases]);
     }
 
     /** Form to open a new case from an approved PR that doesn't have one yet. */
-    public function create()
+
+    // public function create(Request $request)
+    // {
+    //     $selectedPrId = $request->integer('pr_id') ?: null;
+
+    //     $eligiblePrs = PurchaseRequisition::with('category')
+    //         ->where(function ($q) use ($selectedPrId) {
+    //             $q->where('status', 'approved');
+    //             if ($selectedPrId) {
+    //                 $q->orWhere('id', $selectedPrId);
+    //             }
+    //         })
+    //         ->whereDoesntHave('procurementCase')
+    //         ->orderBy('requisition_date')
+    //         ->get();
+
+    //     return view('cases.create', [
+    //         'eligiblePrs' => $eligiblePrs,
+    //         'selectedPrId' => $selectedPrId,
+    //     ]);
+    // }
+
+    public function create(Request $request)
     {
         $eligiblePrs = PurchaseRequisition::with('category')
             ->where('status', 'approved')
@@ -24,7 +55,10 @@ class ProcurementCaseController extends Controller
             ->orderBy('requisition_date')
             ->get();
 
-        return view('cases.create', ['eligiblePrs' => $eligiblePrs]);
+        return view('cases.create', [
+            'eligiblePrs' => $eligiblePrs,
+            'selectedPrId' => $request->integer('pr_id') ?: null,
+        ]);
     }
 
     public function store(Request $request, NumberGeneratorService $numbers)
@@ -56,6 +90,12 @@ class ProcurementCaseController extends Controller
 
     public function show(ProcurementCase $case)
     {
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $case),
+            403,
+            'This case is currently with a different committee.'
+        );
+
         $case->load([
             'steps',
             'meetings',

@@ -255,15 +255,15 @@ async function initResourcePage(config) {
     root.innerHTML = `
         <div id="errorBoxPlaceholder"></div>
 
-        <div class="card">
-            <h3 style="${sectionTitleStyle}">Records</h3>
-            <div style="overflow-x:auto;">
+        <details class="card">
+            <summary style="${sectionTitleStyle} cursor:pointer; list-style:none;">Log</summary>
+            <div style="overflow-x:auto; margin-top:1rem;">
                 <table>
                     <thead><tr>${config.listColumns.map(c => `<th>${c.label}</th>`).join('')}${config.rowActions ? '<th>Action</th>' : ''}</tr></thead>
                     <tbody id="listBody"><tr><td colspan="${config.listColumns.length + (config.rowActions ? 1 : 0)}" class="muted">Loading…</td></tr></tbody>
                 </table>
             </div>
-        </div>
+        </details>
 
         ${addFormBlock}
     `;

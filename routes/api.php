@@ -208,6 +208,26 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('boq-details', BoqDetailController::class);
 
+    // Committee-scoped resources: visible/writable by Procurement Officer &
+    // Admin (system-wide, "main committee") always, or by a member of the
+    // Sub-Committee a case/plan is *currently* transferred to (per-record
+    // check via CommitteeScope — see each controller). No route-level role
+    // restriction here on purpose; a plain sub-committee member has no
+    // system role at all.
+    Route::apiResource('procurement-cases', ProcurementCaseController::class)->only(['index', 'show']);
+    Route::apiResource('rfqs', RfqController::class);
+    Route::apiResource('quotations', QuotationController::class);
+    Route::apiResource('tender-openings', TenderOpeningController::class);
+    Route::apiResource('comparative-statements', ComparativeStatementController::class);
+    Route::apiResource('contract-awards', ContractAwardController::class);
+    Route::get('rfqs/{rfq}/document', [DocumentDownloadController::class, 'rfq']);
+    Route::get('rfqs/{rfq}/preview', [DocumentDownloadController::class, 'rfqPreview']);
+    Route::get('rfqs/{rfq}/tender-schedule-document', [DocumentDownloadController::class, 'tenderSchedule']);
+    Route::get('rfqs/{rfq}/tender-schedule-preview', [DocumentDownloadController::class, 'tenderSchedulePreview']);
+    Route::get('comparative-statements/{comparativeStatement}/document', [DocumentDownloadController::class, 'comparativeStatement']);
+    Route::get('comparative-statements/{comparativeStatement}/preview', [DocumentDownloadController::class, 'comparativeStatementPreview']);
+    Route::get('tender-openings/{tenderOpening}/document', [DocumentDownloadController::class, 'tenderOpening']);
+
     // B, C, D, E — Procurement Officer's desk.
     Route::middleware('role:procurement_officer,admin')->group(function () {
     Route::apiResource('procurement-plans', ProcurementPlanController::class)->except(['destroy']);
@@ -219,23 +239,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('meetings/{meeting}/attendance-document', [DocumentDownloadController::class, 'meetingAttendance'])->name('api.meetings.attendance-document');
         Route::get('meetings/{meeting}/minutes-document', [DocumentDownloadController::class, 'meetingMinutes'])->name('api.meetings.minutes-document');
         Route::apiResource('sub-committee-transfers', SubCommitteeTransferController::class);
-        Route::apiResource('procurement-cases', ProcurementCaseController::class)->only(['index', 'show']);
         Route::post('uploads', [FileUploadController::class, 'store']);
-        Route::apiResource('rfqs', RfqController::class);
         Route::apiResource('tender-schedules', TenderScheduleController::class);
         Route::apiResource('tender-proposals', TenderProposalController::class);
         Route::apiResource('tender-advertisements', TenderAdvertisementController::class);
-        Route::apiResource('quotations', QuotationController::class);
-        Route::apiResource('tender-openings', TenderOpeningController::class);
         Route::apiResource('eligibility-reports', EligibilityReportController::class);
         Route::apiResource('eligibility-report-items', EligibilityReportItemController::class);
         Route::apiResource('technical-evaluation-reports', TechnicalEvaluationReportController::class);
         Route::apiResource('technical-evaluation-items', TechnicalEvaluationItemController::class);
         Route::apiResource('financial-evaluation-reports', FinancialEvaluationReportController::class);
         Route::apiResource('financial-evaluation-items', FinancialEvaluationItemController::class);
-        Route::apiResource('comparative-statements', ComparativeStatementController::class);
         Route::apiResource('comparative-statement-items', ComparativeStatementItemController::class);
-        Route::apiResource('contract-awards', ContractAwardController::class);
         Route::apiResource('pay-orders', PayOrderController::class);
         Route::apiResource('contract-agreements', ContractAgreementController::class);
         Route::apiResource('work-orders', WorkOrderController::class);
@@ -260,19 +274,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('sole-sourcing-requests', SoleSourcingRequestController::class);
 
         // Document generation — downloadable .docx matching ESDO's real
-        // paper formats.
-        Route::get('rfqs/{rfq}/document', [DocumentDownloadController::class, 'rfq']);
-        Route::get('rfqs/{rfq}/preview', [DocumentDownloadController::class, 'rfqPreview']);
-        Route::get('rfqs/{rfq}/tender-schedule-document', [DocumentDownloadController::class, 'tenderSchedule']);
-        Route::get('rfqs/{rfq}/tender-schedule-preview', [DocumentDownloadController::class, 'tenderSchedulePreview']);
+        // paper formats. (RFQ/comparative-statement/tender-opening document
+        // routes moved above into the committee-scoped group.)
         Route::get('eligibility-reports/{eligibilityReport}/document', [DocumentDownloadController::class, 'eligibilityReport']);
         Route::get('eligibility-reports/{eligibilityReport}/preview', [DocumentDownloadController::class, 'eligibilityReportPreview']);
         Route::get('technical-evaluation-reports/{technicalEvaluationReport}/document', [DocumentDownloadController::class, 'technicalEvaluationReport']);
         Route::get('technical-evaluation-reports/{technicalEvaluationReport}/preview', [DocumentDownloadController::class, 'technicalEvaluationReportPreview']);
         Route::get('financial-evaluation-reports/{financialEvaluationReport}/document', [DocumentDownloadController::class, 'financialEvaluationReport']);
         Route::get('financial-evaluation-reports/{financialEvaluationReport}/preview', [DocumentDownloadController::class, 'financialEvaluationReportPreview']);
-        Route::get('comparative-statements/{comparativeStatement}/document', [DocumentDownloadController::class, 'comparativeStatement']);
-        Route::get('comparative-statements/{comparativeStatement}/preview', [DocumentDownloadController::class, 'comparativeStatementPreview']);
-        Route::get('tender-openings/{tenderOpening}/document', [DocumentDownloadController::class, 'tenderOpening']);
     });
 });

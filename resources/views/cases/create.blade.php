@@ -32,7 +32,8 @@
             <option value="{{ $pr->id }}"
                     data-project="{{ $pr->project_name }}"
                     data-amount="{{ $pr->total_estimated_amount }}"
-                    data-category="{{ $pr->category?->name }}">
+                    data-category="{{ $pr->category?->name }}"
+                    @selected(($selectedPrId ?? null) == $pr->id)>
               {{ $pr->pr_number }} — {{ $pr->project_name }} (৳ {{ number_format($pr->total_estimated_amount, 2) }})
             </option>
           @endforeach
@@ -107,6 +108,12 @@
           categoryEl.value = mapped;
         }
       });
+
+      // If a PR came pre-selected via ?pr_id=... (active-PR context), fill
+      // the dependent fields immediately without waiting for a manual change.
+      if (prSelect.value) {
+        prSelect.dispatchEvent(new Event('change'));
+      }
     </script>
   @endif
 </div>

@@ -14,7 +14,7 @@ class SubCommitteeTransferController extends Controller
     // Lac) only. Above that, the central procurement committee must
     // handle it directly — a case above this amount cannot be transferred
     // to a sub-committee.
-    public const SUB_COMMITTEE_MAX_AMOUNT = 500000;
+    public const SUB_COMMITTEE_MAX_AMOUNT = 600000;
 
     public function index(Request $request)
     {
@@ -55,6 +55,7 @@ class SubCommitteeTransferController extends Controller
         ]);
 
         $this->assertWithinSubCommitteeLimit($validated['to_committee_id'], $validated['procurement_plan_id']);
+        $this->assertSameProject($validated['to_committee_id'], $validated['procurement_plan_id']);
 
         $subCommitteeTransfer = SubCommitteeTransfer::create($validated);
 
@@ -79,6 +80,10 @@ class SubCommitteeTransferController extends Controller
             $validated['to_committee_id'] ?? $subCommitteeTransfer->to_committee_id,
             $validated['procurement_plan_id'] ?? $subCommitteeTransfer->procurement_plan_id
         );
+        $this->assertSameProject(
+            $validated['to_committee_id'] ?? $subCommitteeTransfer->to_committee_id,
+            $validated['procurement_plan_id'] ?? $subCommitteeTransfer->procurement_plan_id
+        );
 
         $subCommitteeTransfer->update($validated);
 
@@ -97,6 +102,37 @@ class SubCommitteeTransferController extends Controller
             'success' => true,
             'message' => 'SubCommitteeTransfer deleted successfully',
         ]);
+    }
+
+    /**
+     * A Sub-Committee is formed for one specific Project (Policy §9); its
+     * work must never cross into another Project's PRs. Only applies when
+     * the destination is a 'sub' committee — the main/central committee
+     * is organization-wide, so transferring back to it has no project
+     * restriction. Aborts with a 422 if the plan's PR belongs to a
+     * different project than the destination sub-committee.
+     */
+    private function assertSameProject(int $toCommitteeId, int $procurementPlanId): void
+    {
+        $toCommittee = \App\Models\PurchaseCommittee::withoutGlobalScopes()->find($toCommitteeId);
+        if (! $toCommittee || $toCommittee->type !== 'sub') {
+            return;
+        }
+
+        $plan = ProcurementPlan::find($procurementPlanId);
+        $pr = $plan?->pr_id
+            ? \App\Models\PurchaseRequisition::withoutGlobalScopes()->find($plan->pr_id)
+            : null;
+
+        // No PR/project on either side yet — nothing to conflict with.
+        if (! $pr || ! $pr->project_id || ! $toCommittee->project_id) {
+            return;
+        }
+
+        abort_if($pr->project_id !== $toCommittee->project_id, 422,
+            "This PR belongs to a different Project than {$toCommittee->name}. "
+            . 'A Sub-Committee can only receive PRs from its own Project per ESDO Procurement Policy §9.'
+        );
     }
 
     /**

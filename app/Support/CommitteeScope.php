@@ -35,17 +35,12 @@ class CommitteeScope
         }
 
         $plan = \App\Models\ProcurementPlan::where('pr_id', $case->purchase_requisition_id)->first();
+        // No Plan yet at all — still with Main Committee by definition.
         if (! $plan) {
-            return null;
+            return PurchaseCommittee::where('type', 'main')->first();
         }
 
-        $latestTransfer = $plan->subCommitteeTransfers()
-            ->latest('transfer_date')
-            ->latest('id')
-            ->with('toCommittee')
-            ->first();
-
-        return $latestTransfer?->toCommittee;
+        return self::currentCommitteeForPlanId($plan->id);
     }
 
     /**
@@ -65,13 +60,15 @@ class CommitteeScope
             ->with('toCommittee')
             ->first();
 
-        return $latestTransfer?->toCommittee;
+        // Never transferred yet — still with Main Committee by definition,
+        // not "held by no one".
+        return $latestTransfer?->toCommittee ?? PurchaseCommittee::where('type', 'main')->first();
     }
 
     /** Same idea as userCanActOnCase(), but keyed off a Procurement Plan id (Contract Award). */
     public static function userCanActOnPlan(User $user, ?int $procurementPlanId): bool
     {
-        if ($user->canManageProcurement()) {
+        if (self::hasUnrestrictedAccess($user)) {
             return true;
         }
 
@@ -96,7 +93,7 @@ class CommitteeScope
      */
     public static function userCanActOnCase(User $user, ?ProcurementCase $case): bool
     {
-        if ($user->canManageProcurement()) {
+        if (self::hasUnrestrictedAccess($user)) {
             return true;
         }
 
@@ -107,9 +104,78 @@ class CommitteeScope
         return self::userIsMemberOf($user, self::currentCommitteeForCase($case));
     }
 
-    /** Ids of every committee the user is currently on. */
+    /** Same idea as userCanActOnCase(), but keyed off a Purchase Requisition — used for the PR list/show, since a sub-committee member should only ever see the PR their committee currently holds, not every PR in the system. */
+    public static function currentCommitteeForPurchaseRequisition($pr): ?PurchaseCommittee
+    {
+        if (! $pr) {
+            return null;
+        }
+
+        $plan = \App\Models\ProcurementPlan::where('pr_id', $pr->id)->first();
+        // No Plan yet at all — still with Main Committee by definition.
+        if (! $plan) {
+            return PurchaseCommittee::where('type', 'main')->first();
+        }
+
+        return self::currentCommitteeForPlanId($plan->id);
+    }
+
+    /**
+     * Whether a Purchase Requisition should be visible to this user.
+     * Admin/Procurement Officer always can. A user who belongs to NO
+     * committee is unaffected (unrestricted, as before — normal
+     * requester/reviewer/budget_checker/approver workflow is untouched).
+     * A user who IS on at least one committee is a committee member for
+     * this purpose, and only sees PRs currently transferred to one of
+     * their own committees.
+     */
+    public static function prVisibleToUser(User $user, $pr): bool
+    {
+        if (self::hasUnrestrictedAccess($user)) {
+            return true;
+        }
+
+        if (empty(self::committeeIdsForUser($user))) {
+            return true;
+        }
+
+        return self::userIsMemberOf($user, self::currentCommitteeForPurchaseRequisition($pr));
+    }
+
+    /**
+     * Whether this user bypasses committee scoping entirely.
+     * Admin always bypasses. Procurement Officer bypasses ONLY if they are
+     * not a member of any committee — a Procurement Officer who also sits
+     * on a (Sub-)Committee is scoped to that committee's transferred
+     * work/PRs just like any other committee member, everywhere this
+     * class is consulted (dashboard, PR visibility, case/plan actions).
+     */
+    public static function hasUnrestrictedAccess(User $user): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isProcurementOfficer()) {
+            return empty(self::committeeIdsForUser($user));
+        }
+
+        return false;
+    }
+
+   /**
+     * Ids of the SUB-Committees the user is currently on. Only sitting on
+     * a Sub-Committee scopes/restricts a user's view — the Main/Central
+     * committee is the apex procurement authority and its members must
+     * keep the full, unrestricted view, so main-committee membership is
+     * deliberately excluded here. A user who is on a main committee only
+     * (or on no committee at all) gets an empty array back, which every
+     * caller in this class treats as "unrestricted".
+     */
     public static function committeeIdsForUser(User $user): array
     {
-        return CommitteeMember::where('user_id', $user->id)->pluck('committee_id')->all();
+        return CommitteeMember::where('user_id', $user->id)
+            ->pluck('committee_id')
+            ->all();
     }
 }
