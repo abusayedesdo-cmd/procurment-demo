@@ -1,8 +1,8 @@
-@extends('layouts.app')
 
-@section('title', $step['subject'])
 
-@section('styles')
+<?php $__env->startSection('title', $step['subject']); ?>
+
+<?php $__env->startSection('styles'); ?>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
 
@@ -156,56 +156,56 @@
         .page-header { flex-direction: column; }
     }
 </style>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
     <div class="shell">
         <div class="page-header">
             <div>
-                <!-- <p class="eyebrow">Step {{ $step['step_no'] }}</p> -->
-                <h1>{{ $step['subject'] }}</h1>
+                <!-- <p class="eyebrow">Step <?php echo e($step['step_no']); ?></p> -->
+                <h1><?php echo e($step['subject']); ?></h1>
             </div>
             <div style="display:flex; align-items:center; gap:.6rem; flex-shrink:0;">
-                <a href="{{ url()->previous() ?: route('dashboard') }}"
+                <a href="<?php echo e(url()->previous() ?: route('dashboard')); ?>"
                    onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"
                    class="back-link">&larr; Back</a>
             </div>
         </div>
 
-        @isset($activePr)
+        <?php if(isset($activePr)): ?>
             <div class="active-pr-banner">
-                <span>Working on <b>PR-{{ $activePr->pr_number ?? $activePr->id }}</b> — every step below stays scoped to this PR.</span>
-                <a href="{{ route('process-steps.show', $slug) }}?clear_pr=1">Change / clear &times;</a>
+                <span>Working on <b>PR-<?php echo e($activePr->pr_number ?? $activePr->id); ?></b> — every step below stays scoped to this PR.</span>
+                <a href="<?php echo e(route('process-steps.show', $slug)); ?>?clear_pr=1">Change / clear &times;</a>
             </div>
-        @endisset
+        <?php endif; ?>
 
-        @isset($missingPlanForPr)
+        <?php if(isset($missingPlanForPr)): ?>
             <div class="missing-plan-notice">
                 <div>
-                    <b>PR-{{ $missingPlanForPr->pr_number ?? $missingPlanForPr->id }}</b>-এর জন্য এখনো কোনো Procurement Plan তৈরি হয়নি — Sub-Committee-তে ট্রান্সফার করার আগে প্রথমে একটা Procurement Plan লাগবে।
+                    <b>PR-<?php echo e($missingPlanForPr->pr_number ?? $missingPlanForPr->id); ?></b>-এর জন্য এখনো কোনো Procurement Plan তৈরি হয়নি — Sub-Committee-তে ট্রান্সফার করার আগে প্রথমে একটা Procurement Plan লাগবে।
                 </div>
-                <a href="{{ route('modules.show', 'procurement-plans') }}?new=1&field_pr_id={{ $missingPlanForPr->id }}&context_label=PR-{{ $missingPlanForPr->pr_number ?? $missingPlanForPr->id }}">
-                    Create Procurement Plan for PR-{{ $missingPlanForPr->pr_number ?? $missingPlanForPr->id }} &rarr;
+                <a href="<?php echo e(route('modules.show', 'procurement-plans')); ?>?new=1&field_pr_id=<?php echo e($missingPlanForPr->id); ?>&context_label=PR-<?php echo e($missingPlanForPr->pr_number ?? $missingPlanForPr->id); ?>">
+                    Create Procurement Plan for PR-<?php echo e($missingPlanForPr->pr_number ?? $missingPlanForPr->id); ?> &rarr;
                 </a>
                 <div style="font-size:.8rem; opacity:.85;">Plan তৈরি হয়ে গেলে Purchase Requisitions লিস্টে ফিরে গিয়ে আবার "Transfer to Sub-Committee (3rd Step)" চাপুন — তখন এটা এখানে auto-select হয়ে আসবে।</div>
             </div>
-        @endisset
+        <?php endif; ?>
 
-        @if (!empty($step['coming_soon']))
+        <?php if(!empty($step['coming_soon'])): ?>
             <div class="group-panel">
                 <div class="coming-soon">This step's module is coming soon.</div>
             </div>
-        @elseif (!empty($step['is_pr_picker']))
+        <?php elseif(!empty($step['is_pr_picker'])): ?>
             <!-- <p class="case-hint">একটা Approved PR বেছে নিন — এরপর Process Steps-এর প্রতিটা ধাপ শুধু এই PR নিয়েই কাজ করবে।</p> -->
-            @if ($prReceiveList->isEmpty())
+            <?php if($prReceiveList->isEmpty()): ?>
                 <div class="group-panel">
                     <div class="no-cases">No approved PR is waiting to be picked up right now.</div>
                 </div>
-            @else
+            <?php else: ?>
                 <div class="group-panel">
                     <div class="module-list">
-                        @foreach ($prReceiveList as $pr)
-                            @php
+                        <?php $__currentLoopData = $prReceiveList; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pr): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <?php
                                 $prCase = $pr->procurementCase;
                                 $prTransfer = $pr->procurementPlan?->subCommitteeTransfers->first();
                                 $progressLabel = match(true) {
@@ -223,35 +223,36 @@
                                     (bool) $prTransfer => ['label' => '1st Meeting Notice ', 'url' => route('process-steps.show', 'meeting-notice') . '?pr_id=' . $pr->id],
                                     default => ['label' => 'Transfer to Sub-Committee ', 'url' => route('process-steps.show', 'sub-committee') . '?pr_id=' . $pr->id],
                                 };
-                            @endphp
+                            ?>
                             <div class="module-row" style="cursor:default;">
                                 <span>
-                                    {{ $pr->pr_number ?? ('PR-' . $pr->id) }} — ৳ {{ number_format($pr->total_estimated_amount ?? 0, 2) }}
-                                    <!-- <span style="color:var(--muted); font-size:.78rem; margin-left:.6rem;">{{ $progressLabel }}</span> -->
+                                    <?php echo e($pr->pr_number ?? ('PR-' . $pr->id)); ?> — ৳ <?php echo e(number_format($pr->total_estimated_amount ?? 0, 2)); ?>
+
+                                    <!-- <span style="color:var(--muted); font-size:.78rem; margin-left:.6rem;"><?php echo e($progressLabel); ?></span> -->
                                 </span>
                                 <div style="display:flex; align-items:center; gap:.5rem; flex-shrink:0;">
-                                    <a href="{{ $nextAction['url'] }}" class="btn primary" style="padding:.3rem .75rem; font-size:.78rem;">{{ $nextAction['label'] }}</a>
+                                    <a href="<?php echo e($nextAction['url']); ?>" class="btn primary" style="padding:.3rem .75rem; font-size:.78rem;"><?php echo e($nextAction['label']); ?></a>
                                   
-                                    @if ($prTransfer && $prTransfer->toCommittee?->type === 'sub')
-                                        <a href="{{ route('process-steps.show', 'sub-committee') }}?pr_id={{ $pr->id }}" class="btn" style="padding:.3rem .75rem; font-size:.78rem;">Return to Main Committee</a>
-                                    @endif
-                                     <a href="{{ route('purchase-requisitions.show', $pr->id) }}" class="btn" style="padding:.3rem .75rem; font-size:.78rem;">View</a>
+                                    <?php if($prTransfer && $prTransfer->toCommittee?->type === 'sub'): ?>
+                                        <a href="<?php echo e(route('process-steps.show', 'sub-committee')); ?>?pr_id=<?php echo e($pr->id); ?>" class="btn" style="padding:.3rem .75rem; font-size:.78rem;">Return to Main Committee</a>
+                                    <?php endif; ?>
+                                     <a href="<?php echo e(route('purchase-requisitions.show', $pr->id)); ?>" class="btn" style="padding:.3rem .75rem; font-size:.78rem;">View</a>
                                 </div>
                             </div>
-                        @endforeach
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </div>
                 </div>
-            @endif
-        @elseif (isset($cases))
+            <?php endif; ?>
+        <?php elseif(isset($cases)): ?>
             <p class="case-hint">Pick a case below to record this step directly on it.</p>
-            @if ($cases->isEmpty())
+            <?php if($cases->isEmpty()): ?>
                 <div class="group-panel">
-                   <div class="no-cases">No procurement cases yet. <a href="{{ route('cases.create', $activePr ? ['pr_id' => $activePr->id] : []) }}">Open a new case</a> to get started.</div>
+                   <div class="no-cases">No procurement cases yet. <a href="<?php echo e(route('cases.create', $activePr ? ['pr_id' => $activePr->id] : [])); ?>">Open a new case</a> to get started.</div>
                 </div>
-            @else
+            <?php else: ?>
                 <div class="case-grid">
-                    @foreach ($cases as $case)
-                        @php
+                    <?php $__currentLoopData = $cases; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $case): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <?php
                             // Meeting-step pages jump straight into that step's own
                             // form — the case is only listed here because it's
                             // actually ready for this specific action.
@@ -262,25 +263,25 @@
                                 'meeting-resolution' => $firstMeeting ? route('meetings.resolution.create', $firstMeeting) : route('cases.show', $case),
                                 default => route('cases.show', $case),
                             };
-                        @endphp
-                        <a href="{{ $cardUrl }}" class="case-card">
+                        ?>
+                        <a href="<?php echo e($cardUrl); ?>" class="case-card">
                             <div class="top-row">
-                                <span>{{ $case->method }}</span>
+                                <span><?php echo e($case->method); ?></span>
                                 <span>&middot;</span>
-                                <span>{{ $case->category }}</span>
-                                <span class="ref">{{ $case->ref }}</span>
+                                <span><?php echo e($case->category); ?></span>
+                                <span class="ref"><?php echo e($case->ref); ?></span>
                             </div>
-                            <div class="title">{{ $case->title }}</div>
-                            <div class="amount">৳ {{ number_format($case->amount, 2) }}</div>
+                            <div class="title"><?php echo e($case->title); ?></div>
+                            <div class="amount">৳ <?php echo e(number_format($case->amount, 2)); ?></div>
                         </a>
-                    @endforeach
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </div>
-            @endif
-        @else
+            <?php endif; ?>
+        <?php else: ?>
             <div class="group-panel">
                 <div class="module-list">
-                    @foreach ($step['modules'] as $m)
-                        @php
+                    <?php $__currentLoopData = $step['modules']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $m): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <?php
                             $moduleUrl = isset($m['route']) ? route($m['route']) : route('modules.show', $m['slug']);
                             $prefillField = $prefillFieldBySlug[$m['slug'] ?? null] ?? null;
                             $prefillValue = match ($prefillField) {
@@ -305,19 +306,19 @@
                                 }
                             }
                         }
-                        @endphp
-                        <a class="module-row" href="{{ $moduleUrl }}">
-                            <span>{{ $m['title'] }}</span>
+                        ?>
+                        <a class="module-row" href="<?php echo e($moduleUrl); ?>">
+                            <span><?php echo e($m['title']); ?></span>
                             <span class="chevron">&rarr;</span>
                         </a>
-                    @endforeach
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </div>
             </div>
-        @endif
+        <?php endif; ?>
     </div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('scripts')
+<?php $__env->startSection('scripts'); ?>
 <script>
     document.addEventListener('click', function (e) {
         const btn = e.target.closest('.action-btn');
@@ -333,4 +334,5 @@
         }
     });
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/process-steps/show.blade.php ENDPATH**/ ?>

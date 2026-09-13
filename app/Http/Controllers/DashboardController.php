@@ -32,23 +32,30 @@ class DashboardController extends Controller
         $committeeIds = CommitteeScope::committeeIdsForUser($user);
         $isCommitteeOnly = ! empty($committeeIds) && ! CommitteeScope::hasUnrestrictedAccess($user);
 
-        $scopedPlanIds = collect();
-        $scopedPrIds = collect();
-
-        if ($isCommitteeOnly) {
-            $scopedPlanIds = SubCommitteeTransfer::query()
+        // Plans currently held by one of the user's own committees — still
+        // used for the Active Plans / Contracts Awarded cards below, which
+        // are genuinely plan-scoped (a plan/contract only exists once a
+        // Plan record does, so "never transferred" isn't a concern there).
+        $scopedPlanIds = $isCommitteeOnly
+            ? SubCommitteeTransfer::query()
                 ->orderByDesc('transfer_date')
                 ->orderByDesc('id')
                 ->get()
                 ->unique('procurement_plan_id')
                 ->filter(fn ($t) => in_array($t->to_committee_id, $committeeIds))
-                ->pluck('procurement_plan_id');
+                ->pluck('procurement_plan_id')
+            : collect();
 
-            $scopedPrIds = ProcurementPlan::whereIn('id', $scopedPlanIds)->pluck('pr_id')->filter()->values();
-        }
-
-        $scopePrs = function ($query) use ($isCommitteeOnly, $scopedPrIds) {
-            return $isCommitteeOnly ? $query->whereIn('id', $scopedPrIds) : $query;
+        // PRs: use the same "current holder" rule as everywhere else
+        // (CommitteeScope::prVisibleToUser) instead of a separate,
+        // transfer-only scope — that rule already treats a PR that was
+        // NEVER transferred as still being with the Main Committee, which
+        // a purely SubCommitteeTransfer-based scope would silently drop.
+        $scopePrs = function ($query) use ($user, $isCommitteeOnly) {
+            $results = $query->get();
+            return $isCommitteeOnly
+                ? $results->filter(fn ($pr) => CommitteeScope::prVisibleToUser($user, $pr))->values()
+                : $results;
         };
 
         $awaitingReview = $canReview

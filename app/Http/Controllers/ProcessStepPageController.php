@@ -222,7 +222,7 @@ class ProcessStepPageController extends Controller
         // Active PR + Sub-Committee step + Plan already exists -> skip the
         // "Committees / Committee Members / Sub-Committee Transfer" list
         // entirely and jump straight into the Transfer form, prefilled.
-        if ($slug === 'sub-committee' && $activePr && $planId) {
+        if ($slug === 'sub-committee' && $activePr && $planId && ! request()->boolean('skip_redirect')) {
             $url = route('modules.show', 'sub-committee-transfers')
                 . '?new=1&field_procurement_plan_id=' . $planId
                 . '&context_label=' . urlencode($activePr->pr_number ?? ('PR-' . $activePr->id));
@@ -239,10 +239,17 @@ class ProcessStepPageController extends Controller
 
         $prReceiveList = null;
         if (! empty($step['is_pr_picker'])) {
+            $user = request()->user();
             $prReceiveList = \App\Models\PurchaseRequisition::where('status', 'approved')
-                ->latest('id')->get(['id', 'pr_number', 'total_estimated_amount']);
+                ->with([
+                    'procurementCase',
+                    'procurementPlan.subCommitteeTransfers' => fn ($q) => $q
+                        ->orderByDesc('transfer_date')->orderByDesc('id')->with('toCommittee'),
+                ])
+                ->latest('id')->get(['id', 'pr_number', 'total_estimated_amount'])
+                ->filter(fn ($pr) => \App\Support\CommitteeScope::prVisibleToUser($user, $pr))
+                ->values();
         }
-
         $usesCasesFlow = collect($step['modules'])->contains(fn ($m) => ($m['route'] ?? null) === 'cases.index');
         if ($usesCasesFlow && in_array($slug, self::MEETING_STEP_SLUGS, true)) {
             $cases = $this->casesReadyForMeetingStep($slug);
@@ -255,7 +262,7 @@ class ProcessStepPageController extends Controller
         if ($cases !== null && $caseId) {
             $cases = $cases->filter(fn ($c) => $c->id === $caseId)->values();
         }
-        if ($activePr && in_array($slug, self::MEETING_STEP_SLUGS, true) && $cases !== null && $cases->count() === 1) {
+        if ($activePr && in_array($slug, self::MEETING_STEP_SLUGS, true) && $cases !== null && $cases->count() === 1 && ! request()->boolean('skip_redirect')) {
             $case = $cases->first();
             $firstMeeting = $case->relationLoaded('meetings') ? $case->meetings->first() : null;
 

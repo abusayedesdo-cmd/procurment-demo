@@ -1,8 +1,6 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', $title ?? 'Module'); ?>
 
-@section('title', $title ?? 'Module')
-
-@section('styles')
+<?php $__env->startSection('styles'); ?>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
 
@@ -98,31 +96,31 @@
         .page-header { flex-direction: column; align-items: flex-start; }
     }
 </style>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
     <div class="shell">
         <div class="page-header">
             <div>
                 <p class="eyebrow">Module</p>
                 <h1 id="moduleTitle">Loading…</h1>
             </div>
-            <a href="{{ $stepSlug ? route('process-steps.show', ['slug' => $stepSlug, 'skip_redirect' => 1]) : route('dashboard') }}" class="btn">← {{ $stepSlug ? 'Back to Step' : 'Dashboard' }}</a>
+            <a href="<?php echo e($stepSlug ? route('process-steps.show', ['slug' => $stepSlug, 'skip_redirect' => 1]) : route('dashboard')); ?>" class="btn">← <?php echo e($stepSlug ? 'Back to Step' : 'Dashboard'); ?></a>
         </div>
 
         <div id="resourceRoot">
             <div class="state-panel">Loading…</div>
         </div>
     </div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('scripts')
-<script src="{{ asset('js/module-configs.js') }}"></script>
-<script src="{{ asset('js/resource-ui.js') }}"></script>
+<?php $__env->startSection('scripts'); ?>
+<script src="<?php echo e(asset('js/module-configs.js')); ?>"></script>
+<script src="<?php echo e(asset('js/resource-ui.js')); ?>"></script>
 <script>
-    window.currentUserId = {{ auth()->id() }};
+    window.currentUserId = <?php echo e(auth()->id()); ?>;
 
-    const slug = @json($slug);
+    const slug = <?php echo json_encode($slug, 15, 512) ?>;
     const config = MODULE_CONFIGS[slug];
     const titleEl = document.getElementById('moduleTitle');
 
@@ -135,4 +133,5 @@
         initResourcePage(config);
     }
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/modules/show.blade.php ENDPATH**/ ?>

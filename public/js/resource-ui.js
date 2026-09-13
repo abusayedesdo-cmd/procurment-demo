@@ -19,6 +19,18 @@ function getByPath(obj, path) {
 function formatCell(value) {
     if (value === null || value === undefined || value === '') return '<span class="muted">-</span>';
     if (typeof value === 'boolean') return value ? '✅' : '—';
+    // Laravel date/datetime casts serialize as full ISO timestamps
+    // (e.g. "2026-09-12T00:00:00.000000Z"). Plain 'date' columns always
+    // carry a 00:00:00 time component — show date only for those. Real
+    // 'datetime' columns (e.g. held_at, submitted_at) keep their time,
+    // shown with a small gap after the date instead of the raw "T".
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+        const [datePart, timePart] = value.split('T');
+        const hhmm = timePart.slice(0, 5);
+        return hhmm === '00:00'
+            ? datePart
+            : `${datePart}<span style="margin-left:.5em">${hhmm}</span>`;
+    }
     return value;
 }
 
