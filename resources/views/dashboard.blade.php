@@ -332,7 +332,7 @@
                     <p>{{ $pendingPrs }}</p>
                 </div>
             </a>
-            <a class="card-link" href="{{ route('purchase-requisitions.index') }}?status=approved">
+            <a class="card-link" href="{{ route('process-steps.show', 'pr-receive') }}">
                 <div class="card" data-tone="approved">
                     <h3>Approved PR</h3>
                     <p>{{ $approvedPrs }}</p>

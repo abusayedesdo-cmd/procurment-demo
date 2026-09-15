@@ -335,7 +335,7 @@
                     <p><?php echo e($pendingPrs); ?></p>
                 </div>
             </a>
-            <a class="card-link" href="<?php echo e(route('purchase-requisitions.index')); ?>?status=approved">
+            <a class="card-link" href="<?php echo e(route('process-steps.show', 'pr-receive')); ?>">
                 <div class="card" data-tone="approved">
                     <h3>Approved PR</h3>
                     <p><?php echo e($approvedPrs); ?></p>

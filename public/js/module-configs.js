@@ -151,6 +151,8 @@ const MODULE_CONFIGS = {
     'sub-committee-transfers': {
         title: 'Sub-Committee Transfer',
         apiPath: '/sub-committee-transfers',
+        listFilterField: 'procurement_plan_id',
+        splitLogAndForm: true,
         listColumns: [
             { key: 'from_committee.name', label: 'From' },
             { key: 'to_committee.name', label: 'To' },
@@ -169,6 +171,8 @@ const MODULE_CONFIGS = {
     'rfqs': {
         title: 'RFQ / OTM',
         apiPath: '/rfqs',
+        listFilterField: 'procurement_case_id',
+        splitLogAndForm: true,
         listColumns: [
             { key: 'rfq_number', label: 'RFQ #' },
             { key: 'type', label: 'Type' },
@@ -194,6 +198,8 @@ const MODULE_CONFIGS = {
     'tender-schedules': {
         title: 'Tender Schedule (Goods/Works)',
         apiPath: '/tender-schedules',
+        listFilterField: 'rfq_id',
+        splitLogAndForm: true,
         listColumns: [
             { key: 'rfq.rfq_number', label: 'RFQ' },
             { key: 'category', label: 'Category' },
@@ -221,6 +227,8 @@ const MODULE_CONFIGS = {
     'tender-proposals': {
         title: 'Tender Proposal (Professional Service)',
         apiPath: '/tender-proposals',
+        listFilterField: 'rfq_id',
+        splitLogAndForm: true,
         listColumns: [
             { key: 'rfq.rfq_number', label: 'RFQ' },
         ],
@@ -234,6 +242,8 @@ const MODULE_CONFIGS = {
     'tender-advertisements': {
         title: 'Tender Advertisement',
         apiPath: '/tender-advertisements',
+        listFilterField: 'rfq_id',
+        splitLogAndForm: true,
         listColumns: [
             { key: 'rfq.rfq_number', label: 'RFQ' },
             { key: 'medium', label: 'Medium' },

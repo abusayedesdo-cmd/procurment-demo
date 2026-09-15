@@ -166,15 +166,14 @@
                 <h1><?php echo e($step['subject']); ?></h1>
             </div>
             <div style="display:flex; align-items:center; gap:.6rem; flex-shrink:0;">
-                <a href="<?php echo e(url()->previous() ?: route('dashboard')); ?>"
-                   onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"
+                <a href="<?php echo e(($activePr && $slug !== 'pr-receive') ? route('process-steps.show', 'pr-receive') : route('dashboard')); ?>"
                    class="back-link">&larr; Back</a>
             </div>
         </div>
 
         <?php if(isset($activePr)): ?>
             <div class="active-pr-banner">
-                <span>Working on <b>PR-<?php echo e($activePr->pr_number ?? $activePr->id); ?></b> — every step below stays scoped to this PR.</span>
+                <span>Working on <b>PR-<?php echo e($activePr->pr_number ?? $activePr->id); ?></b> </span>
                 <a href="<?php echo e(route('process-steps.show', $slug)); ?>?clear_pr=1">Change / clear &times;</a>
             </div>
         <?php endif; ?>
@@ -202,6 +201,10 @@
                     <div class="no-cases">No approved PR is waiting to be picked up right now.</div>
                 </div>
             <?php else: ?>
+                <div style="margin-bottom:1rem;">
+                    <input type="text" id="prSearchInput" placeholder="Search by PR no. or Project name…"
+                           style="width:100%; max-width:420px; padding:.55rem .8rem; border:1px solid var(--line); border-radius:8px; font-size:.85rem; font-family:inherit;">
+                </div>
                 <div class="group-panel">
                     <div class="module-list">
                         <?php $__currentLoopData = $prReceiveList; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pr): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
@@ -223,16 +226,40 @@
                                     (bool) $prTransfer => ['label' => '1st Meeting Notice ', 'url' => route('process-steps.show', 'meeting-notice') . '?pr_id=' . $pr->id],
                                     default => ['label' => 'Transfer to Sub-Committee ', 'url' => route('process-steps.show', 'sub-committee') . '?pr_id=' . $pr->id],
                                 };
+
+                                // Steps already shown as their own button above
+                                // (the primary next-action, and/or "Return to
+                                // Main Committee") — leave these out of the
+                                // "Other Steps" dropdown so nothing's repeated.
+                                $excludedStepSlugs = ['pr-receive'];
+                                if (! $prCase) {
+                                    $excludedStepSlugs[] = $prTransfer ? 'meeting-notice' : 'sub-committee';
+                                }
+                                if ($prTransfer && $prTransfer->toCommittee?->type === 'sub') {
+                                    $excludedStepSlugs[] = 'sub-committee';
+                                }
                             ?>
-                            <div class="module-row" style="cursor:default;">
+                            <div class="module-row" data-search="<?php echo e(strtolower(($pr->pr_number ?? '').' '.($pr->project_name ?? ''))); ?>" style="cursor:default;">
                                 <span>
                                     <?php echo e($pr->pr_number ?? ('PR-' . $pr->id)); ?> — ৳ <?php echo e(number_format($pr->total_estimated_amount ?? 0, 2)); ?>
 
-                                    <!-- <span style="color:var(--muted); font-size:.78rem; margin-left:.6rem;"><?php echo e($progressLabel); ?></span> -->
+                                    <?php if($pr->project_name): ?>
+                                        <br><span style="color:var(--muted); font-size:.78rem;"><?php echo e($pr->project_name); ?></span>
+                                    <?php endif; ?>
                                 </span>
                                 <div style="display:flex; align-items:center; gap:.5rem; flex-shrink:0;">
                                     <a href="<?php echo e($nextAction['url']); ?>" class="btn primary" style="padding:.3rem .75rem; font-size:.78rem;"><?php echo e($nextAction['label']); ?></a>
-                                  
+
+                                    <div class="action-menu">
+                                        <button type="button" class="action-btn">Other Steps ▾</button>
+                                        <div class="action-dropdown">
+                                            <?php $__currentLoopData = \App\Http\Controllers\ProcessStepPageController::STEPS; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $jumpSlug => $jumpStep): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                <?php if(in_array($jumpSlug, $excludedStepSlugs, true)) continue; ?>
+                                                <a href="<?php echo e(route('process-steps.show', $jumpSlug)); ?>?pr_id=<?php echo e($pr->id); ?>"><?php echo e($jumpStep['step_no']); ?> — <?php echo e($jumpStep['subject']); ?></a>
+                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                        </div>
+                                    </div>
+
                                     <?php if($prTransfer && $prTransfer->toCommittee?->type === 'sub'): ?>
                                         <a href="<?php echo e(route('process-steps.show', 'sub-committee')); ?>?pr_id=<?php echo e($pr->id); ?>" class="btn" style="padding:.3rem .75rem; font-size:.78rem;">Return to Main Committee</a>
                                     <?php endif; ?>
@@ -283,7 +310,7 @@
                     <?php $__currentLoopData = $step['modules']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $m): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                         <?php
                             $moduleUrl = isset($m['route']) ? route($m['route']) : route('modules.show', $m['slug']);
-                            $prefillField = $prefillFieldBySlug[$m['slug'] ?? null] ?? null;
+                            $prefillField = ($m['no_context'] ?? false) ? null : ($prefillFieldBySlug[$m['slug'] ?? null] ?? null);
                             $prefillValue = match ($prefillField) {
                                 'pr_id' => $activePr?->id,
                                 'procurement_plan_id' => $planId,
@@ -291,7 +318,9 @@
                                 'rfq_id' => $rfqId,
                                 default => null,
                             };
-                        if ($prefillField && $prefillValue) {
+                        if ($m['no_context'] ?? false) {
+                            $moduleUrl .= '?history=1';
+                        } elseif ($prefillField && $prefillValue) {
                             $moduleUrl .= '?new=1&field_' . $prefillField . '=' . $prefillValue;
                             if ($activePr) {
                                 $moduleUrl .= '&context_label=' . urlencode($activePr->pr_number ?? ('PR-' . $activePr->id));
@@ -320,6 +349,16 @@
 
 <?php $__env->startSection('scripts'); ?>
 <script>
+    const prSearchInput = document.getElementById('prSearchInput');
+    if (prSearchInput) {
+        prSearchInput.addEventListener('input', function () {
+            const q = this.value.trim().toLowerCase();
+            document.querySelectorAll('.module-list .module-row[data-search]').forEach(function (row) {
+                row.style.display = (!q || row.dataset.search.includes(q)) ? '' : 'none';
+            });
+        });
+    }
+
     document.addEventListener('click', function (e) {
         const btn = e.target.closest('.action-btn');
         const menu = e.target.closest('.action-menu');

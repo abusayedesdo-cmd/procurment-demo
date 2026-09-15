@@ -119,6 +119,12 @@
 <script src="<?php echo e(asset('js/resource-ui.js')); ?>"></script>
 <script>
     window.currentUserId = <?php echo e(auth()->id()); ?>;
+    window.moduleContext = {
+        filterValue: <?php echo json_encode($contextFilterValue, 15, 512) ?>,
+        label: <?php echo json_encode($contextLabel, 15, 512) ?>,
+        historyMode: <?php echo json_encode(request()->boolean('history'), 15, 512) ?>,
+        historyUrl: <?php echo json_encode(request()->fullUrlWithQuery(['history' => 1]), 15, 512) ?>,
+    };
 
     const slug = <?php echo json_encode($slug, 15, 512) ?>;
     const config = MODULE_CONFIGS[slug];

@@ -27,7 +27,7 @@
       <div>
         <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:4px">Purchase Requisition</label>
         <select name="purchase_requisition_id" id="prSelect" required style="width:100%;padding:8px 10px;border:1px solid var(--line-soft);border-radius:6px;font-size:13px">
-          <option value="">-- Select an approved PR --</option>
+          <!-- <option value="">-- Select an approved PR --</option> -->
           @foreach ($eligiblePrs as $pr)
             <option value="{{ $pr->id }}"
                     data-project="{{ $pr->project_name }}"
@@ -67,10 +67,10 @@
         </div>
       </div>
 
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px">
+      <!-- <label style="display:flex;align-items:right;gap:2px;font-size:13px">
         <input type="checkbox" name="is_otm" value="1" @checked(old('is_otm'))>
-        Open Tender Method (OTM) — otherwise treated as Quotation
-      </label>
+        Open Tender Method (OTM)
+      </label> -->
 
       <div>
         <label style="font-size:12.5px;font-weight:600;display:block;margin-bottom:4px">Estimated Amount (৳)</label>

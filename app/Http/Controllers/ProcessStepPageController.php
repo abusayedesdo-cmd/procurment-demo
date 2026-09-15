@@ -23,9 +23,8 @@ class ProcessStepPageController extends Controller
             'step_no' => '3rd',
             'subject' => 'Sub-Committee',
             'modules' => [
-                ['slug' => 'purchase-committees', 'title' => 'Committees (create Dhaka, Thakurgaon, etc.)'],
-                ['slug' => 'committee-members', 'title' => 'Committee Members'],
                 ['slug' => 'sub-committee-transfers', 'title' => 'Sub-Committee Transfer'],
+                ['slug' => 'sub-committee-transfers', 'title' => 'Sub-Committee Transfer History (All Records)', 'no_context' => true],
             ],
         ],
         'meeting-notice' => [
@@ -54,8 +53,11 @@ class ProcessStepPageController extends Controller
             'subject' => 'Request for Quotation (RFQ)',
             'modules' => [
                 ['slug' => 'rfqs', 'title' => 'RFQ / OTM'],
+                ['slug' => 'rfqs', 'title' => 'RFQ History (All Records)', 'no_context' => true],
                 ['slug' => 'tender-schedules', 'title' => 'Tender Schedule (Goods/Works)'],
+                ['slug' => 'tender-schedules', 'title' => 'Tender Schedule History (All Records)', 'no_context' => true],
                 ['slug' => 'tender-proposals', 'title' => 'Tender Proposal (Professional Service)'],
+                ['slug' => 'tender-proposals', 'title' => 'Tender Proposal History (All Records)', 'no_context' => true],
             ],
         ],
         'rfp-rfi' => [
@@ -69,6 +71,7 @@ class ProcessStepPageController extends Controller
             'subject' => 'Tender Schedule/OTM/Press Tender/STD',
             'modules' => [
                 ['slug' => 'tender-advertisements', 'title' => 'Tender Advertisement'],
+                ['slug' => 'tender-advertisements', 'title' => 'Tender Advertisement History (All Records)', 'no_context' => true],
             ],
         ],
         'quotations-drop' => [
@@ -114,7 +117,7 @@ class ProcessStepPageController extends Controller
      * `?new=1&field_x=y&context_label=...` mechanism the generic module
      * engine (public/js/resource-ui.js) already understands.
      */
-    private const PREFILL_FIELD_BY_SLUG = [
+    public const PREFILL_FIELD_BY_SLUG = [
         'procurement-plans' => 'pr_id',
         'sub-committee-transfers' => 'procurement_plan_id',
         'rfqs' => 'procurement_case_id',
@@ -219,23 +222,14 @@ class ProcessStepPageController extends Controller
             }
         }
 
-        // Active PR + Sub-Committee step + Plan already exists -> skip the
-        // "Committees / Committee Members / Sub-Committee Transfer" list
-        // entirely and jump straight into the Transfer form, prefilled.
-        if ($slug === 'sub-committee' && $activePr && $planId && ! request()->boolean('skip_redirect')) {
-            $url = route('modules.show', 'sub-committee-transfers')
-                . '?new=1&field_procurement_plan_id=' . $planId
-                . '&context_label=' . urlencode($activePr->pr_number ?? ('PR-' . $activePr->id));
-
-            if (! empty($fromCommitteeId)) {
-                $url .= '&field_from_committee_id=' . $fromCommitteeId;
-            }
-            if (! empty($toCommitteeId)) {
-                $url .= '&field_to_committee_id=' . $toCommitteeId;
-            }
-
-            return redirect($url);
-        }
+        // Note: this step used to auto-redirect straight into the Transfer
+        // form whenever an active PR already had a Plan, skipping the list
+        // below entirely. That meant "Back to Step" from the form landed on
+        // a list whose top link immediately sent the officer right back to
+        // the same form — a dead-end loop. Now this step renders its module
+        // list like every other step; the module page itself already shows
+        // the active PR's current record (if any) + the form together, so
+        // nothing is lost by requiring one click into it.
 
         $prReceiveList = null;
         if (! empty($step['is_pr_picker'])) {
@@ -246,7 +240,7 @@ class ProcessStepPageController extends Controller
                     'procurementPlan.subCommitteeTransfers' => fn ($q) => $q
                         ->orderByDesc('transfer_date')->orderByDesc('id')->with('toCommittee'),
                 ])
-                ->latest('id')->get(['id', 'pr_number', 'total_estimated_amount'])
+                ->latest('id')->get(['id', 'pr_number', 'project_name', 'total_estimated_amount'])
                 ->filter(fn ($pr) => \App\Support\CommitteeScope::prVisibleToUser($user, $pr))
                 ->values();
         }

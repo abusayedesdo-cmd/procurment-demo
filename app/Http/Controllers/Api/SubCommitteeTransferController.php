@@ -21,6 +21,10 @@ class SubCommitteeTransferController extends Controller
         $query = SubCommitteeTransfer::query();
         $query->with(['procurementPlan', 'fromCommittee', 'toCommittee']);
 
+        if ($request->filled('procurement_plan_id')) {
+            $query->where('procurement_plan_id', $request->integer('procurement_plan_id'));
+        }
+
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
 
         return response()->json([

@@ -121,6 +121,12 @@
 <script src="{{ asset('js/resource-ui.js') }}"></script>
 <script>
     window.currentUserId = {{ auth()->id() }};
+    window.moduleContext = {
+        filterValue: @json($contextFilterValue),
+        label: @json($contextLabel),
+        historyMode: @json(request()->boolean('history')),
+        historyUrl: @json(request()->fullUrlWithQuery(['history' => 1])),
+    };
 
     const slug = @json($slug);
     const config = MODULE_CONFIGS[slug];

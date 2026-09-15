@@ -13,6 +13,10 @@ class TenderScheduleController extends Controller
         $query = TenderSchedule::query();
         $query->with(['rfq']);
 
+        if ($request->filled('rfq_id')) {
+            $query->where('rfq_id', $request->integer('rfq_id'));
+        }
+
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
 
         return response()->json([

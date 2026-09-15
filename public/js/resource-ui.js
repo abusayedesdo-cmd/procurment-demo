@@ -48,6 +48,14 @@ async function initResourcePage(config) {
 
     const selectCache = {};
 
+    // Modules that declare `splitLogAndForm: true` (today: RFQ/OTM) get a
+    // different layout: the "History" page (`?history=1`, historyMode
+    // true) shows ONLY the Log table, no form; every other visit shows
+    // ONLY the current active-PR record (+ its Preview/Download actions)
+    // plus the Add New form — never the full system-wide Log table.
+    const historyMode = !!(window.moduleContext && window.moduleContext.historyMode);
+    const isSplit = config.splitLogAndForm === true;
+
     function showError(err) {
         successBox.style.display = 'none';
         errorBox.textContent = err.message || String(err);
@@ -174,12 +182,83 @@ async function initResourcePage(config) {
         return `<a href="${href}" class="btn secondary" style="padding:.3rem .6rem; font-size:.8rem;" ${attrs}>${a.label}</a>`;
     }
 
-    async function loadList() {
+    // When a module declares `listFilterField` (e.g. 'procurement_case_id')
+    // and the server resolved an active PR for this request (see
+    // ModulePageController + ActivePrContext), scope the Log table to
+    // just that PR's own records instead of the whole system's history.
+    // window.moduleContext.filterValue is null when there's no active PR,
+    // or the caller asked for everything via `?history=1` — either way the
+    // list is unfiltered, same as before.
+    function getListFilterQuery() {
+        if (!config.listFilterField) return '';
+        const val = window.moduleContext && window.moduleContext.filterValue;
+        return val ? `&${config.listFilterField}=${encodeURIComponent(val)}` : '';
+    }
+
+    function renderListFilterNotice() {
+        const notice = document.getElementById('listFilterNotice');
+        if (!notice) return;
+        const ctx = window.moduleContext;
+        if (!config.listFilterField || !ctx || !ctx.filterValue) { notice.innerHTML = ''; return; }
+        const label = ctx.label || 'this record';
+        notice.innerHTML = `
+            <div style="background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; border-radius:8px; padding:.5rem .8rem; margin-bottom:.9rem; font-size:.82rem; display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap;">
+                <span>Showing records for <b>${label}</b> only.</span>
+                <a href="${ctx.historyUrl}" style="color:#1D4ED8; font-weight:700; text-decoration:none; white-space:nowrap;">View Full History &rarr;</a>
+            </div>`;
+    }
+
+    // Renders the compact "current record" card used by split modules on
+    // their main (non-History) page — same data, no full table chrome,
+    // since there's normally at most one matching record (this PR's RFQ).
+    function renderCurrentRecordRows(rows) {
+        if (!rows.length) {
+            return `<p class="muted" style="margin:0;">No record yet for this PR — create one below.</p>`;
+        }
+        return rows.map(row => {
+            const fields = config.listColumns.map(c => `
+                <div>
+                    <div class="muted" style="font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:.15rem;">${c.label}</div>
+                    <div style="font-size:.9rem; font-weight:600;">${formatCell(getByPath(row, c.key))}</div>
+                </div>`).join('');
+            const actions = config.rowActions
+                ? `<div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.85rem;">${config.rowActions.map(a => renderRowAction(a, row)).join(' ')}</div>`
+                : '';
+            return `
+                <div style="border:1px solid var(--line); border-radius:10px; padding:1rem 1.1rem; margin-bottom:.85rem;">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px,1fr)); gap:.75rem;">${fields}</div>
+                    ${actions}
+                </div>`;
+        }).join('');
+    }
+
+    async function loadRecords() {
+        const ctx = window.moduleContext;
+
+        if (isSplit && !historyMode) {
+            const body = document.getElementById('currentRecordBody');
+            if (!body) return;
+            if (!ctx || !ctx.filterValue) {
+                body.innerHTML = `<p class="muted" style="margin:0;">No active PR selected — pick one from PR Receive to see its record here.</p>`;
+                return;
+            }
+            body.innerHTML = '<div class="muted">Loading…</div>';
+            try {
+                const { data } = await api.get(`${config.apiPath}?per_page=50${getListFilterQuery()}`);
+                body.innerHTML = renderCurrentRecordRows(data);
+            } catch (err) {
+                showError(err);
+            }
+            return;
+        }
+
         const tbody = document.getElementById('listBody');
+        if (!tbody) return;
         const colCount = config.listColumns.length + (config.rowActions ? 1 : 0);
         tbody.innerHTML = `<tr><td colspan="${colCount}" class="muted">Loading…</td></tr>`;
+        renderListFilterNotice();
         try {
-            const { data } = await api.get(`${config.apiPath}?per_page=50`);
+            const { data } = await api.get(`${config.apiPath}?per_page=50${getListFilterQuery()}`);
             if (!data.length) {
                 tbody.innerHTML = `<tr><td colspan="${colCount}" class="muted">No records found.</td></tr>`;
                 return;
@@ -230,7 +309,7 @@ async function initResourcePage(config) {
 
             document.getElementById('resourceForm').reset();
             applyQueryPrefill(); // keep any URL-driven prefill/lock after the reset
-            await loadList();
+            await loadRecords();
         } catch (err) {
             showError(err);
         }
@@ -264,21 +343,38 @@ async function initResourcePage(config) {
                </form>
            </div>`;
 
-    root.innerHTML = `
-        <div id="errorBoxPlaceholder"></div>
-
-        <details class="card">
+    const logBlock = `
+        <details class="card" open>
             <summary style="${sectionTitleStyle} cursor:pointer; list-style:none;">Log</summary>
+            <div id="listFilterNotice" style="margin-top:1rem;"></div>
             <div style="overflow-x:auto; margin-top:1rem;">
                 <table>
                     <thead><tr>${config.listColumns.map(c => `<th>${c.label}</th>`).join('')}${config.rowActions ? '<th>Action</th>' : ''}</tr></thead>
                     <tbody id="listBody"><tr><td colspan="${config.listColumns.length + (config.rowActions ? 1 : 0)}" class="muted">Loading…</td></tr></tbody>
                 </table>
             </div>
-        </details>
+        </details>`;
 
+    const currentRecordBlock = `
+        <div class="card">
+            <h3 style="${sectionTitleStyle}">Current Record</h3>
+            <div id="currentRecordBody"><div class="muted">Loading…</div></div>
+        </div>`;
+
+    // Split modules: History page (`?history=1`) = Log only, no form.
+    // Everywhere else = current record + form, never the full Log.
+    // Non-split modules keep the original Log + form layout together.
+    if (isSplit && historyMode) {
+        root.innerHTML = `<div id="errorBoxPlaceholder"></div>${logBlock}`;
+    } else if (isSplit) {
+        root.innerHTML = `<div id="errorBoxPlaceholder"></div>${currentRecordBlock}${addFormBlock}`;
+    } else {
+        root.innerHTML = `
+        <div id="errorBoxPlaceholder"></div>
+        ${logBlock}
         ${addFormBlock}
     `;
+    }
 
     // Pre-fills a form field from the URL, e.g. `?new=1&field_procurement_plan_id=42`
     // — used when arriving here from a specific record's own page (a case,
@@ -311,11 +407,12 @@ async function initResourcePage(config) {
 
     document.getElementById('errorBoxPlaceholder').replaceWith(errorBox);
     errorBox.after(successBox);
-    if (!isReadOnly && (!config.adminOnly || isAdmin)) {
+    const formIsRendered = !(isSplit && historyMode);
+    if (formIsRendered && !isReadOnly && (!config.adminOnly || isAdmin)) {
         document.getElementById('resourceForm').addEventListener('submit', handleSubmit);
         wireAutofill();
         applyQueryPrefill();
     }
 
-    await loadList();
+    await loadRecords();
 }

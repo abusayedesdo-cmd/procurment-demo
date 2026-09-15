@@ -641,7 +641,10 @@
                 </div>
                 <div class="header-actions">
                     <a href="/api/purchase-requisitions/${pr.id}/pdf" class="btn secondary" target="_blank">Download PDF</a>
-                    <a href="<?php echo e(route('purchase-requisitions.index')); ?>" class="btn secondary">← Back to list</a>
+                    
+                    <a href="<?php echo e(url()->previous() ?: route('purchase-requisitions.index')); ?>"
+                    onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"
+                    class="btn secondary">← Back to list</a>
                 </div>
             </div>
 
