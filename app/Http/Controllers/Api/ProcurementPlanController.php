@@ -20,6 +20,10 @@ class ProcurementPlanController extends Controller
     {
         $query = ProcurementPlan::query()->with(['purchaseRequisition.category']);
 
+        if ($request->filled('pr_id')) {
+            $query->where('pr_id', $request->integer('pr_id'));
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
         }

@@ -201,6 +201,8 @@
     .action-dropdown a:hover { background: var(--surface); color: var(--accent-dark); }
     .action-dropdown a.view-case { color: var(--accent-dark); font-weight: 600; }
 
+    .action-link { color: var(--accent-dark); font-weight: 600; margin-right: .5rem; }
+
     .badge {
         display: inline-block;
         padding: .2rem .65rem;
@@ -285,15 +287,15 @@
                 <p class="eyebrow">Procurement</p>
                 <h1 id="pageTitle">Purchase Requisitions</h1>
             </div>
+            <a href="{{ route('dashboard') }}" id="backLink" class="btn secondary" style="display:none">← Back</a>
             @if (auth()->user()->isPrCreator())
-                <a href="{{ route('purchase-requisitions.create') }}" class="btn primary">+ New PR</a>
+                <a href="{{ route('purchase-requisitions.create') }}" id="newPrBtn" class="btn primary">+ New PR</a>
             @endif
         </div>
 
         <div class="panel">
             <div class="toolbar">
                 <div class="status-filters" id="statusFilters"></div>
-                <a href="{{ route('purchase-requisitions.index') }}" id="viewAllLink" class="btn secondary" style="display:none">← View all Purchase Requisitions</a>
             </div>
 
             <div id="errorBox" class="error-box" style="display:none;"></div>
@@ -329,7 +331,49 @@
     const errorBox = document.getElementById('errorBox');
     const statusFilters = document.getElementById('statusFilters');
     const CAN_MANAGE_PROCUREMENT = @json(auth()->user()->canManageProcurement());
-    const COLSPAN = CAN_MANAGE_PROCUREMENT ? 8 : 7;
+    const COLSPAN = CAN_MANAGE_PROCUREMENT ? 8 : 7;const currentUserRole = window.currentUserRole;
+    const HIGH_VALUE_THRESHOLD = 750000; // keep in sync with PrApprovalController
+
+    function isHighValue(pr) {
+        return Number(pr.total_estimated_amount) >= HIGH_VALUE_THRESHOLD;
+    }
+    function routedToFocal(pr) {
+        return pr.routed_to ? pr.routed_to === 'focal_person' : !isHighValue(pr);
+    }
+    function routedToEd(pr) {
+        return pr.routed_to ? pr.routed_to === 'executive_director' : isHighValue(pr);
+    }
+    function isBudgetCheckStage(pr) {
+        return pr.window_type === 'PR' && pr.status === 'reviewed'
+            && ['budget_checker', 'admin'].includes(currentUserRole);
+    }
+    function isReviewStage(pr) {
+        return pr.status === 'draft'
+            && ['reviewer', 'admin'].includes(currentUserRole);
+    }
+    function isApproverStage(pr) {
+        if (!['approver', 'admin'].includes(currentUserRole)) return false;
+        return pr.window_type !== 'PR' && pr.status === 'reviewed';
+    }
+    function isFocalReviewStage(pr) {
+        return pr.window_type === 'PR' && pr.status === 'checked' && routedToFocal(pr)
+            && ['focal_person', 'admin'].includes(currentUserRole);
+    }
+    function isEdApprovalStage(pr) {
+        return pr.window_type === 'PR'
+            && ((pr.status === 'checked' && routedToEd(pr)) || pr.status === 'focal_reviewed')
+            && ['executive_director', 'admin'].includes(currentUserRole);
+    }
+    function nextActionLabel(pr) {
+        if (isBudgetCheckStage(pr)) return 'Budget Check';
+        if (isReviewStage(pr)) return 'Review';
+        if (isFocalReviewStage(pr)) return 'Focal Review';
+        if (isEdApprovalStage(pr)) return 'ED Approval';
+        if (isApproverStage(pr)) return 'Approve';
+        return null;
+    }
+
+
 
     // The 4 process steps the Procurement Officer starts from an approved
     // PR — these link straight to the existing /process-steps/{slug} pages
@@ -377,9 +421,20 @@
     const isDeepLink = urlParams.has('status') && currentStatus !== '';
 
     if (isDeepLink) {
-        document.getElementById('viewAllLink').style.display = '';
+        document.getElementById('backLink').style.display = '';
+        const newPrBtn = document.getElementById('newPrBtn');
+        if (newPrBtn) newPrBtn.style.display = 'none';
         const match = STATUS_OPTIONS.find(o => o.value === currentStatus);
-        if (match) document.getElementById('pageTitle').textContent = match.label + ' Purchase Requisitions';
+        let titleLabel = match ? match.label : '';
+
+        // Reviewer/Budget Checker/Requester — "reviewed,checked" deep-link
+        // এদের কাছে "Approve PR" নামে দেখাবে, অন্য রোলের কাছে যা আছে তাই থাকবে।
+        const APPROVE_LABEL_ROLES = ['reviewer', 'budget_checker', 'requester'];
+        if (currentStatus === 'reviewed,checked' && APPROVE_LABEL_ROLES.includes(window.currentUserRole)) {
+            titleLabel = 'Approve PR';
+        }
+
+        if (titleLabel) document.getElementById('pageTitle').textContent = titleLabel + ' Purchase Requisitions';
     }
 
     let allPrs = []; // full, unfiltered list — used both for counts and client-side filtering
@@ -409,6 +464,10 @@
             </button>
         `).join('');
     }
+    function formatDate(iso) {
+        if (!iso) return '';
+        return iso.replace('T', ' ').split('.')[0].split(' ')[0];
+    }
 
     function badge(status) {
         return `<span class="badge ${status}">${status}</span>`;
@@ -425,11 +484,14 @@
                 <td class="pr-number">${pr.pr_number}</td>
                 <td>${pr.window_type}</td>
                 <td>${pr.category?.name ?? '-'}</td>
-                <td>${pr.requisition_date}</td>
+                <td>${formatDate(pr.requisition_date)}</td>
                 <td class="num">${Number(pr.total_estimated_amount).toLocaleString('en-BD', {minimumFractionDigits: 2})}</td>
                 <td>${badge(pr.status)}</td>
                 ${actionCell(pr)}
-                <td class="view-link"><a href="/purchase-requisitions/${pr.id}">View</a></td>
+                <td class="view-link">
+                    ${nextActionLabel(pr) ? `<a href="/purchase-requisitions/${pr.id}#budget-check" class="action-link">${nextActionLabel(pr)}</a> · ` : ''}
+                    <a href="/purchase-requisitions/${pr.id}">View</a>
+                </td>
             </tr>
         `).join('');
     }

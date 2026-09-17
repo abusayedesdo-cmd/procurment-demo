@@ -58,6 +58,11 @@ class ProcurementCase extends Model
         return $this->hasMany(Meeting::class);
     }
 
+    public function rfqs(): HasMany
+    {
+        return $this->hasMany(Rfq::class);
+    }
+
     public function progressPct(): int
     {
         return (int) round($this->current_step / 23 * 100);

@@ -10,8 +10,7 @@
         <a href="{{ route('process-steps.show', ['slug' => $backToStep, 'skip_redirect' => 1]) }}" style="font-size:12.5px;font-weight:600;text-decoration:none">← Back to Step</a>
         <a href="{{ route('cases.create') }}" class="btn btn-primary" style="font-size:12.5px">+ New Case</a>
     @else
-        <a href="{{ url()->previous() ?: route('dashboard') }}"
-        onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"
+        <a href="{{ route('process-steps.show', 'pr-receive') }}"
         style="font-size:12.5px;font-weight:600;text-decoration:none">← back </a>
     @endif
 </div>

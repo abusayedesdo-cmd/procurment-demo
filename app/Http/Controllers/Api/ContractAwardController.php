@@ -23,6 +23,10 @@ class ContractAwardController extends Controller
     {
         $query = ContractAward::query()->with(['procurementPlan', 'vendor']);
 
+        if ($request->filled('procurement_plan_id')) {
+            $query->where('procurement_plan_id', $request->integer('procurement_plan_id'));
+        }
+
         if ($request->filled('category')) {
             $query->where('category', $request->string('category'));
         }

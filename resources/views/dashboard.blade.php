@@ -332,17 +332,26 @@
                     <p>{{ $pendingPrs }}</p>
                 </div>
             </a>
-            <a class="card-link" href="{{ route('process-steps.show', 'pr-receive') }}">
+            <!-- <a class="card-link" href="{{ route('process-steps.show', 'pr-receive') }}">
+                <div class="card" data-tone="approved">
+                    <h3>Approved PR</h3>
+                    <p>{{ $approvedPrs }}</p>
+                </div>
+            </a> -->
+            <a class="card-link" href="{{ $canSeeModules ? route('process-steps.show', 'pr-receive') : route('purchase-requisitions.index') . '?status=approved' }}">
                 <div class="card" data-tone="approved">
                     <h3>Approved PR</h3>
                     <p>{{ $approvedPrs }}</p>
                 </div>
             </a>
 
+            @php
+                $hideCommitteeCards = in_array($user->roleName() ?? null, [\App\Models\User::REQUESTER, \App\Models\User::REVIEWER]);
+            @endphp
             @if ($canSeeModules)
                 <a class="card-link" href="{{ route('modules.show', 'procurement-plans') }}">
                     <div class="card" data-tone="brand">
-                        <h3>Active Procurement Plans</h3>
+                        <h3>Procurement Plans</h3>
                         <p>{{ $activePlans }}</p>
                     </div>
                 </a>
@@ -352,9 +361,9 @@
                         <p>{{ $contractsAwarded }}</p>
                     </div>
                 </a>
-            @else
+            @elseif (! $hideCommitteeCards)
                 <div class="card" data-tone="brand">
-                    <h3>Active Procurement Plans</h3>
+                    <h3>Procurement Plans</h3>
                     <p>{{ $activePlans }}</p>
                 </div>
                 <div class="card" data-tone="brand">

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Api\RfqController;
 use App\Models\Meeting;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementCommitteeMember;
+use App\Models\Rfq;
 use App\Models\Vendor;
 use App\Services\NumberGeneratorService;
 use Illuminate\Http\Request;
@@ -173,7 +175,9 @@ class MeetingController extends Controller
 
         $case = $meeting->procurementCase;
 
-        DB::transaction(function () use ($data, $meeting, $numbers) {
+        $rfqCreated = false;
+
+        DB::transaction(function () use ($data, $meeting, $numbers, &$rfqCreated) {
             $meeting->update([
                 'decisions' => $data['decisions'],
                 'publish_date' => $data['publish_date'] ?? null,
@@ -192,6 +196,16 @@ class MeetingController extends Controller
                     'amount' => $a['amount'] ?? 0,
                 ]);
             }
+
+            // 1st Meeting Resolution already carries everything an RFQ
+            // needs (the case, the publish/closing window) — so instead
+            // of making the officer re-enter it on the RFQ module, create
+            // it here automatically. Only once per case; if one already
+            // exists (e.g. created manually before this resolution was
+            // finalized), leave it alone.
+            if ($meeting->meeting_type === 'first') {
+                $rfqCreated = $this->autoCreateRfqFromResolution($meeting, $data, $numbers);
+            }
         });
 
         // Mark the related checklist step done: step 4 (Tender Schedule) for
@@ -202,7 +216,51 @@ class MeetingController extends Controller
             $case->update(['current_step' => $stepNo]);
         }
 
-        return redirect()->route('meetings.show', $meeting)->with('ok', 'Meeting resolution finalized — Rezulation No. ' . $meeting->rezulation_no . '.');
+        $message = 'Meeting resolution finalized — Rezulation No. ' . $meeting->rezulation_no . '.';
+        if ($rfqCreated) {
+            $message .= ' An RFQ has been auto-created for this case from the resolution.';
+        }
+
+        return redirect()->route('meetings.show', $meeting)->with('ok', $message);
+    }
+
+    /**
+     * Builds the case's RFQ straight from the 1st meeting's own data —
+     * publish_date becomes the RFQ's issue_date, closing_date carries
+     * over as-is, and type is worked out the same way RfqController does
+     * (ESDO Procurement Policy §11 amount thresholds). Skipped entirely
+     * if the case already has an RFQ (created manually, or a re-run).
+     */
+    private function autoCreateRfqFromResolution(Meeting $meeting, array $data, NumberGeneratorService $numbers): bool
+    {
+        $case = $meeting->procurementCase;
+        if (! $case || $case->rfqs()->exists()) {
+            return false;
+        }
+
+        $issueDate = $data['publish_date'] ?? now()->toDateString();
+        $closingDate = $data['closing_date'] ?? null;
+        // Rfq requires closing strictly after issue — the resolution form
+        // only enforces closing >= publish, so nudge it forward if needed.
+        if (! $closingDate || $closingDate <= $issueDate) {
+            $closingDate = date('Y-m-d', strtotime($issueDate . ' +15 days'));
+        }
+
+        $threshold = $case->category === 'Works'
+            ? RfqController::OTM_THRESHOLD_WORKS
+            : RfqController::OTM_THRESHOLD_GOODS_SERVICES;
+        $type = $case->amount > $threshold ? 'OTM' : 'RFQ';
+
+        Rfq::create([
+            'procurement_case_id' => $case->id,
+            'rfq_number' => $numbers->nextCommitteeMemo('Purchases Committee'),
+            'subject' => $case->title,
+            'type' => $type,
+            'issue_date' => $issueDate,
+            'closing_date' => $closingDate,
+        ]);
+
+        return true;
     }
 
     /**

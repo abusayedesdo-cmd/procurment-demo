@@ -59,18 +59,18 @@ class DashboardController extends Controller
         };
 
         $awaitingReview = $canReview
-            ? $scopePrs(PurchaseRequisition::where('status', 'draft'))->orderBy('id')->get(['id', 'pr_number'])
+            ? $scopePrs(PurchaseRequisition::where('status', 'draft')->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number']))
             : collect();
 
         $awaitingBudgetCheck = $canCheckBudget
-            ? $scopePrs(PurchaseRequisition::where('status', 'reviewed'))->orderBy('id')->get(['id', 'pr_number'])
+            ? $scopePrs(PurchaseRequisition::where('status', 'reviewed')->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number']))
             : collect();
 
         // 'checked' status is exclusive to the PR window and now belongs to
         // Focal Person (see below). The Approver role only still acts on
         // the BOQ/TOR/Design & Drawing windows, at their 'reviewed' stage.
         $awaitingApproval = $canApprove
-            ? $scopePrs(PurchaseRequisition::where('status', 'reviewed')->where('window_type', '!=', 'PR'))->orderBy('id')->get(['id', 'pr_number'])
+            ? $scopePrs(PurchaseRequisition::where('status', 'reviewed')->where('window_type', '!=', 'PR')->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number']))
             : collect();
 
         $threshold = \App\Http\Controllers\Api\PrApprovalController::HIGH_VALUE_THRESHOLD;
@@ -82,8 +82,8 @@ class DashboardController extends Controller
                         ->orWhere(function ($q2) use ($threshold) {
                             $q2->whereNull('routed_to')->where('total_estimated_amount', '<', $threshold);
                         });
-                }))
-                ->orderBy('id')->get(['id', 'pr_number'])
+                })
+                ->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number']))
             : collect();
 
         $awaitingEdApproval = $canEdApprove
@@ -98,8 +98,8 @@ class DashboardController extends Controller
                                     });
                             });
                     });
-            }))
-                ->orderBy('id')->get(['id', 'pr_number'])
+            })
+                ->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number']))
             : collect();
 
         return view('dashboard', [

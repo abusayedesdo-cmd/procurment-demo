@@ -8,6 +8,8 @@ const MODULE_CONFIGS = {
     'procurement-plans': {
         title: 'Procurement Plan (auto-generated from approved PR)',
         apiPath: '/procurement-plans',
+        listFilterField: 'pr_id',
+        splitLogAndForm: true,
         listColumns: [
             { key: 'purchase_requisition.pr_number', label: 'PR Number' },
             { key: 'nature', label: 'Nature' },
@@ -161,7 +163,7 @@ const MODULE_CONFIGS = {
         formFields: [
             { name: 'procurement_plan_id', label: 'Procurement Plan', type: 'select', source: '/procurement-plans', labelField: r => r.purchase_requisition?.pr_number ?? `#${r.id}`, required: true },
             { name: 'from_committee_id', label: 'From Committee', type: 'select', source: '/purchase-committees', labelField: 'name', required: true },
-            { name: 'to_committee_id', label: 'To Committee', type: 'select', source: '/purchase-committees', labelField: 'name', required: true },
+            { name: 'to_committee_id', label: 'To Committee', type: 'select', source: '/purchase-committees', labelField: 'name', required: true, createSubCommittee: true },
             { name: 'transfer_date', label: 'Transfer Date', type: 'date', required: true },
             { name: 'transfer_note', label: 'Note', type: 'textarea' },
         ],
@@ -176,6 +178,7 @@ const MODULE_CONFIGS = {
         listColumns: [
             { key: 'rfq_number', label: 'RFQ #' },
             { key: 'type', label: 'Type' },
+            { key: 'distribution_process', label: 'Distribution' },
             { key: 'issue_date', label: 'Issue Date' },
             { key: 'closing_date', label: 'Closing Date' },
         ],
@@ -187,10 +190,12 @@ const MODULE_CONFIGS = {
         ],
         formFields: [
             { name: 'procurement_case_id', label: 'Procurement Case', type: 'select', source: '/procurement-cases', labelField: 'ref', required: true },
-            { name: 'subject', label: 'Subject', type: 'text', required: true, autofillFrom: { field: 'procurement_case_id', property: 'title' } },
+            { name: 'subject', label: 'Subject', type: 'text', required: true, autofillFrom: { field: 'procurement_case_id', property: 'project_name_hint' } },
             { name: 'type', label: 'Type', type: 'enum', options: ['RFQ', 'OTM'], required: true, autofillFrom: { field: 'procurement_case_id', property: 'rfq_type_hint' } },
+            { name: 'distribution_process', label: 'Distribution Process', type: 'enum', options: ['Email', 'Hand Distribution'] },
             { name: 'issue_date', label: 'Issue Date', type: 'date', required: true, autofillFrom: { field: 'procurement_case_id', property: 'issue_date_hint' } },
             { name: 'closing_date', label: 'Closing Date', type: 'date', required: true, autofillFrom: { field: 'procurement_case_id', property: 'closing_date_hint' } },
+            { name: 'terms_conditions', label: 'Terms & Conditions', type: 'textarea' },
             { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },
@@ -479,6 +484,8 @@ const MODULE_CONFIGS = {
     'contract-awards': {
         title: 'Notification of Contract Award (NOA)',
         apiPath: '/contract-awards',
+        listFilterField: 'procurement_plan_id',
+        splitLogAndForm: true,
         listColumns: [
             { key: 'noa_number', label: 'NOA #' },
             { key: 'category', label: 'Category' },

@@ -19,6 +19,14 @@ class ProcessStepPageController extends Controller
             'modules' => [],
             'is_pr_picker' => true,
         ],
+        'procurement-plan' => [
+            'step_no' => '3rd',
+            'subject' => 'Procurement Plan',
+            'modules' => [
+                ['slug' => 'procurement-plans', 'title' => 'Procurement Plan (auto-generated from approved PR)'],
+                ['slug' => 'procurement-plans', 'title' => 'Procurement Plan History (All Records)', 'no_context' => true],
+            ],
+        ],
         'sub-committee' => [
             'step_no' => '3rd',
             'subject' => 'Sub-Committee',
@@ -102,6 +110,7 @@ class ProcessStepPageController extends Controller
                 ['slug' => 'comparative-statements', 'title' => 'Comparative Statement (CS)'],
                 ['slug' => 'comparative-statement-items', 'title' => 'Comparative Statement — Vendor Ranking'],
                 ['slug' => 'contract-awards', 'title' => 'Notification of Contract Award (NOA)'],
+                ['slug' => 'contract-awards', 'title' => 'NOA History (All Records)', 'no_context' => true],
                 ['slug' => 'pay-orders', 'title' => 'Pay Order'],
                 ['slug' => 'contract-agreements', 'title' => 'Contract Agreement'],
                 ['slug' => 'work-orders', 'title' => 'Work Order'],
@@ -220,8 +229,19 @@ class ProcessStepPageController extends Controller
             } elseif ($fromCommitteeId === $projectSubCommitteeId) {
                 $toCommitteeId = $mainCommitteeId;
             }
-        }
 
+        }
+        // Main -> Sub ট্রান্সফারের জন্য একটা destination Sub-Committee থাকা লাগে।
+        // এই PR-এর প্রজেক্টের এখনো একটাও না থাকলে, dead-end dropdown-এ না পাঠিয়ে
+        // এখানেই তৈরি করার অপশন দিচ্ছি (Admin-only — Policy §9)।
+        $missingSubCommitteeForProject = null;
+        if ($slug === 'sub-committee' && $planId && $activePr && $activePr->project_id
+            && $fromCommitteeId === $mainCommitteeId && ! $projectSubCommitteeId) {
+            $missingSubCommitteeForProject = [
+                'project_id' => $activePr->project_id,
+                'suggested_name' => trim(($activePr->project_name ?: 'Project') . ' Sub-Committee'),
+            ];
+        }
         // Note: this step used to auto-redirect straight into the Transfer
         // form whenever an active PR already had a Plan, skipping the list
         // below entirely. That meant "Back to Step" from the form landed on
@@ -283,6 +303,7 @@ class ProcessStepPageController extends Controller
             'prefillFieldBySlug' => self::PREFILL_FIELD_BY_SLUG,
             'fromCommitteeId' => $fromCommitteeId,
             'toCommitteeId' => $toCommitteeId,
+            'missingSubCommitteeForProject' => $missingSubCommitteeForProject,
         ]);
     }
 

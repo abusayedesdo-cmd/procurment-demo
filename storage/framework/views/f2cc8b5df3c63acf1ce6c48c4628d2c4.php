@@ -326,6 +326,13 @@
         .form-field.checkbox-field label { display: flex; align-items: center; gap: .5rem; font-size: .87rem; color: var(--ink); font-weight: 500; }
         .form-field.checkbox-field input[type="checkbox"] { width: auto; accent-color: var(--accent); }
 
+        .roster-member-card { border: 1px solid var(--line); border-radius: 6px; padding: .5rem .6rem; margin-bottom: .5rem; }
+        .roster-member-card:last-child { margin-bottom: 0; }
+        .roster-member-select { display: flex; align-items: center; gap: .5rem; font-weight: 600; font-size: .85rem; cursor: pointer; margin: 0; }
+        .roster-member-login { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--muted); margin: .4rem 0 0; cursor: pointer; }
+        .roster-member-login-fields { margin-top: .4rem; }
+        .roster-member-login-fields input[type="email"] { width: 100%; box-sizing: border-box; padding: .35rem .5rem; font-size: .8rem; border: 1px solid var(--line); border-radius: 6px; }
+
         /* ---- Badges ---- */
         .badge {
             display: inline-block;
@@ -406,7 +413,24 @@
                 <?php if(auth()->user()->committeeMemberships()->exists()): ?>
                     <a href="<?php echo e(route('committee-work.index')); ?>">My Committee Work</a>
                 <?php endif; ?>
-                <a href="<?php echo e(route('purchase-requisitions.index')); ?>">Purchase Requisitions</a>
+                <!-- <a href="<?php echo e(route('purchase-requisitions.index')); ?>">Purchase Requisitions</a> -->
+                <?php
+                    $prQuickStatuses = ['draft', 'reviewed,checked', 'approved'];
+                    $currentPrStatus = request()->routeIs('purchase-requisitions.index') ? request()->query('status') : null;
+                ?>
+                <div class="nav-group <?php if(in_array($currentPrStatus, $prQuickStatuses)): ?> open <?php endif; ?>" id="prQuickLinksGroup">
+                    <!-- <button type="button" class="nav-group-toggle" onclick="toggleNavGroup('prQuickLinksGroup')">
+                        <span>PR Status</span>
+                        <span class="caret">&#9656;</span>
+                    </button> -->
+                   
+                        <a href="<?php echo e(route('purchase-requisitions.index')); ?>?status=draft">Draft PR</a>
+                        <a href="<?php echo e(route('purchase-requisitions.index')); ?>?status=reviewed,checked">Pending Review / Check</a>
+                       
+                </div>
+                <?php if(in_array(auth()->user()->roleName(), \App\Models\User::PR_CREATOR_ROLES)): ?>
+                    <a href="<?php echo e(route('purchase-requisitions.create')); ?>"> Create New PR</a>
+                <?php endif; ?>
                 <?php if(in_array(auth()->user()->roleName(), [\App\Models\User::BUDGET_CHECKER, \App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN])): ?>
                     <a href="<?php echo e(route('budget-dashboard')); ?>">Budget Dashboard</a>
                     <a href="<?php echo e(route('annual-plans.index')); ?>">Annual Plan</a>

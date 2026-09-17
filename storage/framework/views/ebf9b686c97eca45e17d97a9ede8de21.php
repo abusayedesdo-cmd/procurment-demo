@@ -27,6 +27,7 @@
 
         /* document / paper form palette — mirrors the DomPDF output */
         --doc-border: #333333;
+        
         --doc-head-bg: #F2F2F2;
         --doc-text: #111111;
         --doc-muted: #444444;
@@ -193,6 +194,13 @@
         font-size: .85rem;
         margin-bottom: 1rem;
     }
+
+    /* Target the column containers */
+    .doc-meta-row > * {
+        flex: 1 1 calc(33.333% - 1rem); 
+        min-width: 0; /* Prevents long text from breaking the column layout */
+    }
+
     .doc-meta-row span { color: var(--doc-muted); }
     .doc-meta-row strong { color: var(--doc-text); font-weight: 700; }
 
@@ -693,14 +701,14 @@
                     </tbody>
                 </table>
 
-                <div class="doc-inword">In-word : ৳ ${amountInWords(pr.total_estimated_amount)}</div>
+                <div class="doc-inword">In-word : ${amountInWords(pr.total_estimated_amount)}</div>
 
                 <table class="doc-table">
                     <tr><td style="width:35%;">Delivery Locations:</td><td>${esc(pr.delivery_location ?? '')}</td></tr>
                     <tr><td>Estimated Delivery Date:</td><td>${formatDocDate(pr.estimated_delivery_date)}</td></tr>
                     <tr><td>Estimated Delivery Time:</td><td>${esc(pr.estimated_delivery_time ?? '')}</td></tr>
-                    <tr><td colspan="2">Receiver Name: ${esc(pr.receiver_name ?? '')}</td></tr>
-                    <tr><td colspan="2">Receiver Contact: ${esc(pr.receiver_contact ?? '')}</td></tr>
+                    <tr><td>Receiver Name:</td><td> ${esc(pr.receiver_name ?? '')}</td></tr>
+                    <tr><td>Receiver Contact:</td><td> ${esc(pr.receiver_contact ?? '')}</td></tr>
                     ${pr.attachment_url ? `<tr><td colspan="2">Attachment: <a href="${pr.attachment_url}" target="_blank" rel="noopener">View / Download</a></td></tr>` : ''}
                 </table>
 
@@ -718,37 +726,10 @@
                     </tr>
                 </table>
 
-                <table class="doc-plain">
-                    <tr>
-                        <td style="width:34%;">Requested by: ${esc(pr.requestor_name ?? dash)}</td>
-                        <td style="width:33%;">Designation: ${esc(pr.requestor_designation ?? dash)}</td>
-                        <td style="width:33%;">Signature: <span class="sig-line">${dash}</span></td>
-                    </tr>
-                    <tr><td colspan="3">&nbsp;</td></tr>
-                    <tr>
-                        <td>Endorsed by: ${esc(endorsedBy?.user?.name ?? dash)}</td>
-                        <td>Designation: ${esc(endorsedBy?.user?.designation ?? dash)}</td>
-                        <td>Signature: <span class="sig-line">${dash}</span></td>
-                    </tr>
-                    <tr><td colspan="3">&nbsp;</td></tr>
-                    <tr>
-                        <td>Finance Requested by: ${esc(financeRequestedBy?.user?.name ?? dash)}</td>
-                        <td>Designation: ${esc(financeRequestedBy?.user?.designation ?? dash)}</td>
-                        <td>Signature: <span class="sig-line">${dash}</span></td>
-                    </tr>
-                </table>
 
-                <table class="doc-plain" style="margin-top:1.5rem;">
-                    <tr>
-                        <td style="width:50%;">
-                            Recommend by: ${esc(recommendedBy?.user?.name ?? dash)}<br>
-                            PC/DPC/APC/Focal Person
-                        </td>
-                        <td style="width:50%;">Approved by: ${esc(approvedBy?.user?.name ?? dash)}</td>
-                    </tr>
-                </table>
 
-                <div class="doc-footer">Eso-Social Development Organization (ESDO) — Procurement Management System</div>
+
+               
             </div>
 
             <details class="extra-details">
@@ -873,7 +854,7 @@
                 `}
 
                 <div class="form-field checkbox-field" style="margin-top:1.25rem;">
-                    <label><input type="checkbox" id="codeVerified"> Budget code verified</label>
+                    <label><input type="checkbox" id="codeVerified"> verified</label>
                 </div>
                 <div class="form-field checkbox-field">
                     <label><input type="checkbox" id="availabilityVerified"> Budget availability confirmed</label>

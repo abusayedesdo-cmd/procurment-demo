@@ -98,17 +98,23 @@ async function initResourcePage(config) {
         const id = `field_${field.name}`;
         const requiredAttr = field.required ? 'required' : '';
 
-        if (field.type === 'select') {
-            const opts = (selectCache[field.name] || [])
-                .map(r => `<option value="${r.id}">${optionLabel(field, r)}</option>`).join('');
-            return `
-                <div class="form-field">
-                    <label for="${id}">${field.label}</label>
-                    <select id="${id}" ${requiredAttr}>
-                        <option value="">-- Select --</option>${opts}
-                    </select>
-                </div>`;
-        }
+            if (field.type === 'select') {
+                const opts = (selectCache[field.name] || [])
+                    .map(r => `<option value="${r.id}">${optionLabel(field, r)}</option>`).join('');
+                const canCreateSub = field.createSubCommittee && ['admin', 'procurement_officer'].includes(window.currentUserRole);
+                const shortcut = canCreateSub ? `
+                    <button type="button" class="btn secondary" id="createSubCommitteeBtn_${field.name}" style="margin-top:.4rem; padding:.3rem .6rem; font-size:.8rem;">+ Create Sub-Committee</button>
+                    <div id="createSubCommitteePanel_${field.name}" style="display:none; margin-top:.6rem; padding:.8rem; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px;"></div>
+                ` : '';
+                return `
+                    <div class="form-field">
+                        <label for="${id}">${field.label}</label>
+                        <select id="${id}" ${requiredAttr}>
+                            <option value="">-- Select --</option>${opts}
+                        </select>
+                        ${shortcut}
+                    </div>`;
+            }
 
         if (field.type === 'enum') {
             const opts = field.options.map(o => `<option value="${o}">${o}</option>`).join('');
@@ -171,10 +177,154 @@ async function initResourcePage(config) {
         });
     }
 
-    // Renders one row-action link. `a.download === true` forces a real
-    // file download (adds the `download` attribute, no new tab); anything
-    // else opens in a new tab so the browser can preview it inline
-    // (PDF/image) — that's the Download vs Preview distinction.
+
+    function wireCreateShortcuts() {
+        config.formFields.forEach(field => {
+            if (!field.createSubCommittee) return;
+            if (!['admin', 'procurement_officer'].includes(window.currentUserRole)) return;
+
+            const btn = document.getElementById(`createSubCommitteeBtn_${field.name}`);
+            const panel = document.getElementById(`createSubCommitteePanel_${field.name}`);
+            if (!btn || !panel) return;
+
+            btn.addEventListener('click', async () => {
+                if (panel.style.display === 'block') { panel.style.display = 'none'; return; }
+                panel.style.display = 'block';
+                panel.innerHTML = '<div class="muted">Loading roster…</div>';
+
+                let roster = [];
+                try {
+                    const { data } = await api.get('/procurement-committee-members');
+                    roster = data;
+                } catch (e) { /* carry on with an empty roster — members can be added later */ }
+
+                const rosterHtml = roster.length
+                    ? `<table style="width:100%; border-collapse:collapse;">` + roster.map(r => `
+                        <tr>
+                            <td style="width:24px; padding:.4rem .4rem .1rem 0; vertical-align:top;">
+                                <input type="checkbox" class="newSubCommitteeMember" value="${r.id}" id="nscm_${r.id}">
+                            </td>
+                            <td style="padding:.4rem 0 .1rem 0;">
+                                <label for="nscm_${r.id}" style="font-weight:600; font-size:.85rem; cursor:pointer;">${r.name}</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width:24px; padding:0 .4rem 0 0; vertical-align:top;">
+                                <input type="checkbox" class="newSubCommitteeLogin" data-roster-id="${r.id}" id="nscm_login_${r.id}">
+                            </td>
+                            <td style="padding:0;">
+                                <label for="nscm_login_${r.id}" style="font-size:.8rem; color:var(--muted); cursor:pointer;">Give login</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td style="padding:.3rem 0 .8rem 0;">
+                                <div id="nscm_login_fields_${r.id}" style="display:none;">
+                                    <input type="email" id="nscm_email_${r.id}" placeholder="Email" style="width:100%; box-sizing:border-box; padding:.35rem .5rem; font-size:.8rem; border:1px solid var(--line); border-radius:6px;">
+                                </div>
+                            </td>
+                        </tr>
+                        <tr><td colspan="2" style="border-bottom:1px solid var(--line); padding-bottom:.4rem;"></td></tr>
+                    `).join('') + `</table>`
+                    : '<span class="muted">Roster is empty — members can be added later.</span>';
+
+                panel.innerHTML = `
+                    <div class="form-field">
+                        <label>Committee Name</label>
+                        <input type="text" id="newSubCommitteeName">
+                    </div>
+                    <div class="form-field">
+                        <label>Address (optional)</label>
+                        <input type="text" id="newSubCommitteeAddress">
+                    </div>
+                    <div class="form-field">
+                        <label>Add members from the Committee Roster (optional)</label>
+                        <div id="newSubCommitteeRoster" style="max-height:260px; overflow-y:auto; background:#fff; border:1px solid #BFDBFE; border-radius:6px; padding:.4rem .6rem;">
+                            ${rosterHtml}
+                        </div>
+                    </div>
+                    <div id="newSubCommitteeError" class="error-box" style="display:none; margin-bottom:.6rem;"></div>
+                    <button type="button" class="btn primary" id="newSubCommitteeSaveBtn" style="padding:.3rem .7rem; font-size:.8rem;">Create</button>
+                `;
+
+                panel.querySelectorAll('.newSubCommitteeLogin').forEach(cb => {
+                    cb.addEventListener('change', () => {
+                        const fields = document.getElementById(`nscm_login_fields_${cb.dataset.rosterId}`);
+                        if (fields) fields.style.display = cb.checked ? 'block' : 'none';
+                    });
+                });
+
+                document.getElementById('newSubCommitteeSaveBtn').addEventListener('click', async () => {
+                    const errBox = document.getElementById('newSubCommitteeError');
+                    errBox.style.display = 'none';
+                    const name = document.getElementById('newSubCommitteeName').value.trim();
+                    if (!name) {
+                        errBox.textContent = 'Please enter a Committee Name.';
+                        errBox.style.display = 'block';
+                        return;
+                    }
+
+                    const planId = document.getElementById('field_procurement_plan_id')?.value;
+                    const plan = (selectCache['procurement_plan_id'] || []).find(p => String(p.id) === String(planId));
+                    const projectId = plan?.purchase_requisition?.project_id ?? null;
+                    if (!projectId) {
+                        errBox.textContent = 'Could not identify the project from the Procurement Plan — please select a Procurement Plan first.';
+                        errBox.style.display = 'block';
+                        return;
+                    }
+
+                    try {
+                        const { data: committee } = await api.post('/purchase-committees', {
+                            name, address: document.getElementById('newSubCommitteeAddress').value.trim() || null,
+                            type: 'sub', project_id: projectId,
+                        });
+
+                        const checked = [...document.querySelectorAll('.newSubCommitteeMember:checked')];
+                        const createdLogins = [];
+                        for (const cb of checked) {
+                            const loginCb = document.getElementById(`nscm_login_${cb.value}`);
+                            let userId = null;
+                            if (loginCb && loginCb.checked) {
+                                const emailInput = document.getElementById(`nscm_email_${cb.value}`);
+                                const email = emailInput ? emailInput.value.trim() : '';
+                                if (!email) throw new Error('No Email was given for a member who was marked for login.');
+                                const { data: login } = await api.post('/committee-roster-logins', {
+                                    procurement_committee_member_id: cb.value,
+                                    committee_id: committee.id,
+                                    email,
+                                });
+                                userId = login.user.id;
+                                createdLogins.push(`${login.user.name} (${login.user.email}) — password: ${login.password}`);
+                            }
+                            await api.post('/committee-members', {
+                                committee_id: committee.id,
+                                procurement_committee_member_id: cb.value,
+                                user_id: userId,
+                            });
+                        }
+
+                        if (createdLogins.length) {
+                            alert('New logins created — share them now, they are shown only once:\n' + createdLogins.join('\n'));
+                        }
+
+                        const { data: refreshed } = await api.get(`${field.source}?per_page=500`);
+                        selectCache[field.name] = refreshed;
+                        const selectEl = document.getElementById(`field_${field.name}`);
+                        selectEl.innerHTML = '<option value="">-- Select --</option>' +
+                            refreshed.map(r => `<option value="${r.id}">${optionLabel(field, r)}</option>`).join('');
+                        selectEl.value = committee.id;
+                        selectEl.disabled = false;
+
+                        panel.style.display = 'none';
+                    } catch (err) {
+                        errBox.textContent = err.message;
+                        errBox.style.display = 'block';
+                    }
+                });
+            });
+        });
+    }
+
     function renderRowAction(a, row) {
         const href = a.hrefBuilder(row);
         if (!href) return '';
@@ -182,13 +332,7 @@ async function initResourcePage(config) {
         return `<a href="${href}" class="btn secondary" style="padding:.3rem .6rem; font-size:.8rem;" ${attrs}>${a.label}</a>`;
     }
 
-    // When a module declares `listFilterField` (e.g. 'procurement_case_id')
-    // and the server resolved an active PR for this request (see
-    // ModulePageController + ActivePrContext), scope the Log table to
-    // just that PR's own records instead of the whole system's history.
-    // window.moduleContext.filterValue is null when there's no active PR,
-    // or the caller asked for everything via `?history=1` — either way the
-    // list is unfiltered, same as before.
+
     function getListFilterQuery() {
         if (!config.listFilterField) return '';
         const val = window.moduleContext && window.moduleContext.filterValue;
@@ -208,9 +352,7 @@ async function initResourcePage(config) {
             </div>`;
     }
 
-    // Renders the compact "current record" card used by split modules on
-    // their main (non-History) page — same data, no full table chrome,
-    // since there's normally at most one matching record (this PR's RFQ).
+
     function renderCurrentRecordRows(rows) {
         if (!rows.length) {
             return `<p class="muted" style="margin:0;">No record yet for this PR — create one below.</p>`;
@@ -393,7 +535,10 @@ async function initResourcePage(config) {
             const el = document.getElementById(`field_${field.name}`);
             if (!el) return;
             el.value = raw;
-            if (field.type === 'select' || field.type === 'enum') el.disabled = true;
+            if (field.type === 'select' || field.type === 'enum') {
+                el.disabled = true;
+                el.dispatchEvent(new Event('change'));
+            }
         });
 
         const label = params.get('context_label');
@@ -411,6 +556,7 @@ async function initResourcePage(config) {
     if (formIsRendered && !isReadOnly && (!config.adminOnly || isAdmin)) {
         document.getElementById('resourceForm').addEventListener('submit', handleSubmit);
         wireAutofill();
+        wireCreateShortcuts();
         applyQueryPrefill();
     }
 

@@ -105,7 +105,9 @@
                 <p class="eyebrow">Module</p>
                 <h1 id="moduleTitle">Loading…</h1>
             </div>
-            <a href="<?php echo e($stepSlug ? route('process-steps.show', ['slug' => $stepSlug, 'skip_redirect' => 1]) : route('dashboard')); ?>" class="btn">← <?php echo e($stepSlug ? 'Back to Step' : 'Dashboard'); ?></a>
+            <a href="<?php echo e($stepSlug ? route('process-steps.show', ['slug' => $stepSlug, 'skip_redirect' => 1]) : route('dashboard')); ?>"
+                onclick="if (window.history.length > 1) { history.back(); return false; }"
+                class="btn">← <?php echo e($stepSlug ? 'Back to Step' : 'Dashboard'); ?></a>
         </div>
 
         <div id="resourceRoot">

@@ -9,8 +9,15 @@ class AnnualPlanPageController extends Controller
         return view('annual-plan.index');
     }
 
+    public function create()
+    {
+        return view('annual-plan.create');
+    }
+    
     public function show($id)
     {
         return view('annual-plan.show', ['id' => (int) $id]);
     }
+
+
 }

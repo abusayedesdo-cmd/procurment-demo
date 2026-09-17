@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\TenderAdvertisementController;
 use App\Http\Controllers\Api\TenderOpeningController;
 use App\Http\Controllers\Api\TenderProposalController;
 use App\Http\Controllers\Api\TenderScheduleController;
+use App\Http\Controllers\Api\CommitteeRosterLoginController;
 use App\Http\Controllers\Api\TorDetailController;
 use App\Http\Controllers\Api\UnitController;
 use App\Http\Controllers\Api\UserController;
@@ -129,9 +130,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Projects — read-open (needed for the sub-committee's Project dropdown,
     // Annual Plan references, etc.), Admin-only writes.
     Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
+    Route::middleware('role:admin,procurement_officer')->group(function () {
+    Route::apiResource('purchase-committees', PurchaseCommitteeController::class)->except(['index', 'show']);
+    Route::apiResource('committee-members', CommitteeMemberController::class)->except(['index', 'show']);
+    Route::post('committee-roster-logins', [CommitteeRosterLoginController::class, 'store']);
+    });
     Route::middleware('role:admin')->group(function () {
-        Route::apiResource('purchase-committees', PurchaseCommitteeController::class)->except(['index', 'show']);
-        Route::apiResource('committee-members', CommitteeMemberController::class)->except(['index', 'show']);
         Route::apiResource('projects', ProjectController::class)->except(['index', 'show']);
     });
     Route::apiResource('vendors', VendorController::class);

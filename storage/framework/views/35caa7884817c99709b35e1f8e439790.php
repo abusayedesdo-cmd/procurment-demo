@@ -143,6 +143,39 @@
         font-weight: 600; padding: .5rem .95rem; border-radius: 7px; font-size: .84rem;
     }
 
+    .missing-subcommittee-panel {
+    background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;
+    border-radius: 10px; padding: 1.1rem 1.3rem; margin-bottom: 1.25rem; font-size: .88rem;
+    }
+    .missing-subcommittee-panel .ssc-head { margin-bottom: .8rem; }
+    .missing-subcommittee-panel .ssc-error {
+        background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA;
+        border-radius: 7px; padding: .5rem .8rem; font-size: .82rem; margin-bottom: .7rem;
+    }
+    .missing-subcommittee-panel .ssc-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: .8rem; }
+    .missing-subcommittee-panel .ssc-row > div { flex: 1; min-width: 200px; }
+    .missing-subcommittee-panel label { display: block; font-size: .78rem; font-weight: 600; margin-bottom: .3rem; color: #1D4ED8; }
+    .missing-subcommittee-panel input[type="text"] {
+        width: 100%; border: 1px solid #BFDBFE; border-radius: 7px; padding: .5rem .7rem;
+        font-size: .85rem; font-family: inherit; color: var(--ink); background: #fff;
+    }
+    .missing-subcommittee-panel .ssc-roster { margin-bottom: .9rem; }
+    .missing-subcommittee-panel .ssc-checklist {
+        max-height: 180px; overflow-y: auto; background: #fff; border: 1px solid #BFDBFE;
+        border-radius: 8px; padding: .5rem .75rem; margin-top: .4rem;
+    }
+    .missing-subcommittee-panel .ssc-checklist .ssc-row-item { display: flex; align-items: center; gap: .5rem; padding: .3rem 0; font-size: .84rem; color: var(--ink); }
+    .missing-subcommittee-panel .ssc-checklist .ssc-row-item .ssc-name { flex: 1; }
+    .missing-subcommittee-panel .ssc-checklist input[type="text"] {
+        width: 130px; border: 1px solid var(--line); border-radius: 6px; padding: .3rem .5rem; font-size: .78rem;
+    }
+    .missing-subcommittee-panel .ssc-login-toggle { font-size: .78rem; color: var(--ink); display:flex; align-items:center; gap:.25rem; white-space:nowrap; margin-left:.4rem; }
+    .missing-subcommittee-panel .ssc-login-fields { margin: -.1rem 0 .5rem 1.6rem; }
+    .missing-subcommittee-panel .ssc-login-fields input[type="email"] { width: 220px; border: 1px solid var(--line); border-radius: 6px; padding: .3rem .5rem; font-size: .78rem; }
+
+    .missing-subcommittee-panel button.btn { background: #1D4ED8; border-color: #1D4ED8; }
+    .missing-subcommittee-panel button.btn:hover { background: #1E40AF; border-color: #1E40AF; }
+
     .active-pr-banner {
         display: flex; align-items: center; justify-content: space-between; gap: 1rem;
         background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
@@ -167,7 +200,8 @@
             </div>
             <div style="display:flex; align-items:center; gap:.6rem; flex-shrink:0;">
                 <a href="<?php echo e(($activePr && $slug !== 'pr-receive') ? route('process-steps.show', 'pr-receive') : route('dashboard')); ?>"
-                   class="back-link">&larr; Back</a>
+                onclick="if (window.history.length > 1) { history.back(); return false; }"
+                class="back-link">&larr; Back</a>
             </div>
         </div>
 
@@ -181,21 +215,49 @@
         <?php if(isset($missingPlanForPr)): ?>
             <div class="missing-plan-notice">
                 <div>
-                    <b>PR-<?php echo e($missingPlanForPr->pr_number ?? $missingPlanForPr->id); ?></b>-এর জন্য এখনো কোনো Procurement Plan তৈরি হয়নি — Sub-Committee-তে ট্রান্সফার করার আগে প্রথমে একটা Procurement Plan লাগবে।
+                    No Procurement Plan has been created yet for <b>PR-<?php echo e($missingPlanForPr->pr_number ?? $missingPlanForPr->id); ?></b> — a Procurement Plan is required before transferring it to a Sub-Committee.
                 </div>
                 <a href="<?php echo e(route('modules.show', 'procurement-plans')); ?>?new=1&field_pr_id=<?php echo e($missingPlanForPr->id); ?>&context_label=PR-<?php echo e($missingPlanForPr->pr_number ?? $missingPlanForPr->id); ?>">
                     Create Procurement Plan for PR-<?php echo e($missingPlanForPr->pr_number ?? $missingPlanForPr->id); ?> &rarr;
                 </a>
-                <div style="font-size:.8rem; opacity:.85;">Plan তৈরি হয়ে গেলে Purchase Requisitions লিস্টে ফিরে গিয়ে আবার "Transfer to Sub-Committee (3rd Step)" চাপুন — তখন এটা এখানে auto-select হয়ে আসবে।</div>
+                <div style="font-size:.8rem; opacity:.85;">Once the Plan is created, go back to the Purchase Requisitions list and click "Transfer to Sub-Committee (3rd Step)" again — it will then be auto-selected here.</div>
             </div>
         <?php endif; ?>
+
+        <?php if(isset($missingSubCommitteeForProject)): ?>
+        <?php if(in_array(auth()->user()->roleName(), [\App\Models\User::ADMIN, \App\Models\User::PROCUREMENT_OFFICER])): ?>
+            <div class="missing-subcommittee-panel">
+                <div class="ssc-head"><b>This project has no Sub-Committee.</b> Create a Sub-Committee before transferring.</div>
+                <div id="sscError" class="ssc-error" style="display:none;"></div>
+                <div class="ssc-row">
+                    <div>
+                        <label>Committee Name</label>
+                        <input type="text" id="ssc_name" value="<?php echo e($missingSubCommitteeForProject['suggested_name']); ?>">
+                    </div>
+                    <div>
+                        <label>Address (optional)</label>
+                        <input type="text" id="ssc_address">
+                    </div>
+                </div>
+                <div class="ssc-roster">
+                    <label>Add members from the Committee Roster (optional — can be added later too)</label>
+                    <div id="sscRosterChecklist" class="ssc-checklist"><span class="muted">Loading…</span></div>
+                </div>
+                <button type="button" class="btn" id="sscCreateBtn" onclick="createSubCommittee(<?php echo e($missingSubCommitteeForProject['project_id']); ?>)">Create Sub-Committee</button>
+            </div>
+        <?php else: ?>
+            <div class="missing-plan-notice">
+                <div>This project has no Sub-Committee. Only an Admin/Procurement Officer can create a new Sub-Committee.</div>
+            </div>
+        <?php endif; ?>
+    <?php endif; ?>
 
         <?php if(!empty($step['coming_soon'])): ?>
             <div class="group-panel">
                 <div class="coming-soon">This step's module is coming soon.</div>
             </div>
         <?php elseif(!empty($step['is_pr_picker'])): ?>
-            <!-- <p class="case-hint">একটা Approved PR বেছে নিন — এরপর Process Steps-এর প্রতিটা ধাপ শুধু এই PR নিয়েই কাজ করবে।</p> -->
+            <!-- <p class="case-hint">Pick an Approved PR — after that, every Process Step will work only on this PR.</p> -->
             <?php if($prReceiveList->isEmpty()): ?>
                 <div class="group-panel">
                     <div class="no-cases">No approved PR is waiting to be picked up right now.</div>
@@ -274,7 +336,7 @@
             <p class="case-hint">Pick a case below to record this step directly on it.</p>
             <?php if($cases->isEmpty()): ?>
                 <div class="group-panel">
-                   <div class="no-cases">No procurement cases yet. <a href="<?php echo e(route('cases.create', $activePr ? ['pr_id' => $activePr->id] : [])); ?>">Open a new case</a> to get started.</div>
+                   <div class="no-cases">No procurement  yet. <a href="<?php echo e(route('cases.create', $activePr ? ['pr_id' => $activePr->id] : [])); ?>">Open a new case</a> to get started.</div>
                 </div>
             <?php else: ?>
                 <div class="case-grid">
@@ -372,6 +434,136 @@
             document.querySelectorAll('.action-menu.open').forEach(m => m.classList.remove('open'));
         }
     });
+
+    function loadSubCommitteeRoster() {
+        const box = document.getElementById('sscRosterChecklist');
+        if (!box) return;
+        api.get('/procurement-committee-members').then(({ data }) => {
+            if (!data.length) {
+                box.innerHTML = '<span class="muted">Roster is empty — members can be added later.</span>';
+                return;
+            }
+            box.innerHTML = `
+                <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
+                    <colgroup><col style="width:28px;"><col></colgroup>
+                    ${data.map(r => `
+                        <tr>
+                            <td style="padding:.4rem .4rem .1rem 0; vertical-align:top;">
+                                <input type="checkbox" class="ssc-select-cb" value="${r.id}" id="ssc_r_${r.id}">
+                            </td>
+                            <td style="padding:.4rem 0 .1rem 0;">
+                                <label for="ssc_r_${r.id}" style="font-weight:600; font-size:.85rem; cursor:pointer; word-break:break-word;">${r.name}</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td style="padding:0 0 .3rem 0;">
+                                <input type="text" id="ssc_desig_${r.id}" value="${r.designation || ''}" placeholder="Designation" style="width:100%; box-sizing:border-box; padding:.3rem .5rem; font-size:.8rem; border:1px solid var(--line); border-radius:6px;">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding:0 .4rem 0 0; vertical-align:top;">
+                                <input type="checkbox" class="ssc-login-cb" data-roster-id="${r.id}" id="ssc_login_${r.id}">
+                            </td>
+                            <td style="padding:0;">
+                                <label for="ssc_login_${r.id}" style="font-size:.8rem; color:var(--muted); cursor:pointer;">Give login</label>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td style="padding:.3rem 0 .8rem 0;">
+                                <div id="ssc_login_fields_${r.id}" style="display:none;">
+                                    <input type="email" id="ssc_email_${r.id}" placeholder="Email" style="width:100%; box-sizing:border-box; padding:.35rem .5rem; font-size:.8rem; border:1px solid var(--line); border-radius:6px;">
+                                </div>
+                            </td>
+                        </tr>
+                        <tr><td colspan="2" style="border-bottom:1px solid var(--line); padding-bottom:.4rem;"></td></tr>
+                    `).join('')}
+                </table>
+            `;
+
+            box.querySelectorAll('.ssc-login-cb').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const fields = document.getElementById(`ssc_login_fields_${cb.dataset.rosterId}`);
+                    if (fields) fields.style.display = cb.checked ? 'block' : 'none';
+                });
+            });
+        }).catch(() => {
+            box.innerHTML = '<span class="muted">Could not load the roster.</span>';
+        });
+    }
+    loadSubCommitteeRoster();
+
+    async function createSubCommittee(projectId) {
+    const errBox = document.getElementById('sscError');
+    if (!errBox) return;
+    errBox.style.display = 'none';
+
+    const name = document.getElementById('ssc_name').value.trim();
+    const address = document.getElementById('ssc_address').value.trim();
+    if (!name) {
+        errBox.textContent = 'Please enter a Committee Name.';
+        errBox.style.display = 'block';
+        return;
+    }
+
+    const btn = document.getElementById('sscCreateBtn');
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
+
+    try {
+        const { data: committee } = await api.post('/purchase-committees', {
+            name,
+            address: address || null,
+            type: 'sub',
+            project_id: projectId,
+        });
+
+        const checked = [...document.querySelectorAll('#sscRosterChecklist .ssc-select-cb:checked')];
+        const createdLogins = [];
+        for (const cb of checked) {
+            const desigInput = document.getElementById(`ssc_desig_${cb.value}`);
+            const designation = desigInput ? desigInput.value.trim() || null : null;
+            const loginCb = document.getElementById(`ssc_login_${cb.value}`);
+
+            let userId = null;
+            if (loginCb && loginCb.checked) {
+                const emailInput = document.getElementById(`ssc_email_${cb.value}`);
+                const email = emailInput ? emailInput.value.trim() : '';
+                if (!email) throw new Error('No Email was given for a member who was marked for login.');
+                const { data: login } = await api.post('/committee-roster-logins', {
+                    procurement_committee_member_id: cb.value,
+                    committee_id: committee.id,
+                    email,
+                    designation,
+                });
+                userId = login.user.id;
+                createdLogins.push(`${login.user.name} (${login.user.email}) — password: ${login.password}`);
+            }
+
+            await api.post('/committee-members', {
+                committee_id: committee.id,
+                procurement_committee_member_id: cb.value,
+                user_id: userId,
+                designation_in_committee: designation,
+            });
+        }
+
+        if (createdLogins.length) {
+            alert('New logins created — share them now, they are shown only once:\n' + createdLogins.join('\n'));
+        }
+
+        // After the page reloads, the new Sub-Committee will be picked up as
+        // the destination, and the Transfer form's "To" field will be
+        // auto-prefilled.
+        window.location.href = window.location.pathname + window.location.search;
+    } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Create Sub-Committee';
+    }
+    }
 </script>
 <?php $__env->stopSection(); ?>
 <?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/process-steps/show.blade.php ENDPATH**/ ?>

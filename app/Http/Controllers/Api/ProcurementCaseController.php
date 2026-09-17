@@ -17,7 +17,10 @@ class ProcurementCaseController extends Controller
     public function index(Request $request)
     {
         $items = ProcurementCase::query()
-            ->with(['meetings' => fn ($q) => $q->where('meeting_type', 'first')])
+            ->with([
+                'purchaseRequisition',
+                'meetings' => fn ($q) => $q->where('meeting_type', 'first'),
+            ])
             ->latest('id')
             ->paginate($request->integer('per_page', 20));
 
@@ -59,6 +62,7 @@ class ProcurementCaseController extends Controller
         $case->setAttribute('rfq_type_hint', $case->amount > $threshold ? 'OTM' : 'RFQ');
         $case->setAttribute('issue_date_hint', optional($firstMeeting?->publish_date)->format('Y-m-d'));
         $case->setAttribute('closing_date_hint', optional($firstMeeting?->closing_date)->format('Y-m-d'));
+        $case->setAttribute('project_name_hint', $case->purchaseRequisition?->project_name ?: $case->title);
 
         return $case;
     }

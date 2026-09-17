@@ -335,17 +335,26 @@
                     <p><?php echo e($pendingPrs); ?></p>
                 </div>
             </a>
-            <a class="card-link" href="<?php echo e(route('process-steps.show', 'pr-receive')); ?>">
+            <!-- <a class="card-link" href="<?php echo e(route('process-steps.show', 'pr-receive')); ?>">
+                <div class="card" data-tone="approved">
+                    <h3>Approved PR</h3>
+                    <p><?php echo e($approvedPrs); ?></p>
+                </div>
+            </a> -->
+            <a class="card-link" href="<?php echo e($canSeeModules ? route('process-steps.show', 'pr-receive') : route('purchase-requisitions.index') . '?status=approved'); ?>">
                 <div class="card" data-tone="approved">
                     <h3>Approved PR</h3>
                     <p><?php echo e($approvedPrs); ?></p>
                 </div>
             </a>
 
+            <?php
+                $hideCommitteeCards = in_array($user->roleName() ?? null, [\App\Models\User::REQUESTER, \App\Models\User::REVIEWER]);
+            ?>
             <?php if($canSeeModules): ?>
                 <a class="card-link" href="<?php echo e(route('modules.show', 'procurement-plans')); ?>">
                     <div class="card" data-tone="brand">
-                        <h3>Active Procurement Plans</h3>
+                        <h3>Procurement Plans</h3>
                         <p><?php echo e($activePlans); ?></p>
                     </div>
                 </a>
@@ -355,9 +364,9 @@
                         <p><?php echo e($contractsAwarded); ?></p>
                     </div>
                 </a>
-            <?php else: ?>
+            <?php elseif(! $hideCommitteeCards): ?>
                 <div class="card" data-tone="brand">
-                    <h3>Active Procurement Plans</h3>
+                    <h3>Procurement Plans</h3>
                     <p><?php echo e($activePlans); ?></p>
                 </div>
                 <div class="card" data-tone="brand">

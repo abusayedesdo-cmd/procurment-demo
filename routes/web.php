@@ -40,6 +40,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/committee-work', [CommitteeWorkController::class, 'index'])->name('committee-work.index');
     Route::get('/budget-dashboard', [BudgetDashboardPageController::class, 'index'])->name('budget-dashboard');
     Route::get('/annual-plans', [AnnualPlanPageController::class, 'index'])->name('annual-plans.index');
+    Route::get('/annual-plans/create', [AnnualPlanPageController::class, 'create'])->name('annual-plans.create');
     Route::get('/annual-plans/{id}', [AnnualPlanPageController::class, 'show'])->name('annual-plans.show');
 
     Route::prefix('purchase-requisitions')->name('purchase-requisitions.')->group(function () {

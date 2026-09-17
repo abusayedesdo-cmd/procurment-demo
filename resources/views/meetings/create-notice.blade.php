@@ -4,7 +4,8 @@
 
 <div><a href="{{ route('cases.show', $case) }}" style="font-size:12.5px;font-weight:600;text-decoration:none">← {{ $case->ref }}</a></div>
 
-<form method="POST" action="{{ route('meetings.notice.store', [$case, $type]) }}" class="card card-pad" style="display:flex;flex-direction:column;gap:16px;max-width:640px">
+<form method="POST" action="{{ route('meetings.notice.store', [$case, $type]) }}" class="card card-pad" style="display:flex;flex-direction:column;gap:16px;max-width:640px"
+      onsubmit="const btn=this.querySelector('button'); if (btn) { btn.disabled = true; btn.textContent = 'Sending notice…'; }">
   @csrf
   <div>
     <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">Step 1 of 3 — Notice</div>
