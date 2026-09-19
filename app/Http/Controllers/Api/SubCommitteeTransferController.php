@@ -108,14 +108,6 @@ class SubCommitteeTransferController extends Controller
         ]);
     }
 
-    /**
-     * A Sub-Committee is formed for one specific Project (Policy §9); its
-     * work must never cross into another Project's PRs. Only applies when
-     * the destination is a 'sub' committee — the main/central committee
-     * is organization-wide, so transferring back to it has no project
-     * restriction. Aborts with a 422 if the plan's PR belongs to a
-     * different project than the destination sub-committee.
-     */
     private function assertSameProject(int $toCommitteeId, int $procurementPlanId): void
     {
         $toCommittee = \App\Models\PurchaseCommittee::withoutGlobalScopes()->find($toCommitteeId);

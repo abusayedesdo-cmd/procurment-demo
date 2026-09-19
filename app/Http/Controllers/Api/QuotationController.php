@@ -84,6 +84,13 @@ class QuotationController extends Controller
         ], 201);
     }
 
+    public function submissionPreview(Quotation $quotation)
+    {
+        $quotation->load(['rfq', 'vendor.documents', 'items.rfqItem']);
+
+        return view('quotations.submission-preview', ['quotation' => $quotation]);
+    }
+
     public function update(Request $request, Quotation $quotation)
     {
         $quotation->loadMissing('rfq.procurementCase');

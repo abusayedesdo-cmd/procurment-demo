@@ -240,7 +240,7 @@
                     </div>
                 </div>
                 <div class="ssc-roster">
-                    <label>Add members from the Committee Roster (optional — can be added later too)</label>
+                    <label>Add members from the Committee Roster.</label>
                     <div id="sscRosterChecklist" class="ssc-checklist"><span class="muted">Loading…</span></div>
                 </div>
                 <button type="button" class="btn" id="sscCreateBtn" onclick="createSubCommittee(<?php echo e($missingSubCommitteeForProject['project_id']); ?>)">Create Sub-Committee</button>
@@ -303,11 +303,13 @@
                             ?>
                             <div class="module-row" data-search="<?php echo e(strtolower(($pr->pr_number ?? '').' '.($pr->project_name ?? ''))); ?>" style="cursor:default;">
                                 <span>
-                                    <?php echo e($pr->pr_number ?? ('PR-' . $pr->id)); ?> — ৳ <?php echo e(number_format($pr->total_estimated_amount ?? 0, 2)); ?>
-
-                                    <?php if($pr->project_name): ?>
-                                        <br><span style="color:var(--muted); font-size:.78rem;"><?php echo e($pr->project_name); ?></span>
+                                       <?php if($pr->project_name): ?>
+                                        <span ><?php echo e($pr->project_name); ?></span> </br>
                                     <?php endif; ?>
+                                    
+                                    <?php echo e($pr->pr_number ?? ('PR-' . $pr->id)); ?> — Tk <?php echo e(number_format($pr->total_estimated_amount ?? 0, 2)); ?>
+
+      
                                 </span>
                                 <div style="display:flex; align-items:center; gap:.5rem; flex-shrink:0;">
                                     <a href="<?php echo e($nextAction['url']); ?>" class="btn primary" style="padding:.3rem .75rem; font-size:.78rem;"><?php echo e($nextAction['label']); ?></a>
@@ -361,7 +363,7 @@
                                 <span class="ref"><?php echo e($case->ref); ?></span>
                             </div>
                             <div class="title"><?php echo e($case->title); ?></div>
-                            <div class="amount">৳ <?php echo e(number_format($case->amount, 2)); ?></div>
+                            <div class="amount"> <?php echo e(number_format($case->amount, 2)); ?> taka</div>
                         </a>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </div>

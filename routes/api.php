@@ -63,6 +63,7 @@ use App\Http\Controllers\Api\BudgetLineController;
 use App\Http\Controllers\Api\PrBudgetCheckController;
 use App\Http\Controllers\Api\FileUploadController;
 use App\Http\Controllers\Api\ProcurementCaseController;
+use App\Http\Controllers\Api\RfqItemController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -220,6 +221,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // system role at all.
     Route::apiResource('procurement-cases', ProcurementCaseController::class)->only(['index', 'show']);
     Route::apiResource('rfqs', RfqController::class);
+    Route::apiResource('rfq-items', RfqItemController::class);
     Route::apiResource('quotations', QuotationController::class);
     Route::apiResource('tender-openings', TenderOpeningController::class);
     Route::apiResource('comparative-statements', ComparativeStatementController::class);
@@ -228,6 +230,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('rfqs/{rfq}/preview', [DocumentDownloadController::class, 'rfqPreview']);
     Route::get('rfqs/{rfq}/tender-schedule-document', [DocumentDownloadController::class, 'tenderSchedule']);
     Route::get('rfqs/{rfq}/tender-schedule-preview', [DocumentDownloadController::class, 'tenderSchedulePreview']);
+    Route::get('rfqs/{rfq}/pr-items', [RfqController::class, 'prItems']);
+    Route::get('quotations/{quotation}/submission-preview', [QuotationController::class, 'submissionPreview']);
     Route::get('comparative-statements/{comparativeStatement}/document', [DocumentDownloadController::class, 'comparativeStatement']);
     Route::get('comparative-statements/{comparativeStatement}/preview', [DocumentDownloadController::class, 'comparativeStatementPreview']);
     Route::get('tender-openings/{tenderOpening}/document', [DocumentDownloadController::class, 'tenderOpening']);

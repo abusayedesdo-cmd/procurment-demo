@@ -98,6 +98,16 @@ async function initResourcePage(config) {
         const id = `field_${field.name}`;
         const requiredAttr = field.required ? 'required' : '';
 
+            if (field.type === 'pr_item_picker') {
+                return `
+                    <div class="form-field">
+                        <label for="field_${field.name}">${field.label}</label>
+                        <select id="field_${field.name}">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>`;
+            }
+
             if (field.type === 'select') {
                 const opts = (selectCache[field.name] || [])
                     .map(r => `<option value="${r.id}">${optionLabel(field, r)}</option>`).join('');
@@ -325,17 +335,83 @@ async function initResourcePage(config) {
         });
     }
 
+    // RFQ Items ফর্মে: "RFQ" ফিল্ড সিলেক্ট/লক হলে, লিংকড PR-এর নিজস্ব Item
+    // লিস্ট থেকে বেছে Description/Quantity/Unit অটো-ফিল করার সুবিধা।
+    function wirePrItemPicker() {
+        const pickerField = config.formFields.find(f => f.type === 'pr_item_picker');
+        if (!pickerField) return;
+
+        const rfqEl = document.getElementById('field_rfq_id');
+        const pickerEl = document.getElementById(`field_${pickerField.name}`);
+        if (!rfqEl || !pickerEl) return;
+
+        let prItems = [];
+
+        async function loadPrItemsFor(rfqId) {
+            pickerEl.innerHTML = '<option value="">-- Select --</option>';
+            prItems = [];
+            if (!rfqId) return;
+            try {
+                const { data } = await api.get(`/rfqs/${rfqId}/pr-items`);
+                prItems = data;
+                pickerEl.innerHTML = '<option value="">-- Select --</option>' +
+                    data.map(i => `<option value="${i.id}">${i.description} (Qty: ${i.quantity})</option>`).join('');
+            } catch (e) { /* fetch ব্যর্থ হলে picker খালিই থাকবে, ম্যানুয়াল এন্ট্রি করা যাবে */ }
+
+            // SL No. auto-suggest — এই RFQ-তে ইতিমধ্যে কয়টা item আছে তার পরেরটা।
+            try {
+                const { meta } = await api.get(`/rfq-items?rfq_id=${rfqId}&per_page=1`);
+                const slField = document.getElementById('field_serial_no');
+                if (slField && !slField.value) slField.value = (meta?.total ?? 0) + 1;
+            } catch (e) { /* ব্যর্থ হলে ম্যানুয়ালি দিতে হবে */ }
+        }
+
+        rfqEl.addEventListener('change', () => loadPrItemsFor(rfqEl.value));
+
+        pickerEl.addEventListener('change', () => {
+            const item = prItems.find(i => String(i.id) === pickerEl.value);
+            if (!item) return;
+            const descEl = document.getElementById('field_description');
+            const qtyEl = document.getElementById('field_quantity');
+            const unitEl = document.getElementById('field_unit_id');
+            if (descEl) descEl.value = item.description;
+            if (qtyEl) qtyEl.value = item.quantity;
+            if (unitEl && item.unit_id) { unitEl.value = item.unit_id; unitEl.dispatchEvent(new Event('change')); }
+        });
+    }
+
     function renderRowAction(a, row) {
+        if (a.copyBuilder) {
+            const text = a.copyBuilder(row);
+            if (!text) return '';
+            const id = `copyBtn_${Math.random().toString(36).slice(2)}`;
+            setTimeout(() => {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                btn.addEventListener('click', async () => {
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        const original = btn.textContent;
+                        btn.textContent = 'Copied!';
+                        setTimeout(() => { btn.textContent = original; }, 1500);
+                    } catch (e) {
+                        prompt('এই লিংকটা কপি করে নিন:', text);
+                    }
+                });
+            }, 0);
+            return `<button type="button" id="${id}" class="btn secondary" style="padding:.3rem .6rem; font-size:.8rem;">${a.label}</button>`;
+        }
         const href = a.hrefBuilder(row);
         if (!href) return '';
         const attrs = a.download ? 'download' : 'target="_blank" rel="noopener"';
         return `<a href="${href}" class="btn secondary" style="padding:.3rem .6rem; font-size:.8rem;" ${attrs}>${a.label}</a>`;
     }
 
-
     function getListFilterQuery() {
         if (!config.listFilterField) return '';
-        const val = window.moduleContext && window.moduleContext.filterValue;
+        const ctxVal = window.moduleContext && window.moduleContext.filterValue;
+        const urlVal = new URLSearchParams(window.location.search).get(`field_${config.listFilterField}`);
+        const val = ctxVal || urlVal;
         return val ? `&${config.listFilterField}=${encodeURIComponent(val)}` : '';
     }
 
@@ -557,6 +633,7 @@ async function initResourcePage(config) {
         document.getElementById('resourceForm').addEventListener('submit', handleSubmit);
         wireAutofill();
         wireCreateShortcuts();
+        wirePrItemPicker();
         applyQueryPrefill();
     }
 

@@ -133,6 +133,22 @@ class RfqController extends Controller
         ]);
     }
 
+    public function prItems(Rfq $rfq)
+    {
+        $pr = $rfq->procurementCase?->purchaseRequisition;
+        $items = $pr ? $pr->items()->with(['item', 'unit'])->orderBy('serial_no')->get() : collect();
+
+        return response()->json([
+            'success' => true,
+            'data' => $items->map(fn ($i) => [
+                'id' => $i->id,
+                'description' => trim(($i->item->name ?? '') . ($i->specification ? ' — ' . $i->specification : '')),
+                'quantity' => $i->quantity,
+                'unit_id' => $i->unit_id,
+            ]),
+        ]);
+    }
+
     public function destroy(Rfq $rfq)
     {
         abort_unless(

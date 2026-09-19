@@ -17,12 +17,22 @@ class Rfq extends Model
         'issue_date',
         'closing_date',
         'file_path',
+        'public_token',
     ];
 
     protected $casts = [
         'issue_date' => 'date',
         'closing_date' => 'date',
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($rfq) {
+            if (empty($rfq->public_token)) {
+                $rfq->public_token = \Illuminate\Support\Str::random(32);
+            }
+        });
+    }
 
     public function procurementCase()
     {

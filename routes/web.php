@@ -15,6 +15,7 @@ use App\Http\Controllers\ModulePageController;
 use App\Http\Controllers\ProcessStepPageController;
 use App\Http\Controllers\ProcurementCaseController;
 use App\Http\Controllers\PurchaseRequisitionPageController;
+use App\Http\Controllers\VendorPortalController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -30,6 +31,9 @@ Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
     Route::post('/login', [LoginController::class, 'login']);
 });
+
+Route::get('/vendor-portal/{token}', [VendorPortalController::class, 'show'])->name('vendor-portal.show');
+Route::post('/vendor-portal/{token}', [VendorPortalController::class, 'store'])->name('vendor-portal.store');
 
 Route::post('/logout', [LoginController::class, 'logout'])
     ->middleware('auth')

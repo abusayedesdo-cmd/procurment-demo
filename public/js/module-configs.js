@@ -183,10 +183,12 @@ const MODULE_CONFIGS = {
             { key: 'closing_date', label: 'Closing Date' },
         ],
         rowActions: [
+            { label: 'Manage Items', hrefBuilder: r => `/modules/rfq-items?new=1&field_rfq_id=${r.id}&context_label=${encodeURIComponent('RFQ ' + r.rfq_number)}` },
             { label: 'Preview RFQ', hrefBuilder: r => `/api/rfqs/${r.id}/preview` },
             { label: 'Download RFQ', hrefBuilder: r => `/api/rfqs/${r.id}/document`, download: true },
             { label: 'Preview Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-preview` },
             { label: 'Download Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-document`, download: true },
+            { label: 'Copy Vendor Link', copyBuilder: r => r.public_token ? `${window.location.origin}/vendor-portal/${r.public_token}` : null },
         ],
         formFields: [
             { name: 'procurement_case_id', label: 'Procurement Case', type: 'select', source: '/procurement-cases', labelField: 'ref', required: true },
@@ -197,6 +199,28 @@ const MODULE_CONFIGS = {
             { name: 'closing_date', label: 'Closing Date', type: 'date', required: true, autofillFrom: { field: 'procurement_case_id', property: 'closing_date_hint' } },
             { name: 'terms_conditions', label: 'Terms & Conditions', type: 'textarea' },
             { name: 'file_path', label: 'File (path/URL)', type: 'file' },
+        ],
+    },
+
+    'rfq-items': {
+        title: 'RFQ Items (Rate Schedule)',
+        apiPath: '/rfq-items',
+        listFilterField: 'rfq_id',
+        listColumns: [
+            { key: 'serial_no', label: 'SL' },
+            { key: 'category', label: 'Category' },
+            { key: 'description', label: 'Description' },
+            { key: 'quantity', label: 'Qty' },
+        ],
+        formFields: [
+            { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
+            { name: '_pr_item_picker', label: 'Pick from PR Item (ঐচ্ছিক — নিচেরগুলো অটো-ফিল করবে)', type: 'pr_item_picker' },
+            { name: 'category', label: 'Category (optional sub-heading)', type: 'text' },
+            { name: 'serial_no', label: 'SL No.', type: 'number', required: true },
+            { name: 'description', label: 'Description', type: 'textarea', required: true },
+            { name: 'quantity', label: 'Quantity', type: 'number', required: true },
+            { name: 'unit_id', label: 'Unit', type: 'select', source: '/units', labelField: 'name' },
+            { name: 'delivery_address', label: 'Delivery Address (optional)', type: 'textarea' },
         ],
     },
 
@@ -294,8 +318,10 @@ const MODULE_CONFIGS = {
             { key: 'vendor.name', label: 'Vendor' },
             { key: 'quoted_amount', label: 'Amount' },
             { key: 'status', label: 'Status' },
+            { key: 'submitted_via_portal', label: 'Vendor Portal?' },
         ],
         rowActions: [
+            { label: 'View Submission', hrefBuilder: r => `/api/quotations/${r.id}/submission-preview` },
             { label: 'Preview', hrefBuilder: r => r.file_path || null },
             { label: 'Download', hrefBuilder: r => r.file_path || null, download: true },
         ],
@@ -313,6 +339,15 @@ const MODULE_CONFIGS = {
             { name: 'bin_submitted', label: 'BIN Submitted', type: 'checkbox' },
             { name: 'opening_remarks', label: 'Opening Remarks', type: 'textarea' },
             { name: 'file_path', label: 'File (path/URL)', type: 'file' },
+            // Vendor-portal submission fields (self-service quotation drop —
+            // see VendorPortalController). Shown here mainly for staff
+            // reference/editing; a fuller read-only view is the "View
+            // Submission" row action above.
+            { name: 'general_experience', label: 'General Experience', type: 'textarea' },
+            { name: 'relevant_experience', label: 'Relevant Experience', type: 'textarea' },
+            { name: 'terms_accepted', label: 'Terms & Conditions Accepted', type: 'checkbox' },
+            { name: 'delivery_terms_accepted', label: 'Delivery Terms Accepted', type: 'checkbox' },
+            { name: 'submitted_via_portal', label: 'Submitted via Vendor Portal', type: 'checkbox' },
             // Earnest Money (ESDO Procurement Policy §24) — required for
             // enlistment/OTM purchases; tracked per bidder since each vendor's
             // EM is refunded, forfeited, or (if they win) converted to a
@@ -628,7 +663,7 @@ const MODULE_CONFIGS = {
 const MODULE_GROUPS = [
     { title: 'B. Procurement Plan', slugs: ['procurement-plans'] },
     { title: 'C. Meetings & Committee', slugs: ['purchase-committees', 'committee-members', 'meetings', 'meeting-attendances', 'meeting-minutes', 'sub-committee-transfers'] },
-    { title: 'C. RFQ / Tender', slugs: ['rfqs', 'tender-schedules', 'tender-proposals', 'tender-advertisements'] },
+    { title: 'C. RFQ / Tender', slugs: ['rfqs', 'rfq-items', 'tender-schedules', 'tender-proposals', 'tender-advertisements'] },
     { title: 'Vendors & Quotations', slugs: ['vendors', 'quotations', 'tender-openings'] },
     { title: 'C. Evaluation', slugs: ['eligibility-reports', 'eligibility-report-items', 'technical-evaluation-reports', 'technical-evaluation-items', 'financial-evaluation-reports', 'financial-evaluation-items', 'comparative-statements', 'comparative-statement-items'] },
     { title: 'C. Award & Contract', slugs: ['contract-awards', 'pay-orders', 'contract-agreements', 'work-orders', 'delivery-receipts'] },

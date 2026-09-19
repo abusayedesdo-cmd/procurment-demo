@@ -27,6 +27,11 @@ class Quotation extends Model
         'earnest_money_amount',
         'earnest_money_status',
         'earnest_money_notes',
+        'terms_accepted',
+        'delivery_terms_accepted',
+        'general_experience',
+        'relevant_experience',
+        'submitted_via_portal',
     ];
 
     protected $casts = [
@@ -38,6 +43,9 @@ class Quotation extends Model
         'bin_submitted' => 'boolean',
         'earnest_money_required' => 'boolean',
         'earnest_money_amount' => 'decimal:2',
+        'terms_accepted' => 'boolean',
+        'delivery_terms_accepted' => 'boolean',
+        'submitted_via_portal' => 'boolean',
     ];
 
     public function rfq()
