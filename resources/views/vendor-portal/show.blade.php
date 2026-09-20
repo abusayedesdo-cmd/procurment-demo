@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,6 +26,8 @@
         th { color: var(--muted); font-weight: 600; font-size: .78rem; text-transform: uppercase; }
         .checkbox-row { display: flex; align-items: flex-start; gap: .5rem; font-size: .85rem; margin-bottom: .75rem; }
         .checkbox-row input { margin-top: .2rem; }
+        .radio-row { display: block; font-size: .9rem; font-weight: 400; margin-bottom: .5rem; cursor: pointer; }
+        .radio-row input { margin-right: .5rem; }
         .btn { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: .7rem 1.4rem; font-size: .95rem; font-weight: 600; cursor: pointer; }
         .btn:hover { background: var(--accent-dark); }
         .error-box { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; border-radius: 8px; padding: .8rem 1rem; margin-bottom: 1.25rem; font-size: .88rem; }
@@ -74,7 +76,7 @@
     @endif
 
     @if ($closed)
-        <div class="closed-notice">এই RFQ-এর Closing Date পার হয়ে গেছে — এখন আর নতুন quotation জমা দেওয়া যাচ্ছে না।</div>
+        <div class="closed-notice">This RFQ's closing date has passed — new quotations can no longer be submitted.</div>
     @else
         @if ($errors->any())
             <div class="error-box">
@@ -134,6 +136,50 @@
             </div>
 
             <div class="card">
+                <h2>ESDO Vendor Enlistment</h2>
+                <label class="radio-row">
+                    <input type="radio" name="enlistment_status" value="enlisted" required onchange="toggleEnlistmentFields()">
+                    I am already an enlisted vendor with ESDO
+                </label>
+                <label class="radio-row">
+                    <input type="radio" name="enlistment_status" value="applied" required onchange="toggleEnlistmentFields()">
+                    I am applying for new enlistment
+                </label>
+                <div id="enlistmentFields" style="display:none; margin-top:1rem;">
+                    <div class="row">
+                        <div>
+                            <label>Owner Name</label>
+                            <input type="text" name="owner_name" value="{{ old('owner_name') }}">
+                        </div>
+                        <div>
+                            <label>Group / Subcategory</label>
+                            <input type="text" name="group_subcategory" value="{{ old('group_subcategory') }}" placeholder="e.g. Group-A1">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div>
+                            <label>Bank Account Name</label>
+                            <input type="text" name="bank_account_name" value="{{ old('bank_account_name') }}">
+                        </div>
+                        <div>
+                            <label>Bank Name</label>
+                            <input type="text" name="bank_name" value="{{ old('bank_name') }}">
+                        </div>
+                        <div>
+                            <label>Bank Account Number</label>
+                            <input type="text" name="bank_account_number" value="{{ old('bank_account_number') }}">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div>
+                            <label>Bank Address</label>
+                            <input type="text" name="bank_address" value="{{ old('bank_address') }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
                 <h2>Legal Documents (Upload)</h2>
                 <div class="row">
                     <div>
@@ -158,6 +204,24 @@
             </div>
 
             <div class="card">
+                <h2>Other Supporting Documents (optional)</h2>
+                <div class="row">
+                    <div>
+                        <label>Tax Clearance Certificate (PSR)</label>
+                        <input type="file" name="psr_file">
+                    </div>
+                    <div>
+                        <label>Bank Solvency Certificate</label>
+                        <input type="file" name="bank_solvency_file">
+                    </div>
+                    <div>
+                        <label>Certificate of Incorporation</label>
+                        <input type="file" name="incorporation_file">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
                 <h2>Experience Information</h2>
                 <div class="row" style="grid-template-columns: 1fr;">
                     <div>
@@ -176,7 +240,7 @@
             <div class="card">
                 <h2>Rate Schedule</h2>
                 @if ($rfq->items->isEmpty())
-                    <p style="color:#B91C1C; font-size:.88rem;">এই RFQ-এর জন্য এখনো কোনো Item যোগ করা হয়নি। অনুগ্রহ করে ESDO প্রকিউরমেন্ট টিমের সাথে যোগাযোগ করুন — Item যোগ হলে এই লিংকেই আবার এসে quotation জমা দিতে পারবেন।</p>
+                    <p style="color:#B91C1C; font-size:.88rem;">No items have been added to this RFQ yet. Please contact the ESDO procurement team — once items are added, you can return to this same link to submit your quotation.</p>
                 @else
                 <table>
                     <thead>
@@ -212,18 +276,32 @@
                     </tbody>
                 </table>
                 @endif
-                <p class="hint">প্রতিটা লাইনে Unit Price দিলে Amount আর Total নিজে থেকে হিসাব হয়ে যাবে।</p>
+                <p class="hint">Enter the Unit Price on each line — the Amount and Total are calculated automatically.</p>
+            </div>
+
+            <div class="card">
+                <h2>Terms &amp; Conditions</h2>
+                @if ($rfq->terms_conditions)
+                    <p style="white-space:pre-line; font-size:.88rem;">{{ $rfq->terms_conditions }}</p>
+                    <hr style="border:none; border-top:1px solid var(--line); margin:1rem 0;">
+                @endif
+                <p style="white-space:pre-line; font-size:.85rem; color:#475569;">1. Quoted prices must be inclusive of applicable VAT and Tax.
+2. Quantities beyond what is ordered may not be supplied without ESDO's written approval.
+3. Goods/services must be delivered on time and to the specified quality standard.
+4. The vendor bears liability for any loss or damage until the goods are received by ESDO.
+5. If the vendor fails to meet the terms of the contract, ESDO may require correction, replacement, or a refund of the price.
+6. Any dispute arising from this tender will first be addressed through discussion between the parties.</p>
             </div>
 
             <div class="card">
                 <h2>Acknowledgement</h2>
                 <label class="checkbox-row">
                     <input type="checkbox" name="delivery_terms_accepted" value="1" required>
-                    <span>আমি Delivery Location এবং Delivery Schedule Time সম্পর্কে অবগত আছি এবং তা মেনে নিচ্ছি।</span>
+                    <span>I acknowledge the Delivery Location and Delivery Schedule Time for this RFQ and agree to comply with them.</span>
                 </label>
                 <label class="checkbox-row">
                     <input type="checkbox" name="terms_accepted" value="1" required>
-                    <span>আমি এই RFQ-এর Terms &amp; Conditions পড়েছি এবং তা মেনে নিচ্ছি।</span>
+                    <span>I have read and agree to the Terms &amp; Conditions of this RFQ.</span>
                 </label>
             </div>
 
@@ -249,6 +327,11 @@
             document.getElementById('grandTotal').textContent = total.toFixed(2);
         });
     });
+
+    function toggleEnlistmentFields() {
+        const applied = document.querySelector('input[name="enlistment_status"]:checked')?.value === 'applied';
+        document.getElementById('enlistmentFields').style.display = applied ? 'block' : 'none';
+    }
 </script>
 </body>
 </html>

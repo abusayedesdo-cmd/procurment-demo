@@ -224,6 +224,28 @@ const MODULE_CONFIGS = {
         ],
     },
 
+    'cash-purchases': {
+        title: 'Cash Purchase (Direct)',
+        apiPath: '/cash-purchases',
+        listFilterField: 'pr_id',
+        listColumns: [
+            { key: 'vendor.name', label: 'Vendor' },
+            { key: 'item_description', label: 'Item' },
+            { key: 'amount', label: 'Amount' },
+            { key: 'purchase_date', label: 'Date' },
+        ],
+        formFields: [
+            { name: 'pr_id', label: 'PR', type: 'select', source: '/purchase-requisitions', labelField: 'pr_number', required: true },
+            { name: 'committee_id', label: 'Committee', type: 'select', source: '/purchase-committees', labelField: 'name' },
+            { name: 'vendor_id', label: 'Vendor', type: 'select', source: '/vendors', labelField: 'name', required: true },
+            { name: 'item_description', label: 'Item / Purpose', type: 'textarea', required: true },
+            { name: 'amount', label: 'Amount', type: 'number', step: '0.01', required: true, autofillFrom: { field: 'pr_id', property: 'total_estimated_amount' } },
+            { name: 'purchase_date', label: 'Purchase Date', type: 'date', required: true },
+            { name: 'receipt_file', label: 'Receipt/Bill (path/URL)', type: 'file' },
+            { name: 'notes', label: 'Notes', type: 'textarea' },
+        ],
+    },
+
     'tender-schedules': {
         title: 'Tender Schedule (Goods/Works)',
         apiPath: '/tender-schedules',

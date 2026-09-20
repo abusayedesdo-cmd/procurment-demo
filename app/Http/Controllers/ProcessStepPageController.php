@@ -208,6 +208,7 @@ class ProcessStepPageController extends Controller
         // for manual pick.
         $fromCommitteeId = null;
         $toCommitteeId = null;
+        $isSubCommitteeHolder = false;
 
         $mainCommitteeId = \App\Models\PurchaseCommittee::where('type', 'main')->value('id');
         $projectSubCommitteeId = ($activePr && $activePr->project_id)
@@ -230,7 +231,10 @@ class ProcessStepPageController extends Controller
                 $toCommitteeId = $mainCommitteeId;
             }
 
+            $isSubCommitteeHolder = $fromCommitteeId && $fromCommitteeId !== $mainCommitteeId;
+
         }
+        
         // Main -> Sub ট্রান্সফারের জন্য একটা destination Sub-Committee থাকা লাগে।
         // এই PR-এর প্রজেক্টের এখনো একটাও না থাকলে, dead-end dropdown-এ না পাঠিয়ে
         // এখানেই তৈরি করার অপশন দিচ্ছি (Admin-only — Policy §9)।
@@ -304,6 +308,8 @@ class ProcessStepPageController extends Controller
             'fromCommitteeId' => $fromCommitteeId,
             'toCommitteeId' => $toCommitteeId,
             'missingSubCommitteeForProject' => $missingSubCommitteeForProject,
+            'mainCommitteeId' => $mainCommitteeId,
+            'isSubCommitteeHolder' => $isSubCommitteeHolder,
         ]);
     }
 

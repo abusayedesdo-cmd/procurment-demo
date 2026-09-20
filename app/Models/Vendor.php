@@ -13,13 +13,20 @@ class Vendor extends Model
         'name',
         'address',
         'contact_person',
+        'owner_name',
         'email',
         'phone',
         'trade_license_no',
         'vat_reg_no',
         'tax_id',
+        'bank_account_name',
+        'bank_name',
+        'bank_account_number',
+        'bank_address',
+        'group_subcategory',
+        'enlistment_status',
     ];
-
+    
     public function documents()
     {
         return $this->hasMany(VendorDocument::class, 'vendor_id');

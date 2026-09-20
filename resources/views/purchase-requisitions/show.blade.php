@@ -728,7 +728,6 @@
 
 
 
-
                
             </div>
 
@@ -739,8 +738,8 @@
                     <div class="field"><span class="field-label">Category</span><span class="field-value">${esc(pr.category?.name ?? '-')}</span></div>
                     <div class="field"><span class="field-label">Budget Line</span><span class="field-value ${pr.budget_line ? '' : 'empty'}">${pr.budget_line ? esc(pr.budget_line.item_code + ' — ' + pr.budget_line.item_name) : 'Not linked yet'}</span></div>
                     <div class="field"><span class="field-label">Annual Plan Package</span><span class="field-value ${pr.package ? '' : 'empty'}">${pr.package ? esc(pr.package.package_number + ' — ' + pr.package.budgeted_head) : 'Not linked'}</span></div>
-                    <div class="field"><span class="field-label">Raised By</span><span class="field-value">${esc(pr.raised_by_user?.name ?? pr.raisedBy?.name ?? '-')}</span></div>
-                    <div class="field"><span class="field-label">Requisition Date</span><span class="field-value mono">${esc(pr.requisition_date)}</span></div>
+                    <div class="field"><span class="field-label">Raised By</span><span class="field-value">${esc(pr.raised_by?.name ?? '-')}</span></div>
+                    <div class="field"><span class="field-label">Requisition Date</span><span class="field-value mono">${esc(formatDocDate(pr.requisition_date))}</span></div>
                 </div>
             </details>
 

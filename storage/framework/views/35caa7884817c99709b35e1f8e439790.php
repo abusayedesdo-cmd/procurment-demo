@@ -211,6 +211,18 @@
                 <a href="<?php echo e(route('process-steps.show', $slug)); ?>?clear_pr=1">Change / clear &times;</a>
             </div>
         <?php endif; ?>
+        
+        <?php if(!empty($isSubCommitteeHolder)): ?>
+            <div class="missing-plan-notice" style="background:#F0FDF4; border-color:#BBF7D0; color:#166534;">
+                <div><b>এই PR-টি এখন একটি Sub-Committee-র হাতে আছে।</b> এই কমিটির জন্য উপলব্ধ কাজ:</div>
+                <div style="display:flex; flex-wrap:wrap; gap:.6rem; margin-top:.6rem;">
+                    <a class="btn secondary" href="/modules/cash-purchases?new=1&field_pr_id=<?php echo e($activePr->id); ?>&context_label=<?php echo e(urlencode('PR-'.($activePr->pr_number ?? $activePr->id))); ?>">Cash Purchase Form (Direct)</a>
+                    <a class="btn secondary" href="/modules/rfqs?new=1&field_procurement_case_id=<?php echo e($caseId); ?>&context_label=<?php echo e(urlencode('PR-'.($activePr->pr_number ?? $activePr->id))); ?>">Publish RFQ</a>
+                    <a class="btn secondary" href="<?php echo e(route('process-steps.show', 'quotations-drop')); ?>?pr_id=<?php echo e($activePr->id); ?>">Quotation Collection</a>
+                    <a class="btn secondary" href="/modules/sub-committee-transfers?new=1&field_procurement_plan_id=<?php echo e($planId); ?>&field_from_committee_id=<?php echo e($fromCommitteeId); ?>&field_to_committee_id=<?php echo e($mainCommitteeId); ?>&context_label=<?php echo e(urlencode('PR-'.($activePr->pr_number ?? $activePr->id))); ?>">Return to Main Committee</a>
+                </div>
+            </div>
+        <?php endif; ?>
 
         <?php if(isset($missingPlanForPr)): ?>
             <div class="missing-plan-notice">
@@ -314,18 +326,32 @@
                                 <div style="display:flex; align-items:center; gap:.5rem; flex-shrink:0;">
                                     <a href="<?php echo e($nextAction['url']); ?>" class="btn primary" style="padding:.3rem .75rem; font-size:.78rem;"><?php echo e($nextAction['label']); ?></a>
 
-                                    <div class="action-menu">
-                                        <button type="button" class="action-btn">Other Steps ▾</button>
-                                        <div class="action-dropdown">
-                                            <?php $__currentLoopData = \App\Http\Controllers\ProcessStepPageController::STEPS; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $jumpSlug => $jumpStep): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                                <?php if(in_array($jumpSlug, $excludedStepSlugs, true)) continue; ?>
-                                                <a href="<?php echo e(route('process-steps.show', $jumpSlug)); ?>?pr_id=<?php echo e($pr->id); ?>"><?php echo e($jumpStep['step_no']); ?> — <?php echo e($jumpStep['subject']); ?></a>
-                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                                        </div>
-                                    </div>
-
                                     <?php if($prTransfer && $prTransfer->toCommittee?->type === 'sub'): ?>
-                                        <a href="<?php echo e(route('process-steps.show', 'sub-committee')); ?>?pr_id=<?php echo e($pr->id); ?>" class="btn" style="padding:.3rem .75rem; font-size:.78rem;">Return to Main Committee</a>
+                                        <?php
+                                            $rowPlanId = $pr->procurementPlan?->id;
+                                            $rowCaseId = $prCase?->id;
+                                            $rowFromCommitteeId = $prTransfer->to_committee_id;
+                                            $rowLabel = urlencode('PR-' . ($pr->pr_number ?? $pr->id));
+                                        ?>
+                                        <div class="action-menu">
+                                            <button type="button" class="action-btn">Sub-Committee Actions ▾</button>
+                                            <div class="action-dropdown">
+                                                <a href="/modules/cash-purchases?new=1&field_pr_id=<?php echo e($pr->id); ?>&context_label=<?php echo e($rowLabel); ?>">Cash Purchase Form (Direct)</a>
+                                                <a href="/modules/rfqs?new=1&field_procurement_case_id=<?php echo e($rowCaseId); ?>&context_label=<?php echo e($rowLabel); ?>">Publish RFQ</a>
+                                                <a href="<?php echo e(route('process-steps.show', 'quotations-drop')); ?>?pr_id=<?php echo e($pr->id); ?>">Quotation Collection</a>
+                                                <a href="/modules/sub-committee-transfers?new=1&field_procurement_plan_id=<?php echo e($rowPlanId); ?>&field_from_committee_id=<?php echo e($rowFromCommitteeId); ?>&field_to_committee_id=<?php echo e($mainCommitteeId); ?>&context_label=<?php echo e($rowLabel); ?>">Return to Main Committee</a>
+                                            </div>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="action-menu">
+                                            <button type="button" class="action-btn">Other Steps ▾</button>
+                                            <div class="action-dropdown">
+                                                <?php $__currentLoopData = \App\Http\Controllers\ProcessStepPageController::STEPS; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $jumpSlug => $jumpStep): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                    <?php if(in_array($jumpSlug, $excludedStepSlugs, true)) continue; ?>
+                                                    <a href="<?php echo e(route('process-steps.show', $jumpSlug)); ?>?pr_id=<?php echo e($pr->id); ?>"><?php echo e($jumpStep['step_no']); ?> — <?php echo e($jumpStep['subject']); ?></a>
+                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                            </div>
+                                        </div>
                                     <?php endif; ?>
                                      <a href="<?php echo e(route('purchase-requisitions.show', $pr->id)); ?>" class="btn" style="padding:.3rem .75rem; font-size:.78rem;">View</a>
                                 </div>

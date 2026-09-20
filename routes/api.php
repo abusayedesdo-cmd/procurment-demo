@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\MeetingAttendanceController;
 use App\Http\Controllers\Api\MeetingController;
 use App\Http\Controllers\Api\PayOrderController;
 use App\Http\Controllers\Api\PrApprovalController;
+use App\Http\Controllers\Api\CashPurchaseController;
 use App\Http\Controllers\Api\PrItemController;
 use App\Http\Controllers\Api\ProcurementAnnualPlanController;
 use App\Http\Controllers\Api\ProcurementDistrictController;
@@ -221,6 +222,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // system role at all.
     Route::apiResource('procurement-cases', ProcurementCaseController::class)->only(['index', 'show']);
     Route::apiResource('rfqs', RfqController::class);
+    Route::apiResource('cash-purchases', CashPurchaseController::class);
     Route::apiResource('rfq-items', RfqItemController::class);
     Route::apiResource('quotations', QuotationController::class);
     Route::apiResource('tender-openings', TenderOpeningController::class);

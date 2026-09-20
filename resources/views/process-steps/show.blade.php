@@ -211,6 +211,18 @@
                 <a href="{{ route('process-steps.show', $slug) }}?clear_pr=1">Change / clear &times;</a>
             </div>
         @endisset
+        
+        @if (!empty($isSubCommitteeHolder))
+            <div class="missing-plan-notice" style="background:#F0FDF4; border-color:#BBF7D0; color:#166534;">
+                <div><b>এই PR-টি এখন একটি Sub-Committee-র হাতে আছে।</b> এই কমিটির জন্য উপলব্ধ কাজ:</div>
+                <div style="display:flex; flex-wrap:wrap; gap:.6rem; margin-top:.6rem;">
+                    <a class="btn secondary" href="/modules/cash-purchases?new=1&field_pr_id={{ $activePr->id }}&context_label={{ urlencode('PR-'.($activePr->pr_number ?? $activePr->id)) }}">Cash Purchase Form (Direct)</a>
+                    <a class="btn secondary" href="/modules/rfqs?new=1&field_procurement_case_id={{ $caseId }}&context_label={{ urlencode('PR-'.($activePr->pr_number ?? $activePr->id)) }}">Publish RFQ</a>
+                    <a class="btn secondary" href="{{ route('process-steps.show', 'quotations-drop') }}?pr_id={{ $activePr->id }}">Quotation Collection</a>
+                    <a class="btn secondary" href="/modules/sub-committee-transfers?new=1&field_procurement_plan_id={{ $planId }}&field_from_committee_id={{ $fromCommitteeId }}&field_to_committee_id={{ $mainCommitteeId }}&context_label={{ urlencode('PR-'.($activePr->pr_number ?? $activePr->id)) }}">Return to Main Committee</a>
+                </div>
+            </div>
+        @endif
 
         @isset($missingPlanForPr)
             <div class="missing-plan-notice">
@@ -313,18 +325,32 @@
                                 <div style="display:flex; align-items:center; gap:.5rem; flex-shrink:0;">
                                     <a href="{{ $nextAction['url'] }}" class="btn primary" style="padding:.3rem .75rem; font-size:.78rem;">{{ $nextAction['label'] }}</a>
 
-                                    <div class="action-menu">
-                                        <button type="button" class="action-btn">Other Steps ▾</button>
-                                        <div class="action-dropdown">
-                                            @foreach (\App\Http\Controllers\ProcessStepPageController::STEPS as $jumpSlug => $jumpStep)
-                                                @continue(in_array($jumpSlug, $excludedStepSlugs, true))
-                                                <a href="{{ route('process-steps.show', $jumpSlug) }}?pr_id={{ $pr->id }}">{{ $jumpStep['step_no'] }} — {{ $jumpStep['subject'] }}</a>
-                                            @endforeach
-                                        </div>
-                                    </div>
-
                                     @if ($prTransfer && $prTransfer->toCommittee?->type === 'sub')
-                                        <a href="{{ route('process-steps.show', 'sub-committee') }}?pr_id={{ $pr->id }}" class="btn" style="padding:.3rem .75rem; font-size:.78rem;">Return to Main Committee</a>
+                                        @php
+                                            $rowPlanId = $pr->procurementPlan?->id;
+                                            $rowCaseId = $prCase?->id;
+                                            $rowFromCommitteeId = $prTransfer->to_committee_id;
+                                            $rowLabel = urlencode('PR-' . ($pr->pr_number ?? $pr->id));
+                                        @endphp
+                                        <div class="action-menu">
+                                            <button type="button" class="action-btn">Sub-Committee Actions ▾</button>
+                                            <div class="action-dropdown">
+                                                <a href="/modules/cash-purchases?new=1&field_pr_id={{ $pr->id }}&context_label={{ $rowLabel }}">Cash Purchase Form (Direct)</a>
+                                                <a href="/modules/rfqs?new=1&field_procurement_case_id={{ $rowCaseId }}&context_label={{ $rowLabel }}">Publish RFQ</a>
+                                                <a href="{{ route('process-steps.show', 'quotations-drop') }}?pr_id={{ $pr->id }}">Quotation Collection</a>
+                                                <a href="/modules/sub-committee-transfers?new=1&field_procurement_plan_id={{ $rowPlanId }}&field_from_committee_id={{ $rowFromCommitteeId }}&field_to_committee_id={{ $mainCommitteeId }}&context_label={{ $rowLabel }}">Return to Main Committee</a>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="action-menu">
+                                            <button type="button" class="action-btn">Other Steps ▾</button>
+                                            <div class="action-dropdown">
+                                                @foreach (\App\Http\Controllers\ProcessStepPageController::STEPS as $jumpSlug => $jumpStep)
+                                                    @continue(in_array($jumpSlug, $excludedStepSlugs, true))
+                                                    <a href="{{ route('process-steps.show', $jumpSlug) }}?pr_id={{ $pr->id }}">{{ $jumpStep['step_no'] }} — {{ $jumpStep['subject'] }}</a>
+                                                @endforeach
+                                            </div>
+                                        </div>
                                     @endif
                                      <a href="{{ route('purchase-requisitions.show', $pr->id) }}" class="btn" style="padding:.3rem .75rem; font-size:.78rem;">View</a>
                                 </div>

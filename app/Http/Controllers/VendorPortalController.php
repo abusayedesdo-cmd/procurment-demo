@@ -61,6 +61,16 @@ class VendorPortalController extends Controller
             'tin_file' => 'required|file|max:10240',
             'bin_file' => 'required|file|max:10240',
             'experience_file' => 'nullable|file|max:10240',
+            'enlistment_status' => 'required|in:enlisted,applied',
+            'owner_name' => 'required_if:enlistment_status,applied|nullable|string|max:255',
+            'bank_account_name' => 'required_if:enlistment_status,applied|nullable|string|max:255',
+            'bank_name' => 'required_if:enlistment_status,applied|nullable|string|max:255',
+            'bank_account_number' => 'required_if:enlistment_status,applied|nullable|string|max:100',
+            'bank_address' => 'nullable|string|max:500',
+            'group_subcategory' => 'nullable|string|max:255',
+            'psr_file' => 'nullable|file|max:10240',
+            'bank_solvency_file' => 'nullable|file|max:10240',
+            'incorporation_file' => 'nullable|file|max:10240',
         ]);
 
         $alreadySubmitted = Quotation::where('rfq_id', $rfq->id)
@@ -79,6 +89,13 @@ class VendorPortalController extends Controller
             'trade_license_no' => $validated['trade_license_no'] ?? $vendor->trade_license_no,
             'vat_reg_no' => $validated['vat_reg_no'] ?? $vendor->vat_reg_no,
             'tax_id' => $validated['tax_id'] ?? $vendor->tax_id,
+            'enlistment_status' => $validated['enlistment_status'],
+            'owner_name' => $validated['owner_name'] ?? $vendor->owner_name,
+            'bank_account_name' => $validated['bank_account_name'] ?? $vendor->bank_account_name,
+            'bank_name' => $validated['bank_name'] ?? $vendor->bank_name,
+            'bank_account_number' => $validated['bank_account_number'] ?? $vendor->bank_account_number,
+            'bank_address' => $validated['bank_address'] ?? $vendor->bank_address,
+            'group_subcategory' => $validated['group_subcategory'] ?? $vendor->group_subcategory,
         ]);
         $vendor->save();
 
@@ -120,12 +137,16 @@ class VendorPortalController extends Controller
                 'amount' => $line['amount'],
             ]);
         }
-
         $documentFields = [
             'trade_license_file' => 'trade_license',
             'tin_file' => 'tax_certificate',
             'bin_file' => 'vat_certificate',
             'experience_file' => 'experience',
+            'psr_file' => 'psr',
+            'bank_solvency_file' => 'bank_solvency',
+            // VendorDocument-এর enum-এ আলাদা "certificate_of_incorporation" টাইপ
+            // নেই — কাছাকাছি ফিট হিসেবে 'professional_certificate' ব্যবহার করা হলো।
+            'incorporation_file' => 'professional_certificate',
         ];
         foreach ($documentFields as $field => $docType) {
             if ($request->hasFile($field)) {
