@@ -56,15 +56,24 @@
 
     <div class="card">
         <h2>Rate Schedule</h2>
+        <?php $schemeGroups = $quotation->items->groupBy(fn($i) => $i->rfqItem->scheme_name ?? ''); ?>
         <table>
             <thead><tr><th>Description</th><th>Unit Price</th><th>Amount</th></tr></thead>
             <tbody>
-                <?php $__currentLoopData = $quotation->items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <tr>
-                        <td><?php echo e($item->rfqItem->description ?? '-'); ?></td>
-                        <td><?php echo e(number_format($item->unit_price, 2)); ?></td>
-                        <td><?php echo e(number_format($item->amount, 2)); ?></td>
-                    </tr>
+                <?php $__currentLoopData = $schemeGroups; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $schemeName => $groupItems): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <?php if($schemeGroups->count() > 1 || $schemeName): ?>
+                        <tr><td colspan="3" style="background:#F1F5F9; font-weight:700;"><?php echo e($loop->iteration); ?>. <?php echo e($schemeName ?: 'Other Items'); ?></td></tr>
+                    <?php endif; ?>
+                    <?php $__currentLoopData = $groupItems; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <tr>
+                            <td><?php echo e($item->rfqItem->description ?? '-'); ?></td>
+                            <td><?php echo e(number_format($item->unit_price, 2)); ?></td>
+                            <td><?php echo e(number_format($item->amount, 2)); ?></td>
+                        </tr>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    <?php if($schemeGroups->count() > 1): ?>
+                        <tr><td colspan="2">Subtotal — <?php echo e($schemeName ?: 'Other Items'); ?></td><td><?php echo e(number_format($groupItems->sum('amount'), 2)); ?></td></tr>
+                    <?php endif; ?>
                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 <tr><td colspan="2"><b>Total Quoted Amount</b></td><td><b><?php echo e(number_format($quotation->quoted_amount, 2)); ?></b></td></tr>
             </tbody>

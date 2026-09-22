@@ -207,6 +207,7 @@ const MODULE_CONFIGS = {
         apiPath: '/rfq-items',
         listFilterField: 'rfq_id',
         listColumns: [
+            { key: 'scheme_name', label: 'Scheme' },
             { key: 'serial_no', label: 'SL' },
             { key: 'category', label: 'Category' },
             { key: 'description', label: 'Description' },
@@ -215,6 +216,7 @@ const MODULE_CONFIGS = {
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
             { name: '_pr_item_picker', label: 'Pick from PR Item (ঐচ্ছিক — নিচেরগুলো অটো-ফিল করবে)', type: 'pr_item_picker' },
+            { name: 'scheme_name', label: 'Scheme / Shelter Name (একাধিক sub-BOQ থাকলে)', type: 'text' },
             { name: 'category', label: 'Category (optional sub-heading)', type: 'text' },
             { name: 'serial_no', label: 'SL No.', type: 'number', required: true },
             { name: 'description', label: 'Description', type: 'textarea', required: true },
@@ -431,7 +433,11 @@ const MODULE_CONFIGS = {
         formFields: [
             { name: 'eligibility_report_id', label: 'Eligibility Report', type: 'select', source: '/eligibility-reports', labelField: r => r.rfq?.rfq_number ?? `#${r.id}`, required: true },
             { name: 'vendor_id', label: 'Vendor', type: 'select', source: '/vendors', labelField: 'name', required: true },
-            { name: 'eligible', label: 'Eligible', type: 'checkbox' },
+            { name: 'quotation_id', label: 'Vendor Quotation (auto-fills checks below)', type: 'select', source: '/quotations', labelField: r => `${r.vendor?.name ?? '-'} — ${r.rfq?.rfq_number ?? ''}` },
+            { name: 'trade_license_verified', label: 'Trade License', type: 'checkbox' },
+            { name: 'tin_verified', label: 'TIN Certificate', type: 'checkbox' },
+            { name: 'bin_verified', label: 'BIN Certificate', type: 'checkbox' },
+            { name: 'psr_verified', label: 'PSR (Tax Return Submission)', type: 'checkbox' },
             { name: 'remarks', label: 'Remarks', type: 'textarea' },
         ],
     },
@@ -464,8 +470,41 @@ const MODULE_CONFIGS = {
         formFields: [
             { name: 'ter_id', label: 'Technical Evaluation Report', type: 'select', source: '/technical-evaluation-reports', labelField: r => r.rfq?.rfq_number ?? `#${r.id}`, required: true },
             { name: 'vendor_id', label: 'Vendor', type: 'select', source: '/vendors', labelField: 'name', required: true },
-            { name: 'score', label: 'Score (0-100)', type: 'number', step: '0.01' },
+           
             { name: 'remarks', label: 'Remarks', type: 'textarea' },
+        ],
+    },
+
+    'technical-evaluation-criteria': {
+        title: 'Technical Evaluation Criteria',
+        apiPath: '/technical-evaluation-criteria',
+        listFilterField: 'ter_id',
+        listColumns: [
+            { key: 'name', label: 'Criterion' },
+            { key: 'max_marks', label: 'Max Marks' },
+            { key: 'sort_order', label: 'Order' },
+        ],
+        formFields: [
+            { name: 'ter_id', label: 'Technical Evaluation Report', type: 'select', source: '/technical-evaluation-reports', labelField: r => r.rfq?.rfq_number ?? `#${r.id}`, required: true },
+            { name: 'name', label: 'Criterion Name', type: 'text', required: true },
+            { name: 'max_marks', label: 'Max Marks', type: 'number', step: '0.01', required: true },
+            { name: 'sort_order', label: 'Sort Order', type: 'number' },
+        ],
+    },
+
+    'technical-evaluation-scores': {
+        title: 'Technical Evaluation — Criteria Score',
+        apiPath: '/technical-evaluation-scores',
+        listFilterField: 'technical_evaluation_item_id',
+        listColumns: [
+            { key: 'item.vendor.name', label: 'Vendor' },
+            { key: 'criterion.name', label: 'Criterion' },
+            { key: 'score', label: 'Score' },
+        ],
+        formFields: [
+            { name: 'technical_evaluation_item_id', label: 'Vendor (Technical Evaluation Row)', type: 'select', source: '/technical-evaluation-items', labelField: r => r.vendor?.name ?? `#${r.id}`, required: true },
+            { name: 'criterion_id', label: 'Criterion', type: 'select', source: '/technical-evaluation-criteria', labelField: r => `${r.name} (Max ${r.max_marks})`, required: true },
+            { name: 'score', label: 'Score', type: 'number', step: '0.01', required: true },
         ],
     },
 
@@ -493,11 +532,13 @@ const MODULE_CONFIGS = {
         listColumns: [
             { key: 'vendor.name', label: 'Vendor' },
             { key: 'quoted_amount', label: 'Amount' },
+            { key: 'financial_marks', label: 'Financial Marks' },
         ],
         formFields: [
             { name: 'fer_id', label: 'Financial Evaluation Report', type: 'select', source: '/financial-evaluation-reports', labelField: r => r.rfq?.rfq_number ?? `#${r.id}`, required: true },
             { name: 'vendor_id', label: 'Vendor', type: 'select', source: '/vendors', labelField: 'name', required: true },
-            { name: 'quoted_amount', label: 'Amount', type: 'number', step: '0.01', required: true },
+            { name: 'quotation_id', label: 'Vendor Quotation (auto-fills Amount)', type: 'select', source: '/quotations', labelField: r => `${r.vendor?.name ?? '-'} — ${r.rfq?.rfq_number ?? ''}` },
+            { name: 'quoted_amount', label: 'Amount', type: 'number', step: '0.01', required: true, autofillFrom: { field: 'quotation_id', property: 'quoted_amount' } },
             { name: 'remarks', label: 'Remarks', type: 'textarea' },
         ],
     },
@@ -526,14 +567,18 @@ const MODULE_CONFIGS = {
         apiPath: '/comparative-statement-items',
         listColumns: [
             { key: 'vendor.name', label: 'Vendor' },
+            { key: 'financial_marks', label: 'Financial Marks' },
+            { key: 'technical_marks', label: 'Technical Marks' },
+            { key: 'total_marks', label: 'Total Marks' },
             { key: 'rank', label: 'Rank' },
             { key: 'amount', label: 'Amount' },
         ],
         formFields: [
             { name: 'comparative_statement_id', label: 'Comparative Statement', type: 'select', source: '/comparative-statements', labelField: r => r.rfq?.rfq_number ?? `#${r.id}`, required: true },
             { name: 'vendor_id', label: 'Vendor', type: 'select', source: '/vendors', labelField: 'name', required: true },
-            { name: 'rank', label: 'Rank', type: 'number' },
-            { name: 'amount', label: 'Amount', type: 'number', step: '0.01', required: true },
+            { name: 'financial_evaluation_item_id', label: 'Financial Evaluation Row', type: 'select', source: '/financial-evaluation-items', labelField: r => `${r.vendor?.name ?? '-'} — Amt ${r.quoted_amount}` },
+            { name: 'technical_evaluation_item_id', label: 'Technical Evaluation Row', type: 'select', source: '/technical-evaluation-items', labelField: r => `${r.vendor?.name ?? '-'} — Score ${r.score}` },
+            { name: 'amount', label: 'Amount', type: 'number', step: '0.01', required: true, autofillFrom: { field: 'financial_evaluation_item_id', property: 'quoted_amount' } },
         ],
     },
 
@@ -687,7 +732,7 @@ const MODULE_GROUPS = [
     { title: 'C. Meetings & Committee', slugs: ['purchase-committees', 'committee-members', 'meetings', 'meeting-attendances', 'meeting-minutes', 'sub-committee-transfers'] },
     { title: 'C. RFQ / Tender', slugs: ['rfqs', 'rfq-items', 'tender-schedules', 'tender-proposals', 'tender-advertisements'] },
     { title: 'Vendors & Quotations', slugs: ['vendors', 'quotations', 'tender-openings'] },
-    { title: 'C. Evaluation', slugs: ['eligibility-reports', 'eligibility-report-items', 'technical-evaluation-reports', 'technical-evaluation-items', 'financial-evaluation-reports', 'financial-evaluation-items', 'comparative-statements', 'comparative-statement-items'] },
+    { title: 'C. Evaluation', slugs: ['eligibility-reports', 'eligibility-report-items', 'technical-evaluation-reports', 'technical-evaluation-items', 'technical-evaluation-criteria', 'technical-evaluation-scores', 'financial-evaluation-reports', 'financial-evaluation-items', 'comparative-statements', 'comparative-statement-items'] },
     { title: 'C. Award & Contract', slugs: ['contract-awards', 'pay-orders', 'contract-agreements', 'work-orders', 'delivery-receipts'] },
     { title: 'D. Framework Agreement', slugs: ['framework-agreements'] },
     { title: 'E. Sole Sourcing', slugs: ['sole-sourcing-requests'] },

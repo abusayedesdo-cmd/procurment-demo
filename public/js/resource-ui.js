@@ -113,7 +113,7 @@ async function initResourcePage(config) {
                     .map(r => `<option value="${r.id}">${optionLabel(field, r)}</option>`).join('');
                 const canCreateSub = field.createSubCommittee && ['admin', 'procurement_officer'].includes(window.currentUserRole);
                 const shortcut = canCreateSub ? `
-                    <button type="button" class="btn secondary" id="createSubCommitteeBtn_${field.name}" style="margin-top:.4rem; padding:.3rem .6rem; font-size:.8rem;">+ Create Sub-Committee</button>
+                    <button type="button" class="btn secondary" id="createSubCommitteeBtn_${field.name}" style="margin-top:.4rem; padding:.3rem .6rem; font-size:.8rem;">Create Sub-Committee</button>
                     <div id="createSubCommitteePanel_${field.name}" style="display:none; margin-top:.6rem; padding:.8rem; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px;"></div>
                 ` : '';
                 return `
@@ -379,6 +379,34 @@ async function initResourcePage(config) {
             if (unitEl && item.unit_id) { unitEl.value = item.unit_id; unitEl.dispatchEvent(new Event('change')); }
         });
     }
+    // Eligibility Report ফর্মে: Vendor Quotation সিলেক্ট করলে সেই quotation-এ
+    // ভেন্ডর নিজে যা যা "submitted" মার্ক করেছিল (পোর্টাল থেকে বা স্টাফ এন্ট্রি
+    // থেকে), সেগুলো দিয়েই ৪টা ভেরিফিকেশন চেকবক্স প্রিফিল করে দেয় — স্টাফ শুধু
+    // মিলিয়ে দেখে দরকার হলে ঠিক করে নেবে।
+    function wireEligibilityAutofill() {
+        const quotationField = config.formFields.find(f => f.name === 'quotation_id');
+        if (!quotationField) return;
+
+        const quotationEl = document.getElementById('field_quotation_id');
+        if (!quotationEl) return;
+
+        quotationEl.addEventListener('change', () => {
+            const records = selectCache['quotation_id'] || [];
+            const q = records.find(r => String(r.id) === quotationEl.value);
+            if (!q) return;
+
+            const map = {
+                trade_license_verified: q.trade_license_submitted,
+                tin_verified: q.tin_submitted,
+                bin_verified: q.bin_submitted,
+                psr_verified: q.psr_submitted,
+            };
+            Object.entries(map).forEach(([name, val]) => {
+                const el = document.getElementById(`field_${name}`);
+                if (el) el.checked = !!val;
+            });
+        });
+    }
 
     function renderRowAction(a, row) {
         if (a.copyBuilder) {
@@ -634,6 +662,7 @@ async function initResourcePage(config) {
         wireAutofill();
         wireCreateShortcuts();
         wirePrItemPicker();
+        wireEligibilityAutofill()
         applyQueryPrefill();
     }
 

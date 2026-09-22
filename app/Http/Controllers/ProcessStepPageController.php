@@ -6,21 +6,20 @@ class ProcessStepPageController extends Controller
 {
     /**
      * Step -> Subject -> module mapping, derived from
-     * "7. Process Action Windows Mapping.docx". Step 1st is handled by the
-     * existing Purchase Requisition page, not shown here. Each module
-     * slug/title pair links to the existing generic /modules/{slug} page;
-     * 'route' overrides that for steps whose real UI lives elsewhere (the
-     * Case-based meeting flow).
+     * "7. Process Action Windows Mapping.docx". Each module slug/title pair
+     * links to the existing generic /modules/{slug} page; 'route' overrides
+     * that for steps whose real UI lives elsewhere (the Case-based meeting
+     * flow).
      */
     public const STEPS = [
         'pr-receive' => [
-            'step_no' => '2nd',
+            'step_no' => '1st',
             'subject' => 'PR Receive',
             'modules' => [],
             'is_pr_picker' => true,
         ],
         'procurement-plan' => [
-            'step_no' => '3rd',
+            'step_no' => '2nd',
             'subject' => 'Procurement Plan',
             'modules' => [
                 ['slug' => 'procurement-plans', 'title' => 'Procurement Plan (auto-generated from approved PR)'],

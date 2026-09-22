@@ -12,12 +12,20 @@ class FinancialEvaluationItem extends Model
     protected $fillable = [
         'fer_id',
         'vendor_id',
+        'quotation_id',
         'quoted_amount',
+        'financial_marks',
         'remarks',
     ];
 
+    public function quotation()
+    {
+        return $this->belongsTo(Quotation::class, 'quotation_id');
+    }
+
     protected $casts = [
         'quoted_amount' => 'decimal:2',
+        'financial_marks' => 'decimal:6,2',
     ];
 
     public function report()

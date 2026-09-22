@@ -56,15 +56,24 @@
 
     <div class="card">
         <h2>Rate Schedule</h2>
+        @php $schemeGroups = $quotation->items->groupBy(fn($i) => $i->rfqItem->scheme_name ?? ''); @endphp
         <table>
             <thead><tr><th>Description</th><th>Unit Price</th><th>Amount</th></tr></thead>
             <tbody>
-                @foreach ($quotation->items as $item)
-                    <tr>
-                        <td>{{ $item->rfqItem->description ?? '-' }}</td>
-                        <td>{{ number_format($item->unit_price, 2) }}</td>
-                        <td>{{ number_format($item->amount, 2) }}</td>
-                    </tr>
+                @foreach ($schemeGroups as $schemeName => $groupItems)
+                    @if ($schemeGroups->count() > 1 || $schemeName)
+                        <tr><td colspan="3" style="background:#F1F5F9; font-weight:700;">{{ $loop->iteration }}. {{ $schemeName ?: 'Other Items' }}</td></tr>
+                    @endif
+                    @foreach ($groupItems as $item)
+                        <tr>
+                            <td>{{ $item->rfqItem->description ?? '-' }}</td>
+                            <td>{{ number_format($item->unit_price, 2) }}</td>
+                            <td>{{ number_format($item->amount, 2) }}</td>
+                        </tr>
+                    @endforeach
+                    @if ($schemeGroups->count() > 1)
+                        <tr><td colspan="2">Subtotal — {{ $schemeName ?: 'Other Items' }}</td><td>{{ number_format($groupItems->sum('amount'), 2) }}</td></tr>
+                    @endif
                 @endforeach
                 <tr><td colspan="2"><b>Total Quoted Amount</b></td><td><b>{{ number_format($quotation->quoted_amount, 2) }}</b></td></tr>
             </tbody>

@@ -16,6 +16,11 @@ class TechnicalEvaluationItem extends Model
         'remarks',
     ];
 
+    public function scores()
+    {
+        return $this->hasMany(TechnicalEvaluationScore::class, 'technical_evaluation_item_id');
+    }
+
     protected $casts = [
         'score' => 'decimal:2',
     ];

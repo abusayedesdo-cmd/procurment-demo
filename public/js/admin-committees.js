@@ -1,13 +1,4 @@
-/**
- * Super Admin > Committee Management.
- * Talks to /api/purchase-committees/*, /api/committee-members/*, /api/projects
- * and /api/admin/users/* (for creating brand-new accounts inline).
- * Relies on window.ADMIN_ROLES / window.ADMIN_ROLE_LABELS being set by
- * resources/views/admin/committees.blade.php.
- *
- * Policy §9 sizing: central/main committee = 5–7 members, sub-committee = 3–5.
- * Kept in sync with App\Http\Controllers\Api\CommitteeMemberController.
- */
+
 (function () {
     const roles = window.ADMIN_ROLES || [];
     const roleLabels = window.ADMIN_ROLE_LABELS || {};

@@ -41,9 +41,20 @@ class EligibilityReportItemController extends Controller
         $validated = $request->validate([
             'eligibility_report_id' => 'required|exists:eligibility_reports,id',
             'vendor_id' => 'required|exists:vendors,id',
-            'eligible' => 'boolean',
-            'remarks' => 'nullable|string'
+            'quotation_id' => 'nullable|exists:quotations,id',
+            'trade_license_verified' => 'boolean',
+            'tin_verified' => 'boolean',
+            'bin_verified' => 'boolean',
+            'psr_verified' => 'boolean',
+            'remarks' => 'nullable|string',
         ]);
+
+        // "Eligible" স্টাফ আলাদা করে টাইপ করে না — চারটা ভেরিফিকেশন চেকবক্স
+        // সবগুলো টিক থাকলেই স্বয়ংক্রিয়ভাবে Eligible ধরা হয়।
+        $validated['eligible'] = ($validated['trade_license_verified'] ?? false)
+            && ($validated['tin_verified'] ?? false)
+            && ($validated['bin_verified'] ?? false)
+            && ($validated['psr_verified'] ?? false);
 
         $eligibilityReportItem = EligibilityReportItem::create($validated);
 
@@ -57,11 +68,24 @@ class EligibilityReportItemController extends Controller
     public function update(Request $request, EligibilityReportItem $eligibilityReportItem)
     {
         $validated = $request->validate([
-            'eligibility_report_id' => 'sometimes|required|exists:eligibility_reports,id',
-            'vendor_id' => 'sometimes|required|exists:vendors,id',
-            'eligible' => 'boolean',
-            'remarks' => 'nullable|string'
+            'eligibility_report_id' => 'required|exists:eligibility_reports,id',
+            'vendor_id' => 'required|exists:vendors,id',
+            'quotation_id' => 'nullable|exists:quotations,id',
+            'trade_license_verified' => 'boolean',
+            'tin_verified' => 'boolean',
+            'bin_verified' => 'boolean',
+            'psr_verified' => 'boolean',
+            'remarks' => 'nullable|string',
         ]);
+
+        // "Eligible" স্টাফ আলাদা করে টাইপ করে না — চারটা ভেরিফিকেশন চেকবক্স
+        // সবগুলো টিক থাকলেই স্বয়ংক্রিয়ভাবে Eligible ধরা হয়।
+        $validated['eligible'] = ($validated['trade_license_verified'] ?? false)
+            && ($validated['tin_verified'] ?? false)
+            && ($validated['bin_verified'] ?? false)
+            && ($validated['psr_verified'] ?? false);
+
+        $eligibilityReportItem = EligibilityReportItem::create($validated);
 
         $eligibilityReportItem->update($validated);
 

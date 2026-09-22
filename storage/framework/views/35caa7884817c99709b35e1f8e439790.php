@@ -312,6 +312,9 @@
                                 if ($prTransfer && $prTransfer->toCommittee?->type === 'sub') {
                                     $excludedStepSlugs[] = 'sub-committee';
                                 }
+                                if ($pr->procurementPlan) {
+                                    $excludedStepSlugs[] = 'procurement-plan';
+                                }
                             ?>
                             <div class="module-row" data-search="<?php echo e(strtolower(($pr->pr_number ?? '').' '.($pr->project_name ?? ''))); ?>" style="cursor:default;">
                                 <span>

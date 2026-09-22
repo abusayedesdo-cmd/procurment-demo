@@ -16,6 +16,7 @@ class RfqItem extends Model
 
     protected $fillable = [
         'rfq_id',
+        'scheme_name',
         'category',
         'serial_no',
         'description',

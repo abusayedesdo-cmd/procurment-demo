@@ -242,11 +242,13 @@
                 @if ($rfq->items->isEmpty())
                     <p style="color:#B91C1C; font-size:.88rem;">No items have been added to this RFQ yet. Please contact the ESDO procurement team — once items are added, you can return to this same link to submit your quotation.</p>
                 @else
+                @php $globalIndex = 0; $schemeGroups = $rfq->items->groupBy('scheme_name'); @endphp
                 <table>
                     <thead>
                         <tr>
                             <th>SL</th>
-                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Item Name / Description</th>
                             <th>Unit</th>
                             <th>Qty</th>
                             <th>Unit Price *</th>
@@ -254,23 +256,39 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($rfq->items as $index => $item)
-                            <tr>
-                                <td>{{ $item->serial_no ?? $index + 1 }}</td>
-                                <td>{{ $item->description }}</td>
-                                <td>{{ $item->unit->name ?? '-' }}</td>
-                                <td>{{ rtrim(rtrim(number_format($item->quantity, 2), '0'), '.') }}</td>
-                                <td>
-                                    <input type="hidden" name="items[{{ $index }}][rfq_item_id]" value="{{ $item->id }}">
-                                    <input type="number" step="0.01" min="0" class="unit-price"
-                                           data-qty="{{ $item->quantity }}" data-row="{{ $index }}"
-                                           name="items[{{ $index }}][unit_price]" required>
-                                </td>
-                                <td class="amount-cell" id="amount_{{ $index }}">0.00</td>
-                            </tr>
+                        @foreach ($schemeGroups as $schemeIndex => $groupItems)
+                            @if ($schemeGroups->count() > 1 || $schemeIndex)
+                                <tr>
+                                    <td colspan="7" style="background:#F1F5F9; font-weight:700;">{{ $loop->iteration }}. {{ $schemeIndex ?: 'Other Items' }}</td>
+                                </tr>
+                            @endif
+                            @foreach ($groupItems as $item)
+                                <tr>
+                                    <td>{{ $item->serial_no ?? $globalIndex + 1 }}</td>
+                                    <td>{{ $item->category ?? '-' }}</td>
+                                    <td>{{ $item->description }}</td>
+                                    <td>{{ $item->unit->name ?? '-' }}</td>
+                                    <td>{{ rtrim(rtrim(number_format($item->quantity, 2), '0'), '.') }}</td>
+                                    <td>
+                                        <input type="hidden" name="items[{{ $globalIndex }}][rfq_item_id]" value="{{ $item->id }}">
+                                        <input type="number" step="0.01" min="0" class="unit-price"
+                                            data-qty="{{ $item->quantity }}" data-row="{{ $globalIndex }}"
+                                            data-scheme="{{ $schemeIndex }}"
+                                            name="items[{{ $globalIndex }}][unit_price]" required>
+                                    </td>
+                                    <td class="amount-cell" id="amount_{{ $globalIndex }}">0.00</td>
+                                </tr>
+                                @php $globalIndex++; @endphp
+                            @endforeach
+                            @if ($schemeGroups->count() > 1)
+                                <tr class="total-row">
+                                    <td colspan="6">Total Amount of {{ $schemeIndex ?: 'Other Items' }}</td>
+                                    <td id="subtotal_{{ Str::slug($schemeIndex ?: 'other') }}">0.00</td>
+                                </tr>
+                            @endif
                         @endforeach
                         <tr class="total-row">
-                            <td colspan="5">Total</td>
+                            <td colspan="6">Grand Total</td>
                             <td id="grandTotal">0.00</td>
                         </tr>
                     </tbody>
@@ -286,11 +304,11 @@
                     <hr style="border:none; border-top:1px solid var(--line); margin:1rem 0;">
                 @endif
                 <p style="white-space:pre-line; font-size:.85rem; color:#475569;">1. Quoted prices must be inclusive of applicable VAT and Tax.
-2. Quantities beyond what is ordered may not be supplied without ESDO's written approval.
-3. Goods/services must be delivered on time and to the specified quality standard.
-4. The vendor bears liability for any loss or damage until the goods are received by ESDO.
-5. If the vendor fails to meet the terms of the contract, ESDO may require correction, replacement, or a refund of the price.
-6. Any dispute arising from this tender will first be addressed through discussion between the parties.</p>
+                2. Quantities beyond what is ordered may not be supplied without ESDO's written approval.
+                3. Goods/services must be delivered on time and to the specified quality standard.
+                4. The vendor bears liability for any loss or damage until the goods are received by ESDO.
+                5. If the vendor fails to meet the terms of the contract, ESDO may require correction, replacement, or a refund of the price.
+                6. Any dispute arising from this tender will first be addressed through discussion between the parties.</p>
             </div>
 
             <div class="card">
@@ -311,6 +329,10 @@
 </div>
 
 <script>
+    function slugify(s) {
+        return (s || 'other').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    }
+
     document.querySelectorAll('.unit-price').forEach(function (input) {
         input.addEventListener('input', function () {
             const qty = parseFloat(input.dataset.qty) || 0;
@@ -319,12 +341,20 @@
             document.getElementById('amount_' + input.dataset.row).textContent = amount.toFixed(2);
 
             let total = 0;
+            const schemeSubtotals = {};
             document.querySelectorAll('.unit-price').forEach(function (i) {
                 const q = parseFloat(i.dataset.qty) || 0;
                 const p = parseFloat(i.value) || 0;
-                total += q * p;
+                const lineAmount = q * p;
+                total += lineAmount;
+                const key = slugify(i.dataset.scheme);
+                schemeSubtotals[key] = (schemeSubtotals[key] || 0) + lineAmount;
             });
             document.getElementById('grandTotal').textContent = total.toFixed(2);
+            Object.keys(schemeSubtotals).forEach(function (key) {
+                const cell = document.getElementById('subtotal_' + key);
+                if (cell) cell.textContent = schemeSubtotals[key].toFixed(2);
+            });
         });
     });
 

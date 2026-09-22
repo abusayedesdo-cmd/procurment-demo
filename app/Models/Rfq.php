@@ -46,7 +46,7 @@ class Rfq extends Model
 
     public function items()
     {
-        return $this->hasMany(RfqItem::class, 'rfq_id');
+        return $this->hasMany(RfqItem::class, 'rfq_id')->orderBy('id');
     }
 
     public function tenderProposals()

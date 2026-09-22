@@ -60,6 +60,7 @@ class RfqItemController extends Controller
             'quantity' => 'required|numeric|min:0',
             'unit_id' => 'nullable|exists:units,id',
             'delivery_address' => 'nullable|string',
+            'scheme_name' => 'nullable|string|max:255',
         ]);
 
         $rfqItem = RfqItem::create($validated);

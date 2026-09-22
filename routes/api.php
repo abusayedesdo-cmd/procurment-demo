@@ -65,6 +65,8 @@ use App\Http\Controllers\Api\PrBudgetCheckController;
 use App\Http\Controllers\Api\FileUploadController;
 use App\Http\Controllers\Api\ProcurementCaseController;
 use App\Http\Controllers\Api\RfqItemController;
+use App\Http\Controllers\Api\TechnicalEvaluationCriterionController;
+use App\Http\Controllers\Api\TechnicalEvaluationScoreController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -257,6 +259,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('eligibility-report-items', EligibilityReportItemController::class);
         Route::apiResource('technical-evaluation-reports', TechnicalEvaluationReportController::class);
         Route::apiResource('technical-evaluation-items', TechnicalEvaluationItemController::class);
+        Route::apiResource('technical-evaluation-criteria', TechnicalEvaluationCriterionController::class);
+        Route::apiResource('technical-evaluation-scores', TechnicalEvaluationScoreController::class);
         Route::apiResource('financial-evaluation-reports', FinancialEvaluationReportController::class);
         Route::apiResource('financial-evaluation-items', FinancialEvaluationItemController::class);
         Route::apiResource('comparative-statement-items', ComparativeStatementItemController::class);

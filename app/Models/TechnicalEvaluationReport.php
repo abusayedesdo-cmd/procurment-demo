@@ -30,4 +30,9 @@ class TechnicalEvaluationReport extends Model
         return $this->hasMany(TechnicalEvaluationItem::class, 'ter_id');
     }
 
+    public function criteria()
+    {
+        return $this->hasMany(TechnicalEvaluationCriterion::class, 'ter_id')->orderBy('sort_order');
+    }
+
 }

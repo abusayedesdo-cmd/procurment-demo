@@ -122,6 +122,7 @@ class VendorPortalController extends Controller
             'trade_license_submitted' => true,
             'tin_submitted' => true,
             'bin_submitted' => true,
+            'psr_submitted' => $request->hasFile('psr_file'),
             'terms_accepted' => true,
             'delivery_terms_accepted' => true,
             'general_experience' => $validated['general_experience'] ?? null,
