@@ -37,9 +37,28 @@ class ModulePageController extends Controller
             }
         }
 
+        // "Back" destination: normally the Process Step this module belongs
+        // to (so the officer returns to the step's module list). But when
+        // arriving straight from a Dashboard card (?from=dashboard) —
+        // rather than via Process Steps — that intermediate step page was
+        // never part of the officer's path, so Back should return them
+        // straight to the Dashboard instead of inserting an extra hop.
+        if (request()->query('from') === 'dashboard') {
+            $backUrl = route('dashboard');
+            $backLabel = 'Dashboard';
+        } elseif ($stepSlug) {
+            $backUrl = route('process-steps.show', ['slug' => $stepSlug, 'skip_redirect' => 1]);
+            $backLabel = 'Back to Step';
+        } else {
+            $backUrl = route('dashboard');
+            $backLabel = 'Dashboard';
+        }
+
         return view('modules.show', [
             'slug' => $slug,
             'stepSlug' => $stepSlug,
+            'backUrl' => $backUrl,
+            'backLabel' => $backLabel,
             'contextFilterValue' => $contextFilterValue,
             'contextLabel' => $contextLabel,
         ]);

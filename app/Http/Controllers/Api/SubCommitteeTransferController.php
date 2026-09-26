@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ProcurementPlan;
 use App\Models\SubCommitteeTransfer;
+use App\Support\CommitteeScope;
 use Illuminate\Http\Request;
 
 class SubCommitteeTransferController extends Controller
@@ -20,6 +21,10 @@ class SubCommitteeTransferController extends Controller
     {
         $query = SubCommitteeTransfer::query();
         $query->with(['procurementPlan', 'fromCommittee', 'toCommittee']);
+        $visible = CommitteeScope::visiblePlanIdsFor($request->user());
+        if ($visible !== null) {
+            $query->whereIn('procurement_plan_id', $visible);
+        }
 
         if ($request->filled('procurement_plan_id')) {
             $query->where('procurement_plan_id', $request->integer('procurement_plan_id'));
@@ -40,6 +45,10 @@ class SubCommitteeTransferController extends Controller
 
     public function show(SubCommitteeTransfer $subCommitteeTransfer)
     {
+        abort_unless(
+                CommitteeScope::userCanActOnPlan(request()->user(), $subCommitteeTransfer->procurement_plan_id),
+                403
+            );
         $subCommitteeTransfer->load(['procurementPlan', 'fromCommittee', 'toCommittee']);
 
         return response()->json([

@@ -6,6 +6,7 @@
   <div style="font-size:13px;color:var(--muted);max-width:680px">
     Cases currently transferred to a committee you're on. When a case moves to another committee later, it drops off this list automatically.
   </div>
+  <a href="{{ route('dashboard') }}" class="btn btn-outline" style="padding:6px 14px;font-size:12.5px;white-space:nowrap">← Back to Dashboard</a>
 </div>
 
 @if ($myCommittees->isNotEmpty())
@@ -16,18 +17,35 @@
   </div>
 @endif
 
+@if ($transfers->isNotEmpty())
+  <div style="margin-top:14px">
+    <input
+      type="text"
+      id="committeeWorkSearch"
+      placeholder="Search by case name, PR number, or committee..."
+      style="width:100%;max-width:420px;padding:8px 12px;font-size:13px;border:1px solid #E2E8F0;border-radius:8px;"
+    >
+  </div>
+@endif
+
 @if ($transfers->isEmpty())
   <div class="card card-pad" style="margin-top:14px">
     <div style="font-size:13.5px;color:var(--muted)">No cases are currently with your committee(s).</div>
   </div>
 @else
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:14px">
+  <div id="committeeWorkGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:14px">
     @foreach ($transfers as $t)
       @php
         $case = $t->procurementPlan?->purchaseRequisition?->procurementCase;
         $pr = $t->procurementPlan?->purchaseRequisition;
+        $searchHaystack = strtolower(
+            ($case->title ?? '') . ' ' .
+            ($pr->pr_number ?? '') . ' ' .
+            ($t->toCommittee?->name ?? '') . ' ' .
+            ($t->fromCommittee?->name ?? '')
+        );
       @endphp
-      <div class="card card-pad" style="display:flex;flex-direction:column;gap:10px">
+      <div class="card card-pad" data-search="{{ $searchHaystack }}" style="display:flex;flex-direction:column;gap:10px">
         <div style="display:flex;align-items:center;gap:8px">
           <span class="chip" style="font-size:11.5px">{{ $t->toCommittee?->name }}</span>
           <span style="margin-left:auto;font-size:11.5px;color:var(--muted)">Transferred {{ $t->transfer_date->format('d M Y') }}</span>
@@ -48,6 +66,33 @@
       </div>
     @endforeach
   </div>
+  <div id="committeeWorkEmpty" class="card card-pad" style="margin-top:14px;display:none">
+    <div style="font-size:13.5px;color:var(--muted)">No cases match your search.</div>
+  </div>
 @endif
 
+@endsection
+
+@section('scripts')
+<script>
+    const cwSearch = document.getElementById('committeeWorkSearch');
+    if (cwSearch) {
+        cwSearch.addEventListener('input', () => {
+            const q = cwSearch.value.trim().toLowerCase();
+            const cards = document.querySelectorAll('#committeeWorkGrid > div[data-search]');
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const matches = (card.getAttribute('data-search') || '').includes(q);
+                card.style.display = matches ? '' : 'none';
+                if (matches) visibleCount++;
+            });
+
+            const emptyState = document.getElementById('committeeWorkEmpty');
+            if (emptyState) {
+                emptyState.style.display = visibleCount === 0 ? '' : 'none';
+            }
+        });
+    }
+</script>
 @endsection

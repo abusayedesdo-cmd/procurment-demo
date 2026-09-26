@@ -77,7 +77,7 @@ class BudgetLineController extends Controller
             'item_name' => ['required', 'string', 'max:255'],
             'unit' => ['nullable', 'string', 'max:255'],
             'no_of_units' => ['nullable', 'numeric'],
-            'duration' => ['nullable', 'integer'],
+            'duration' => ['nullable', 'integer'], 
             'unit_cost' => ['nullable', 'numeric'],
             'original_budget' => ['nullable', 'numeric'],
             'approved_budget' => ['nullable', 'numeric'],

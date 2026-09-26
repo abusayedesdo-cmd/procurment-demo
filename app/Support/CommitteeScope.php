@@ -150,4 +150,33 @@ class CommitteeScope
             ->pluck('committee_id')
             ->all();
     }
+
+    /**
+     * null = সব প্ল্যান দেখতে পারবে (unrestricted বা কোনো কমিটির সদস্য নয়)।
+     * নইলে: যেসব প্ল্যান এখন ইউজারের কমিটির হাতে আছে তাদের ID।
+     */
+    public static function visiblePlanIdsFor(User $user): ?array
+    {
+        $committeeIds = self::committeeIdsForUser($user);
+
+        if (self::hasUnrestrictedAccess($user) || empty($committeeIds)) {
+            return null;
+        }
+
+        $latest = \App\Models\SubCommitteeTransfer::orderByDesc('transfer_date')
+            ->orderByDesc('id')->get()->unique('procurement_plan_id');
+
+        $ids = $latest->filter(fn ($t) => in_array($t->to_committee_id, $committeeIds))
+            ->pluck('procurement_plan_id')->all();
+
+        // যে প্ল্যান কখনো transfer হয়নি সেটা Main Committee-র হাতে
+        $mainId = PurchaseCommittee::where('type', 'main')->value('id');
+        if ($mainId && in_array($mainId, $committeeIds)) {
+            $ids = array_merge($ids, \App\Models\ProcurementPlan::whereNotIn(
+                'id', $latest->pluck('procurement_plan_id')
+            )->pluck('id')->all());
+        }
+
+        return $ids;
+    }
 }

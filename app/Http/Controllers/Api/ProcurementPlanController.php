@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProcurementPlan;
 use App\Models\ProcurementPolicy;
 use App\Models\PurchaseRequisition;
+use App\Support\CommitteeScope;
 use Illuminate\Http\Request;
 
 /**
@@ -19,6 +20,11 @@ class ProcurementPlanController extends Controller
     public function index(Request $request)
     {
         $query = ProcurementPlan::query()->with(['purchaseRequisition.category']);
+
+        $visible = CommitteeScope::visiblePlanIdsFor($request->user());
+        if ($visible !== null) {
+            $query->whereIn('id', $visible);
+        }
 
         if ($request->filled('pr_id')) {
             $query->where('pr_id', $request->integer('pr_id'));
@@ -41,8 +47,14 @@ class ProcurementPlanController extends Controller
         ]);
     }
 
+
     public function show(ProcurementPlan $procurementPlan)
     {
+        abort_unless(
+            CommitteeScope::userCanActOnPlan(request()->user(), $procurementPlan->id),
+            403,
+            'This plan is currently with a different committee.'
+        );
         $procurementPlan->load([
             'purchaseRequisition.category', 'purchaseRequisition.items.item',
             'meetings', 'rfqs', 'contractAwards',
@@ -123,6 +135,11 @@ class ProcurementPlanController extends Controller
 
     public function update(Request $request, ProcurementPlan $procurementPlan)
     {
+        abort_unless(
+            CommitteeScope::userCanActOnPlan(request()->user(), $procurementPlan->id),
+            403,
+            'This plan is currently with a different committee.'
+        );
         $validated = $request->validate([
             'status' => 'sometimes|required|in:planned,ongoing,completed,cancelled',
         ]);

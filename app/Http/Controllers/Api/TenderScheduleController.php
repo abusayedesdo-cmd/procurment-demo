@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\TenderSchedule;
+use App\Support\CommitteeScope;
 use Illuminate\Http\Request;
 
 class TenderScheduleController extends Controller
@@ -12,12 +13,20 @@ class TenderScheduleController extends Controller
     {
         $query = TenderSchedule::query();
         $query->with(['rfq']);
+        $query = TenderSchedule::query()->with('rfq.procurementCase');
 
         if ($request->filled('rfq_id')) {
             $query->where('rfq_id', $request->integer('rfq_id'));
         }
 
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
+
+        $user = $request->user();
+        $items->setCollection(
+            $items->getCollection()
+                ->filter(fn ($row) => CommitteeScope::userCanActOnCase($user, $row->rfq?->procurementCase))
+                ->values()
+        );
 
         return response()->json([
             'success' => true,
@@ -32,6 +41,10 @@ class TenderScheduleController extends Controller
 
     public function show(TenderSchedule $tenderSchedule)
     {
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $tenderSchedule->rfq?->procurementCase),
+            403
+        );
         $tenderSchedule->load(['rfq']);
 
         return response()->json([

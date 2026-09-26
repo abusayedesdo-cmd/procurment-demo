@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CommitteeMember;
 use App\Models\ContractAward;
+use App\Models\ProcurementAnnualPlan;
 use App\Models\ProcurementPlan;
 use App\Models\PurchaseRequisition;
 use App\Models\SubCommitteeTransfer;
@@ -32,19 +34,15 @@ class DashboardController extends Controller
         $committeeIds = CommitteeScope::committeeIdsForUser($user);
         $isCommitteeOnly = ! empty($committeeIds) && ! CommitteeScope::hasUnrestrictedAccess($user);
 
-        // Plans currently held by one of the user's own committees — still
-        // used for the Active Plans / Contracts Awarded cards below, which
-        // are genuinely plan-scoped (a plan/contract only exists once a
-        // Plan record does, so "never transferred" isn't a concern there).
-        $scopedPlanIds = $isCommitteeOnly
-            ? SubCommitteeTransfer::query()
-                ->orderByDesc('transfer_date')
-                ->orderByDesc('id')
-                ->get()
-                ->unique('procurement_plan_id')
-                ->filter(fn ($t) => in_array($t->to_committee_id, $committeeIds))
-                ->pluck('procurement_plan_id')
-            : collect();
+        // Plans currently held by the user's committee — SAME rule as the
+        // Procurement Plans list page (CommitteeScope::visiblePlanIdsFor):
+        // a plan that was NEVER transferred still counts as being with the
+        // Main Committee, not as invisible to everyone. Using the
+        // transfer-only rule here (as before) undercounted this card for
+        // Main Committee members, since it silently dropped every plan
+        // that hadn't been explicitly transferred.
+        $visiblePlanIds = CommitteeScope::visiblePlanIdsFor($user);
+        $scopedPlanIds = $visiblePlanIds === null ? null : collect($visiblePlanIds);
 
         // PRs: use the same "current holder" rule as everywhere else
         // (CommitteeScope::prVisibleToUser) instead of a separate,
@@ -107,12 +105,25 @@ class DashboardController extends Controller
             'draftPrs' => $scopePrs(PurchaseRequisition::where('status', 'draft'))->count(),
             'pendingPrs' => $scopePrs(PurchaseRequisition::whereIn('status', ['reviewed', 'checked', 'focal_reviewed']))->count(),
             'approvedPrs' => $scopePrs(PurchaseRequisition::where('status', 'approved'))->count(),
-            'activePlans' => $isCommitteeOnly
+            'activePlans' => $scopedPlanIds !== null
                 ? ProcurementPlan::whereIn('id', $scopedPlanIds)->whereIn('status', ['planned', 'ongoing'])->count()
                 : ProcurementPlan::whereIn('status', ['planned', 'ongoing'])->count(),
-            'contractsAwarded' => $isCommitteeOnly
+            'contractsAwarded' => $scopedPlanIds !== null
                 ? ContractAward::whereIn('procurement_plan_id', $scopedPlanIds)->count()
                 : ContractAward::count(),
+            'annualPlansCount' => ProcurementAnnualPlan::count(),
+            'myCommitteeWorkCount' => (function () use ($user) {
+                // Same rule as CommitteeWorkController::index(): only the
+                // latest transfer per plan decides who currently holds it.
+                $myCommitteeIds = CommitteeMember::where('user_id', $user->id)->pluck('committee_id');
+
+                return SubCommitteeTransfer::orderByDesc('transfer_date')
+                    ->orderByDesc('id')
+                    ->get()
+                    ->unique('procurement_plan_id')
+                    ->filter(fn ($t) => $myCommitteeIds->contains($t->to_committee_id))
+                    ->count();
+            })(),
             'awaitingReview' => $awaitingReview,
             'awaitingBudgetCheck' => $awaitingBudgetCheck,
             'awaitingApproval' => $awaitingApproval,

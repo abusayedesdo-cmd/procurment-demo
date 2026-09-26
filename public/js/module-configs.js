@@ -181,24 +181,72 @@ const MODULE_CONFIGS = {
             { key: 'distribution_process', label: 'Distribution' },
             { key: 'issue_date', label: 'Issue Date' },
             { key: 'closing_date', label: 'Closing Date' },
+            { key: 'status', label: 'Status' },
         ],
         rowActions: [
             { label: 'Manage Items', hrefBuilder: r => `/modules/rfq-items?new=1&field_rfq_id=${r.id}&context_label=${encodeURIComponent('RFQ ' + r.rfq_number)}` },
             { label: 'Preview RFQ', hrefBuilder: r => `/api/rfqs/${r.id}/preview` },
-            { label: 'Download RFQ', hrefBuilder: r => `/api/rfqs/${r.id}/document`, download: true },
+            { label: 'Download RFQ (Word)', hrefBuilder: r => `/api/rfqs/${r.id}/document`, download: true },
+            { label: 'Download RFQ (PDF)', hrefBuilder: r => `/api/rfqs/${r.id}/pdf`, download: true },
             { label: 'Preview Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-preview` },
             { label: 'Download Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-document`, download: true },
             { label: 'Copy Vendor Link', copyBuilder: r => r.public_token ? `${window.location.origin}/vendor-portal/${r.public_token}` : null },
+            { label: 'Finalize RFQ', request: r => r.status === 'finalized' ? null : ({
+                path: `/rfqs/${r.id}/finalize`,
+                confirm: `Finalize RFQ ${r.rfq_number}? Once finalized it can no longer be edited.`,
+            }) },
         ],
         formFields: [
             { name: 'procurement_case_id', label: 'Procurement Case', type: 'select', source: '/procurement-cases', labelField: 'ref', required: true },
             { name: 'subject', label: 'Subject', type: 'text', required: true, autofillFrom: { field: 'procurement_case_id', property: 'project_name_hint' } },
-            { name: 'type', label: 'Type', type: 'enum', options: ['RFQ', 'OTM'], required: true, autofillFrom: { field: 'procurement_case_id', property: 'rfq_type_hint' } },
+            { name: 'type', label: 'Type', type: 'enum', options: ['RFQ', 'OTM', 'RFP'], required: true, autofillFrom: { field: 'procurement_case_id', property: 'rfq_type_hint' } },
             { name: 'distribution_process', label: 'Distribution Process', type: 'enum', options: ['Email', 'Hand Distribution'] },
             { name: 'issue_date', label: 'Issue Date', type: 'date', required: true, autofillFrom: { field: 'procurement_case_id', property: 'issue_date_hint' } },
-            { name: 'closing_date', label: 'Closing Date', type: 'date', required: true, autofillFrom: { field: 'procurement_case_id', property: 'closing_date_hint' } },
-            { name: 'terms_conditions', label: 'Terms & Conditions', type: 'textarea' },
+            { name: 'closing_date', label: 'Closing Date (RFQ: 5–7 days; RFP: 3–7 days after issue date)', type: 'date', required: true, autofillFrom: { field: 'procurement_case_id', property: 'closing_date_hint' } },
+            { name: 'terms_condition_ids', label: 'Select Terms & Conditions', type: 'multi_checkbox', source: '/rfq-terms-conditions?active=1', labelField: 'text' },
+            { name: 'terms_conditions', label: 'Additional Terms (optional, free text)', type: 'textarea' },
             { name: 'file_path', label: 'File (path/URL)', type: 'file' },
+        ],
+    },
+
+    // Step 7 "Select Terms & Conditions" — editable master list the RFQ
+    // form's checkbox picker reads from. Index is open to everyone (needed
+    // to populate the RFQ create form); Add/Edit/Deactivate/Delete are
+    // enforced server-side as Admin/Procurement Officer only.
+    'rfq-terms-conditions': {
+        title: 'RFQ Terms & Conditions (Manage List)',
+        apiPath: '/rfq-terms-conditions',
+        listColumns: [
+            { key: 'sort_order', label: 'Order' },
+            { key: 'text', label: 'Text' },
+            { key: 'active', label: 'Active' },
+        ],
+        rowActions: [
+            { label: 'Edit Text', request: r => ({
+                path: `/rfq-terms-conditions/${r.id}`,
+                method: 'put',
+                prompt: { message: 'Edit this Terms & Conditions line:', field: 'text', default: r.text },
+            }) },
+            { label: 'Deactivate', request: r => r.active ? ({
+                path: `/rfq-terms-conditions/${r.id}`,
+                method: 'put',
+                body: { active: false },
+                confirm: 'Deactivate this line? It will stop appearing as a choice on NEW RFQs.',
+            }) : null },
+            { label: 'Activate', request: r => r.active ? null : ({
+                path: `/rfq-terms-conditions/${r.id}`,
+                method: 'put',
+                body: { active: true },
+            }) },
+            { label: 'Delete', request: r => ({
+                path: `/rfq-terms-conditions/${r.id}`,
+                method: 'delete',
+                confirm: 'Delete this line entirely? It will also disappear from any older RFQ that had selected it — use Deactivate instead if you just want to hide it for new RFQs.',
+            }) },
+        ],
+        formFields: [
+            { name: 'text', label: 'Terms & Conditions Text', type: 'textarea', required: true },
+            { name: 'sort_order', label: 'Sort Order (lower shows first)', type: 'number' },
         ],
     },
 
@@ -305,7 +353,7 @@ const MODULE_CONFIGS = {
         ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
-            { name: 'medium', label: 'Medium', type: 'enum', options: ['Newspaper', 'bdjobs'], required: true },
+            { name: 'medium', label: 'Medium', type: 'enum', options: ['BD Jobs', 'National Newspaper', 'Local Newspaper'], required: true },
             { name: 'category', label: 'Category', type: 'enum', options: ['Goods', 'Works', 'Service'], required: true },
             { name: 'publish_date', label: 'Publish Date', type: 'date', required: true },
             { name: 'file_path', label: 'File (path/URL)', type: 'file' },
@@ -354,7 +402,7 @@ const MODULE_CONFIGS = {
             { name: 'vendor_id', label: 'Vendor', type: 'select', source: '/vendors', labelField: 'name', required: true },
             { name: 'submitted_at', label: 'Submitted At', type: 'datetime', required: true },
             { name: 'quoted_amount', label: 'Quoted Amount', type: 'number', step: '0.01', required: true },
-            { name: 'status', label: 'Status', type: 'enum', options: ['received', 'opened', 'evaluated', 'disqualified'] },
+            { name: 'status', label: 'Status', type: 'enum', options: ['received', 'opened', 'evaluated', 'disqualified', 'forwarded', 'rejected'] },
             { name: 'representative_name', label: 'Representative Name', type: 'text' },
             { name: 'representative_contact', label: 'Representative Contact', type: 'text' },
             { name: 'attended', label: 'Attended', type: 'checkbox' },
@@ -392,6 +440,14 @@ const MODULE_CONFIGS = {
         ],
         rowActions: [
             { label: 'Download', hrefBuilder: r => `/api/tender-openings/${r.id}/document` },
+            { label: 'Forward All for Evaluation', request: r => ({
+                path: `/rfqs/${r.rfq_id}/quotations/forward-for-evaluation`,
+                confirm: 'Forward ALL pending quotations of this RFQ for evaluation?',
+            }) },
+            { label: 'Reject All Quotations', request: r => ({
+                path: `/rfqs/${r.rfq_id}/quotations/reject`,
+                askReason: 'Reason for rejecting ALL pending quotations of this RFQ:',
+            }) },
         ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
@@ -402,6 +458,39 @@ const MODULE_CONFIGS = {
             { name: 'report_file', label: 'Report File (path/URL)', type: 'file' },
             { name: 'remarks', label: 'Remarks', type: 'textarea' },
         ],
+    },
+
+    // Step 11 — per-vendor review of the opened quotations: Forward for
+    // Evaluation or Reject. Read-only list (quotations themselves are
+    // recorded in step 10); the buttons only show while a quotation is still
+    // pending review.
+    'opening-quotation-review': {
+        title: 'Quotation Review — Forward for Evaluation / Reject',
+        apiPath: '/quotations',
+        listFilterField: 'rfq_id',
+        readOnly: true,
+        readOnlyNote: 'Review each vendor\'s quotation after the opening: forward it for evaluation or reject it (a reason is required). To act on every pending quotation at once, use the buttons on the Tender Opening Report.',
+        listColumns: [
+            { key: 'rfq.rfq_number', label: 'RFQ' },
+            { key: 'vendor.name', label: 'Vendor' },
+            { key: 'quoted_amount', label: 'Amount' },
+            { key: 'status', label: 'Status' },
+            { key: 'rejection_reason', label: 'Rejection Reason' },
+        ],
+        rowActions: [
+            { label: 'View Submission', hrefBuilder: r => `/api/quotations/${r.id}/submission-preview` },
+            { label: 'Forward for Evaluation', request: r => ['received', 'opened'].includes(r.status) ? ({
+                path: `/rfqs/${r.rfq_id}/quotations/forward-for-evaluation`,
+                body: { quotation_ids: [r.id] },
+                confirm: `Forward ${r.vendor?.name ?? 'this vendor'}'s quotation for evaluation?`,
+            }) : null },
+            { label: 'Reject Quotation', request: r => ['received', 'opened'].includes(r.status) ? ({
+                path: `/rfqs/${r.rfq_id}/quotations/reject`,
+                body: { quotation_ids: [r.id] },
+                askReason: `Reason for rejecting ${r.vendor?.name ?? 'this vendor'}'s quotation:`,
+            }) : null },
+        ],
+        formFields: [],
     },
 
     // ---- Evaluation ----

@@ -57,9 +57,12 @@ class ProcurementCaseController extends Controller
         $firstMeeting = $case->meetings->first();
 
         // Keep in sync with RfqController::assertTypeMatchesPolicy() —
-        // ESDO Procurement Policy §11.1/§11.3 thresholds.
+        // ESDO Procurement Policy §11.1/§11.3 thresholds, plus the Step 8
+        // "Services -> RFP" branch added alongside it.
         $threshold = $case->category === 'Works' ? 1500000 : 1000000;
-        $case->setAttribute('rfq_type_hint', $case->amount > $threshold ? 'OTM' : 'RFQ');
+        $case->setAttribute('rfq_type_hint', $case->amount > $threshold
+            ? 'OTM'
+            : ($case->category === 'Services' ? 'RFP' : 'RFQ'));
         $case->setAttribute('issue_date_hint', optional($firstMeeting?->publish_date)->format('Y-m-d'));
         $case->setAttribute('closing_date_hint', optional($firstMeeting?->closing_date)->format('Y-m-d'));
         $case->setAttribute('project_name_hint', $case->purchaseRequisition?->project_name ?: $case->title);

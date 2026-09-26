@@ -44,6 +44,7 @@ use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\PurchaseRequisitionController;
 use App\Http\Controllers\Api\QuotationController;
 use App\Http\Controllers\Api\RfqController;
+use App\Http\Controllers\Api\RfqTermsConditionController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SoleSourcingRequestController;
 use App\Http\Controllers\Api\SubCommitteeTransferController;
@@ -138,6 +139,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('purchase-committees', PurchaseCommitteeController::class)->except(['index', 'show']);
     Route::apiResource('committee-members', CommitteeMemberController::class)->except(['index', 'show']);
     Route::post('committee-roster-logins', [CommitteeRosterLoginController::class, 'store']);
+    Route::apiResource('rfq-terms-conditions', RfqTermsConditionController::class)->only(['store', 'update', 'destroy']);
     });
     Route::middleware('role:admin')->group(function () {
         Route::apiResource('projects', ProjectController::class)->except(['index', 'show']);
@@ -176,6 +178,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/packages', [ProcurementPlanPackageController::class, 'index']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf', [DocumentDownloadController::class, 'annualPlanPdf']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf/preview', [DocumentDownloadController::class, 'annualPlanPdfPreview']);
+    Route::get('procurement-annual-plans/{procurementAnnualPlan}/word', [DocumentDownloadController::class, 'annualPlanWord']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/excel', [DocumentDownloadController::class, 'annualPlanExcel']);
 
     // District/Upazila lookups — readable by everyone logged in. These back
@@ -224,6 +227,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // system role at all.
     Route::apiResource('procurement-cases', ProcurementCaseController::class)->only(['index', 'show']);
     Route::apiResource('rfqs', RfqController::class);
+    Route::apiResource('rfq-terms-conditions', RfqTermsConditionController::class)->only(['index']);
+    Route::post('rfqs/{rfq}/finalize', [RfqController::class, 'finalize']);
+    Route::get('rfqs/{rfq}/pdf', [DocumentDownloadController::class, 'rfqPdf']);
+    Route::get('rfqs/{rfq}/pdf-preview', [DocumentDownloadController::class, 'rfqPdfPreview']);
     Route::apiResource('cash-purchases', CashPurchaseController::class);
     Route::apiResource('rfq-items', RfqItemController::class);
     Route::apiResource('quotations', QuotationController::class);
@@ -236,8 +243,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('rfqs/{rfq}/tender-schedule-preview', [DocumentDownloadController::class, 'tenderSchedulePreview']);
     Route::get('rfqs/{rfq}/pr-items', [RfqController::class, 'prItems']);
     Route::get('quotations/{quotation}/submission-preview', [QuotationController::class, 'submissionPreview']);
+    Route::post('rfqs/{rfq}/quotations/forward-for-evaluation', [QuotationController::class, 'forwardForEvaluation']);
+    Route::post('rfqs/{rfq}/quotations/reject', [QuotationController::class, 'rejectAtOpening']);
     Route::get('comparative-statements/{comparativeStatement}/document', [DocumentDownloadController::class, 'comparativeStatement']);
     Route::get('comparative-statements/{comparativeStatement}/preview', [DocumentDownloadController::class, 'comparativeStatementPreview']);
+    Route::get('comparative-statements/{comparativeStatement}/word', [DocumentDownloadController::class, 'comparativeStatementWord']);
     Route::get('tender-openings/{tenderOpening}/document', [DocumentDownloadController::class, 'tenderOpening']);
 
     // B, C, D, E — Procurement Officer's desk.
@@ -292,9 +302,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // routes moved above into the committee-scoped group.)
         Route::get('eligibility-reports/{eligibilityReport}/document', [DocumentDownloadController::class, 'eligibilityReport']);
         Route::get('eligibility-reports/{eligibilityReport}/preview', [DocumentDownloadController::class, 'eligibilityReportPreview']);
+        Route::get('eligibility-reports/{eligibilityReport}/word', [DocumentDownloadController::class, 'eligibilityReportWord']);
         Route::get('technical-evaluation-reports/{technicalEvaluationReport}/document', [DocumentDownloadController::class, 'technicalEvaluationReport']);
         Route::get('technical-evaluation-reports/{technicalEvaluationReport}/preview', [DocumentDownloadController::class, 'technicalEvaluationReportPreview']);
+        Route::get('technical-evaluation-reports/{technicalEvaluationReport}/word', [DocumentDownloadController::class, 'technicalEvaluationReportWord']);
         Route::get('financial-evaluation-reports/{financialEvaluationReport}/document', [DocumentDownloadController::class, 'financialEvaluationReport']);
         Route::get('financial-evaluation-reports/{financialEvaluationReport}/preview', [DocumentDownloadController::class, 'financialEvaluationReportPreview']);
+        Route::get('financial-evaluation-reports/{financialEvaluationReport}/word', [DocumentDownloadController::class, 'financialEvaluationReportWord']);
     });
 });

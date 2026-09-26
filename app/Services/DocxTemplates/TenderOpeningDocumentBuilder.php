@@ -2,141 +2,109 @@
 
 namespace App\Services\DocxTemplates;
 
-use App\Models\TenderOpening;
+use App\Services\DocxTemplates\Support\BuildsEsdoDocx;
 use PhpOffice\PhpWord\PhpWord;
-use PhpOffice\PhpWord\SimpleType\Jc;
 
 /**
- * Builds the Tender Opening Report, matching the sample:
- * "Tender_Opening_Requerd_from.docx"
+ * Builds the Tender Opening Report. Mirrors resources/views/documents/tender-opening.blade.php.
  *
- * Data sources:
- *  - Committee members: CommitteeMember rows under the "Central
- *    Procurement Committee" (same lookup as the RFQ builder).
- *  - Bidder rows: Quotation records for this RFQ (vendor + quoted amount).
- *  - Document checklist (Trade License / TIN / BIN): derived from
- *    VendorDocument rows per bidder, mapped as:
- *      Trade License -> document_type 'trade_license'
- *      TIN           -> document_type 'tax_certificate'
- *      BIN           -> document_type 'vat_certificate'
- *    (The schema doesn't have distinct TIN/BIN types; this mapping is
- *    the closest fit. Adjust in code if your team labels these
- *    differently.)
- *  - Attendance sheet: same bidder list, signature column left blank
- *    for physical signing on the printed copy.
+ * Expects: ['opening', 'rfq', 'committee', 'quotations', 'checkDoc'].
  */
 class TenderOpeningDocumentBuilder
 {
-    public function build(TenderOpening $opening): PhpWord
+    use BuildsEsdoDocx;
+
+    public function build(array $data): PhpWord
     {
-        $opening->loadMissing('rfq.procurementPlan.purchaseRequisition', 'openedBy');
-        $rfq = $opening->rfq;
+        $opening = $data['opening'];
+        $rfq = $data['rfq'];
+        $committee = $data['committee'];
+        $quotations = $data['quotations'];
+        $checkDoc = $data['checkDoc'];
 
-        $quotations = \App\Models\Quotation::query()
-            ->where('rfq_id', $rfq->id)
-            ->with('vendor')
-            ->get();
+        $phpWord = $this->newPhpWord();
+        $section = $this->addSection($phpWord);
 
-        $vendorDocsByVendor = \App\Models\VendorDocument::query()
-            ->whereIn('vendor_id', $quotations->pluck('vendor_id'))
-            ->where('verified', true)
-            ->get()
-            ->groupBy('vendor_id');
+        $this->addLetterhead(
+            $section,
+            'Eco-Social Development Organization (ESDO)',
+            'Collegepara (Gobindanagar), Thakurgaon, Rangpur, Bangladesh'
+        );
 
-        $phpWord = new PhpWord();
-        $phpWord->setDefaultFontName('Calibri');
-        $phpWord->setDefaultFontSize(11);
-
-        $bold = ['bold' => true];
-        $center = ['alignment' => Jc::CENTER];
-        $section = $phpWord->addSection(['marginLeft' => 1000, 'marginRight' => 1000, 'marginTop' => 1000, 'marginBottom' => 1000]);
-
-        $section->addText('TENDER OPENING REPORT', array_merge($bold, ['underline' => 'single', 'size' => 14]), $center);
+        $section->addText('TENDER OPENING REPORT', array_merge($this->b(), ['size' => 14, 'underline' => 'single']), $this->c());
         $section->addTextBreak(1);
-        $section->addText("RFQ/Tender Reference: {$rfq->rfq_number}", $bold);
-        $section->addText('Opening Date: ' . optional($opening->opening_date)->format('d F, Y'));
+        $section->addText('RFQ/Tender Reference: ' . ($rfq->rfq_number ?? ''), $this->b());
+        $section->addText('Opening Date: ' . $this->fmtDate($opening->opening_date));
         $section->addText('Opened By: ' . ($opening->openedBy->name ?? '[Name]'));
-        $section->addTextBreak(1);
 
-        // ---- Opening Committee ----
-        $section->addText('Tender Opening Committee', array_merge($bold, ['underline' => 'single']));
-        $committee = \App\Models\CommitteeMember::query()
-            ->whereHas('committee', fn ($q) => $q->where('name', 'Central Procurement Committee'))
-            ->with('user')
-            ->get();
-
-        $committeeTable = $section->addTable(['borderSize' => 6, 'borderColor' => '000000']);
-        $committeeTable->addRow();
-        foreach (['SL', 'Name', 'Designation', 'Signature'] as $h) {
-            $committeeTable->addCell(2250)->addText($h, $bold, $center);
+        $section->addText('Tender Opening Committee', array_merge($this->b(), ['size' => 12, 'underline' => 'single']));
+        $table = $section->addTable($this->borderedTableStyle());
+        $table->addRow();
+        foreach ([['SL', 700], ['Name', 2800], ['Designation', 2800], ['Signature', 2500]] as [$h, $w]) {
+            $table->addCell($w, $this->headerCellStyle())->addText($h, $this->b(), $this->c());
         }
         if ($committee->isEmpty()) {
-            $committeeTable->addRow();
-            $committeeTable->addCell(2250)->addText('1');
-            $committeeTable->addCell(2250)->addText('[No committee members seeded]');
-            $committeeTable->addCell(2250)->addText('');
-            $committeeTable->addCell(2250)->addText('');
-        }
-        foreach ($committee as $i => $member) {
-            $committeeTable->addRow();
-            $committeeTable->addCell(2250)->addText((string) ($i + 1));
-            $committeeTable->addCell(2250)->addText($member->user->name ?? '');
-            $committeeTable->addCell(2250)->addText($member->designation_in_committee ?? '');
-            $committeeTable->addCell(2250)->addText('');
+            $table->addRow();
+            $table->addCell(700)->addText('1');
+            $table->addCell(2800 + 2800 + 2500, ['gridSpan' => 3])->addText('[No committee members seeded]');
+        } else {
+            foreach ($committee as $i => $member) {
+                $table->addRow();
+                $table->addCell(700)->addText((string) ($i + 1));
+                $table->addCell(2800)->addText($member->user->name ?? '');
+                $table->addCell(2800)->addText($member->designation_in_committee ?? '');
+                $table->addCell(2500)->addText('');
+            }
         }
 
-        // ---- Bidder List + Document Checklist ----
-        $section->addTextBreak(2);
-        $section->addText('Bidder List & Document Checklist', array_merge($bold, ['underline' => 'single']));
-
-        $bidTable = $section->addTable(['borderSize' => 6, 'borderColor' => '000000']);
-        $widths = [500, 2500, 1600, 1300, 1200, 1200, 1200];
+        $section->addText('Bidder List & Document Checklist', array_merge($this->b(), ['size' => 12, 'underline' => 'single']));
+        $bidTable = $section->addTable($this->borderedTableStyle());
         $bidTable->addRow();
-        foreach (['SL', 'Bidder / Vendor', 'Bid Price (BDT)', 'Trade License', 'TIN', 'BIN', 'Remarks'] as $i => $h) {
-            $bidTable->addCell($widths[$i])->addText($h, $bold, $center);
+        $cols = [['SL', 500], ['Bidder / Vendor', 2300], ['Bid Price (BDT)', 1500], ['Trade License', 1300], ['TIN', 1100], ['BIN', 1100], ['Remarks', 1900]];
+        foreach ($cols as [$h, $w]) {
+            $bidTable->addCell($w, $this->headerCellStyle())->addText($h, $this->b(), $this->c());
         }
-
-        $mapCheck = fn ($vendorId, $type) => ($vendorDocsByVendor->get($vendorId, collect())->firstWhere('document_type', $type)) ? 'Yes' : 'No';
-
-        foreach ($quotations as $i => $q) {
-            $bidTable->addRow();
-            $bidTable->addCell($widths[0])->addText((string) ($i + 1));
-            $bidTable->addCell($widths[1])->addText($q->vendor->name ?? '');
-            $bidTable->addCell($widths[2])->addText(number_format((float) $q->quoted_amount, 2));
-            $bidTable->addCell($widths[3])->addText($mapCheck($q->vendor_id, 'trade_license'), [], $center);
-            $bidTable->addCell($widths[4])->addText($mapCheck($q->vendor_id, 'tax_certificate'), [], $center);
-            $bidTable->addCell($widths[5])->addText($mapCheck($q->vendor_id, 'vat_certificate'), [], $center);
-            $bidTable->addCell($widths[6])->addText('');
-        }
-
         if ($quotations->isEmpty()) {
             $bidTable->addRow();
-            $bidTable->addCell(array_sum($widths), ['gridSpan' => 7])->addText('[No quotations recorded against this RFQ yet]');
+            $bidTable->addCell(array_sum(array_column($cols, 1)), ['gridSpan' => count($cols)])
+                ->addText('[No quotations recorded against this RFQ yet]');
+        } else {
+            foreach ($quotations as $i => $q) {
+                $bidTable->addRow();
+                $bidTable->addCell(500)->addText((string) ($i + 1));
+                $bidTable->addCell(2300)->addText($q->vendor->name ?? '');
+                $bidTable->addCell(1500)->addText($this->fmtMoney($q->quoted_amount));
+                $bidTable->addCell(1300)->addText($checkDoc($q->vendor_id, 'trade_license'), [], $this->c());
+                $bidTable->addCell(1100)->addText($checkDoc($q->vendor_id, 'tax_certificate'), [], $this->c());
+                $bidTable->addCell(1100)->addText($checkDoc($q->vendor_id, 'vat_certificate'), [], $this->c());
+                $bidTable->addCell(1900)->addText('');
+            }
         }
 
-        // ---- Bidder Attendance Sheet ----
-        $section->addTextBreak(2);
-        $section->addText('Bidder Representative Attendance', array_merge($bold, ['underline' => 'single']));
-        $attTable = $section->addTable(['borderSize' => 6, 'borderColor' => '000000']);
+        $section->addText('Bidder Representative Attendance', array_merge($this->b(), ['size' => 12, 'underline' => 'single']));
+        $attTable = $section->addTable($this->borderedTableStyle());
         $attTable->addRow();
-        foreach (['SL', 'Vendor', 'Representative Name', 'Contact No.', 'Signature'] as $h) {
-            $attTable->addCell(1800)->addText($h, $bold, $center);
-        }
-        foreach ($quotations as $i => $q) {
-            $attTable->addRow();
-            $attTable->addCell(1800)->addText((string) ($i + 1));
-            $attTable->addCell(1800)->addText($q->vendor->name ?? '');
-            $attTable->addCell(1800)->addText('');
-            $attTable->addCell(1800)->addText('');
-            $attTable->addCell(1800)->addText('');
+        foreach ([['SL', 700], ['Vendor', 2300], ['Representative Name', 2300], ['Contact No.', 2300], ['Signature', 2300]] as [$h, $w]) {
+            $attTable->addCell($w, $this->headerCellStyle())->addText($h, $this->b(), $this->c());
         }
         if ($quotations->isEmpty()) {
             $attTable->addRow();
-            $attTable->addCell(9000, ['gridSpan' => 5])->addText('[No bidders to list]');
+            $attTable->addCell(700 + 2300 * 4, ['gridSpan' => 5])->addText('[No bidders to list]');
+        } else {
+            foreach ($quotations as $i => $q) {
+                $attTable->addRow();
+                $attTable->addCell(700)->addText((string) ($i + 1));
+                $attTable->addCell(2300)->addText($q->vendor->name ?? '');
+                $attTable->addCell(2300)->addText('');
+                $attTable->addCell(2300)->addText('');
+                $attTable->addCell(2300)->addText('');
+            }
         }
 
-        $section->addTextBreak(2);
+        $section->addTextBreak(1);
         $section->addText('Remarks: ' . ($opening->remarks ?: '__________________________________________________'));
+
+        $this->addFooterDisclaimer($section);
 
         return $phpWord;
     }

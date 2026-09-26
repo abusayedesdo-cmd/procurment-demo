@@ -264,8 +264,11 @@ class MeetingController extends Controller
     }
 
     /**
-     * Email the notice to every active roster member with an email on
-     * file — sent at Step 1, before the meeting happens, since attendance
+     * Email the notice to every active Central Procurement roster member with
+     * an email on file, PLUS — when the case is currently with a Sub-Committee —
+     * every member of that Sub-Committee (using the email stored on their
+     * Committee Roster entry; login-user members fall back to their account
+     * email). Sent at Step 1, before the meeting happens, since attendance
      * (who actually showed up) isn't known until Step 2. Sent synchronously
      * (no queue worker available on shared hosting) — failures are logged,
      * not thrown, so a bad/missing SMTP setup never blocks saving the
@@ -276,19 +279,38 @@ class MeetingController extends Controller
         $meeting->load('procurementCase');
         $sent = 0;
 
-        foreach (ProcurementCommitteeMember::activeRoster() as $member) {
-            if (! $member->email) {
-                continue;
-            }
+        // [email (lowercased) => name] — keyed by email so nobody gets it twice.
+        $recipients = [];
 
+        foreach (ProcurementCommitteeMember::activeRoster() as $member) {
+            if ($member->email) {
+                $recipients[strtolower($member->email)] = $member->name;
+            }
+        }
+
+        $committee = \App\Support\CommitteeScope::currentCommitteeForCase($meeting->procurementCase);
+        if ($committee && $committee->type === 'sub') {
+            $subMembers = \App\Models\CommitteeMember::where('committee_id', $committee->id)
+                ->with(['user', 'procurementCommitteeMember'])
+                ->get();
+
+            foreach ($subMembers as $cm) {
+                $email = $cm->procurementCommitteeMember?->email ?: $cm->user?->email;
+                if ($email) {
+                    $recipients[strtolower($email)] ??= ($cm->member_name ?? $email);
+                }
+            }
+        }
+
+        foreach ($recipients as $email => $name) {
             try {
-                \Illuminate\Support\Facades\Mail::to($member->email)
-                    ->send(new \App\Mail\MeetingNoticeMail($meeting, $member->name));
+                \Illuminate\Support\Facades\Mail::to($email)
+                    ->send(new \App\Mail\MeetingNoticeMail($meeting, $name));
                 $sent++;
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning('Meeting notice email failed', [
                     'meeting_id' => $meeting->id,
-                    'email' => $member->email,
+                    'email' => $email,
                     'error' => $e->getMessage(),
                 ]);
             }

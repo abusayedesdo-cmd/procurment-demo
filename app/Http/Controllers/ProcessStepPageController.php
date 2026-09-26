@@ -63,15 +63,18 @@ class ProcessStepPageController extends Controller
                 ['slug' => 'rfqs', 'title' => 'RFQ History (All Records)', 'no_context' => true],
                 ['slug' => 'tender-schedules', 'title' => 'Tender Schedule (Goods/Works)'],
                 ['slug' => 'tender-schedules', 'title' => 'Tender Schedule History (All Records)', 'no_context' => true],
-                ['slug' => 'tender-proposals', 'title' => 'Tender Proposal (Professional Service)'],
-                ['slug' => 'tender-proposals', 'title' => 'Tender Proposal History (All Records)', 'no_context' => true],
+                ['slug' => 'rfq-terms-conditions', 'title' => 'RFQ Terms & Conditions (Manage List)', 'no_context' => true],
             ],
         ],
         'rfp-rfi' => [
             'step_no' => '8th',
             'subject' => 'RFP/RFI/Hiring Vendor/Consultant',
-            'modules' => [],
-            'coming_soon' => true,
+            'modules' => [
+                ['slug' => 'rfqs', 'title' => 'RFP / RFI / Hiring Vendor-Consultant'],
+                ['slug' => 'rfqs', 'title' => 'RFP History (All Records)', 'no_context' => true],
+                ['slug' => 'tender-proposals', 'title' => 'Tender Proposal (Professional Service)'],
+                ['slug' => 'tender-proposals', 'title' => 'Tender Proposal History (All Records)', 'no_context' => true],
+            ],
         ],
         'tender-otm' => [
             'step_no' => '9th',
@@ -94,6 +97,7 @@ class ProcessStepPageController extends Controller
             'subject' => 'Quotations Receiving/Opening Report',
             'modules' => [
                 ['slug' => 'tender-openings', 'title' => 'Tender Opening Report'],
+                ['slug' => 'opening-quotation-review', 'title' => 'Quotation Review — Forward for Evaluation / Reject'],
             ],
         ],
         'quotations-evaluation' => [
@@ -134,6 +138,7 @@ class ProcessStepPageController extends Controller
         'tender-advertisements' => 'rfq_id',
         'quotations' => 'rfq_id',
         'tender-openings' => 'rfq_id',
+        'opening-quotation-review' => 'rfq_id',
         'eligibility-reports' => 'rfq_id',
         'technical-evaluation-reports' => 'rfq_id',
         'financial-evaluation-reports' => 'rfq_id',
@@ -157,14 +162,7 @@ class ProcessStepPageController extends Controller
         $step = self::STEPS[$slug];
         $cases = null;
 
-        // "Active PR" (design item: "PR Receive"): once an officer picks a
-        // PR — either on the PR Receive page, or via a PR's own "Transfer
-        // to Sub-Committee" action — every step in this sidebar stays
-        // scoped to just that PR for the rest of the session. We resolve
-        // its Plan/Case/RFQ chain below and prefill+lock the matching
-        // field on each step's module link, so the officer never has to
-        // re-pick it from a system-wide dropdown while working a single PR
-        // through the process.
+
         $activePrId = request()->query('pr_id');
         if (request()->query('clear_pr')) {
             session()->forget('active_pr_id');
@@ -234,9 +232,7 @@ class ProcessStepPageController extends Controller
 
         }
         
-        // Main -> Sub ট্রান্সফারের জন্য একটা destination Sub-Committee থাকা লাগে।
-        // এই PR-এর প্রজেক্টের এখনো একটাও না থাকলে, dead-end dropdown-এ না পাঠিয়ে
-        // এখানেই তৈরি করার অপশন দিচ্ছি (Admin-only — Policy §9)।
+
         $missingSubCommitteeForProject = null;
         if ($slug === 'sub-committee' && $planId && $activePr && $activePr->project_id
             && $fromCommitteeId === $mainCommitteeId && ! $projectSubCommitteeId) {
@@ -245,14 +241,7 @@ class ProcessStepPageController extends Controller
                 'suggested_name' => trim(($activePr->project_name ?: 'Project') . ' Sub-Committee'),
             ];
         }
-        // Note: this step used to auto-redirect straight into the Transfer
-        // form whenever an active PR already had a Plan, skipping the list
-        // below entirely. That meant "Back to Step" from the form landed on
-        // a list whose top link immediately sent the officer right back to
-        // the same form — a dead-end loop. Now this step renders its module
-        // list like every other step; the module page itself already shows
-        // the active PR's current record (if any) + the form together, so
-        // nothing is lost by requiring one click into it.
+
 
         $prReceiveList = null;
         if (! empty($step['is_pr_picker'])) {

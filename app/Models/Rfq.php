@@ -17,13 +17,35 @@ class Rfq extends Model
         'issue_date',
         'closing_date',
         'file_path',
+        'terms_conditions',
+        'distribution_process',
         'public_token',
+        'status',
+        'finalized_at',
+        'finalized_by',
     ];
 
     protected $casts = [
         'issue_date' => 'date',
         'closing_date' => 'date',
+        'finalized_at' => 'datetime',
     ];
+
+    // The officer-selected items from the RFQ Terms & Conditions master
+    // list (see rfq-terms-conditions module). If empty, the document
+    // builder falls back to the old fixed 11-point list for old RFQs.
+    public function termsConditions()
+    {
+        return $this->belongsToMany(RfqTermsCondition::class, 'rfq_terms_condition_rfq')
+            ->orderBy('rfq_terms_conditions.sort_order')
+            ->orderBy('rfq_terms_conditions.id')
+            ->withTimestamps();
+    }
+
+    public function finalizer()
+    {
+        return $this->belongsTo(User::class, 'finalized_by');
+    }
 
     protected static function booted()
     {

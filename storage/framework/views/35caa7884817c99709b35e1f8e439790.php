@@ -200,7 +200,6 @@
             </div>
             <div style="display:flex; align-items:center; gap:.6rem; flex-shrink:0;">
                 <a href="<?php echo e(($activePr && $slug !== 'pr-receive') ? route('process-steps.show', 'pr-receive') : route('dashboard')); ?>"
-                onclick="if (window.history.length > 1) { history.back(); return false; }"
                 class="back-link">&larr; Back</a>
             </div>
         </div>

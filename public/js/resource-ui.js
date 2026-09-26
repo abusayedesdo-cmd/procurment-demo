@@ -18,12 +18,7 @@ function getByPath(obj, path) {
 
 function formatCell(value) {
     if (value === null || value === undefined || value === '') return '<span class="muted">-</span>';
-    if (typeof value === 'boolean') return value ? '✅' : '—';
-    // Laravel date/datetime casts serialize as full ISO timestamps
-    // (e.g. "2026-09-12T00:00:00.000000Z"). Plain 'date' columns always
-    // carry a 00:00:00 time component — show date only for those. Real
-    // 'datetime' columns (e.g. held_at, submitted_at) keep their time,
-    // shown with a small gap after the date instead of the raw "T".
+    if (typeof value === 'boolean') return value ? '✅' : '❌';
     if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
         const [datePart, timePart] = value.split('T');
         const hhmm = timePart.slice(0, 5);
@@ -71,7 +66,7 @@ async function initResourcePage(config) {
     // ---- 1. Load every 'select' field's options FIRST, before drawing
     //         anything — this is what removes the "empty dropdown" bug. ----
     async function loadSelectOptions() {
-        const selectFields = config.formFields.filter(f => f.type === 'select');
+        const selectFields = config.formFields.filter(f => f.type === 'select' || f.type === 'multi_checkbox');
         await Promise.all(selectFields.map(async f => {
             try {
                 const sep = f.source.includes('?') ? '&' : '?';
@@ -91,7 +86,7 @@ async function initResourcePage(config) {
     // Fields that take up a full row on their own (not squeezed into the
     // narrow grid columns) — textarea and checkbox read badly at ~160px.
     function isFullWidth(field) {
-        return field.type === 'textarea' || field.type === 'checkbox';
+        return field.type === 'textarea' || field.type === 'checkbox' || field.type === 'multi_checkbox';
     }
 
     function renderField(field) {
@@ -105,6 +100,20 @@ async function initResourcePage(config) {
                         <select id="field_${field.name}">
                             <option value="">-- Select --</option>
                         </select>
+                    </div>`;
+            }
+
+            if (field.type === 'multi_checkbox') {
+                const opts = (selectCache[field.name] || []).map(r => `
+                    <label style="display:block; font-size:.85rem; padding:.2rem 0; cursor:pointer;">
+                        <input type="checkbox" class="mc_${field.name}" value="${r.id}"> ${optionLabel(field, r)}
+                    </label>`).join('');
+                return `
+                    <div class="form-field full-width">
+                        <label>${field.label}</label>
+                        <div id="${id}" style="max-height:240px; overflow-y:auto; border:1px solid var(--line); border-radius:6px; padding:.5rem .8rem; background:#fff;">
+                            ${opts || '<span class="muted">Nothing available yet.</span>'}
+                        </div>
                     </div>`;
             }
 
@@ -163,6 +172,9 @@ async function initResourcePage(config) {
     function fieldValue(field) {
         if (field.type === 'currentUser') return window.currentUserId ?? null;
         const el = document.getElementById(`field_${field.name}`);
+        if (field.type === 'multi_checkbox') {
+            return Array.from(document.querySelectorAll(`.mc_${field.name}:checked`)).map(c => parseInt(c.value, 10));
+        }
         if (field.type === 'checkbox') return el.checked;
         if (field.type === 'number') return el.value === '' ? null : parseFloat(el.value);
         if (field.type === 'datetime' && el.value) return el.value.replace('T', ' ') + ':00';
@@ -429,6 +441,52 @@ async function initResourcePage(config) {
             }, 0);
             return `<button type="button" id="${id}" class="btn secondary" style="padding:.3rem .6rem; font-size:.8rem;">${a.label}</button>`;
         }
+        // Server-side action button (calls the API, then refreshes the list).
+        // `a.request(row)` returns null to hide the button, or
+        // { path, method?, body?, confirm?, askReason?, prompt? } —
+        // `method` defaults to 'post' ('put'/'delete' also supported);
+        // `askReason` shows a prompt and sends the typed text as `reason`
+        // (cancelling/empty aborts); `prompt: { message, field, default(row) }`
+        // is the general form — sends the typed value under any field name
+        // (cancelling aborts; empty is allowed).
+        if (a.request) {
+            const spec = a.request(row);
+            if (!spec) return '';
+            const id = `reqBtn_${Math.random().toString(36).slice(2)}`;
+            setTimeout(() => {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                btn.addEventListener('click', async () => {
+                    let body = spec.body || {};
+                    if (spec.confirm && !window.confirm(spec.confirm)) return;
+                    if (spec.askReason) {
+                        const reason = (window.prompt(spec.askReason) || '').trim();
+                        if (!reason) return;
+                        body = { ...body, reason };
+                    }
+                    if (spec.prompt) {
+                        const val = window.prompt(spec.prompt.message, spec.prompt.default || '');
+                        if (val === null) return;
+                        body = { ...body, [spec.prompt.field]: val };
+                    }
+                    btn.disabled = true;
+                    errorBox.style.display = 'none';
+                    successBox.style.display = 'none';
+                    try {
+                        const method = spec.method || 'post';
+                        const res = method === 'put' ? await api.put(spec.path, body)
+                            : method === 'delete' ? await api.del(spec.path)
+                            : await api.post(spec.path, body);
+                        showSuccess(res.message || 'Done.');
+                        await loadRecords();
+                    } catch (err) {
+                        showError(err);
+                        btn.disabled = false;
+                    }
+                });
+            }, 0);
+            return `<button type="button" id="${id}" class="btn secondary" style="padding:.3rem .6rem; font-size:.8rem;">${a.label}</button>`;
+        }
         const href = a.hrefBuilder(row);
         if (!href) return '';
         const attrs = a.download ? 'download' : 'target="_blank" rel="noopener"';
@@ -478,6 +536,25 @@ async function initResourcePage(config) {
         }).join('');
     }
 
+    // Client-side search box above the Log table (same pattern as PR
+    // Receive's search) — filters already-loaded rows by any visible
+    // column text, no extra request. Re-applied after every reload so a
+    // typed filter survives a form submit / record refresh.
+    function applyLogSearchFilter() {
+        const input = document.getElementById('logSearchInput');
+        if (!input) return;
+        const q = input.value.trim().toLowerCase();
+        document.querySelectorAll('#listBody tr').forEach(tr => {
+            tr.style.display = !q || tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    }
+
+    function wireLogSearch() {
+        const input = document.getElementById('logSearchInput');
+        if (!input) return;
+        input.addEventListener('input', applyLogSearchFilter);
+    }
+
     async function loadRecords() {
         const ctx = window.moduleContext;
 
@@ -519,6 +596,7 @@ async function initResourcePage(config) {
         } catch (err) {
             showError(err);
         }
+        applyLogSearchFilter();
     }
 
     // Builds a human-readable label for a select field's chosen value, e.g.
@@ -593,6 +671,9 @@ async function initResourcePage(config) {
         <details class="card" open>
             <summary style="${sectionTitleStyle} cursor:pointer; list-style:none;">Log</summary>
             <div id="listFilterNotice" style="margin-top:1rem;"></div>
+            <div style="margin-top:1rem;">
+                <input type="text" id="logSearchInput" placeholder="Search…" class="input" style="width:100%; max-width:320px;">
+            </div>
             <div style="overflow-x:auto; margin-top:1rem;">
                 <table>
                     <thead><tr>${config.listColumns.map(c => `<th>${c.label}</th>`).join('')}${config.rowActions ? '<th>Action</th>' : ''}</tr></thead>
@@ -665,6 +746,8 @@ async function initResourcePage(config) {
         wireEligibilityAutofill()
         applyQueryPrefill();
     }
+
+    wireLogSearch();
 
     await loadRecords();
 }

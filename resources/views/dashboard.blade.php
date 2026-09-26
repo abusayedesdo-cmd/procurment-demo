@@ -148,6 +148,8 @@
     .card[data-tone="pending"] { border-left-color: var(--amber); }
     .card[data-tone="approved"] { border-left-color: var(--green); }
     .card[data-tone="brand"] { border-left-color: var(--accent); }
+    .card[data-tone="violet"] { border-left-color: #7C3AED; }
+    .card[data-tone="indigo"] { border-left-color: #4F46E5; }
 
     .card h3 {
         margin: 0 0 .6rem;
@@ -349,16 +351,31 @@
                 $hideCommitteeCards = in_array($user->roleName() ?? null, [\App\Models\User::REQUESTER, \App\Models\User::REVIEWER]);
             @endphp
             @if ($canSeeModules)
-                <a class="card-link" href="{{ route('modules.show', 'procurement-plans') }}">
+                <a class="card-link" href="{{ route('modules.show', 'procurement-plans') }}?history=1&from=dashboard">
                     <div class="card" data-tone="brand">
                         <h3>Procurement Plans</h3>
                         <p>{{ $activePlans }}</p>
                     </div>
                 </a>
-                <a class="card-link" href="{{ route('modules.show', 'contract-awards') }}">
+
+                <a class="card-link" href="{{ route('modules.show', 'contract-awards') }}?history=1&from=dashboard">
                     <div class="card" data-tone="brand">
                         <h3>Contracts Awarded</h3>
                         <p>{{ $contractsAwarded }}</p>
+                    </div>
+                </a>
+
+                <a class="card-link" href="{{ route('annual-plans.index') }}">
+                    <div class="card" data-tone="violet">
+                        <h3>Annual Plan</h3>
+                        <p>{{ $annualPlansCount }}</p>
+                    </div>
+                </a>
+                
+                <a class="card-link" href="{{ route('committee-work.index') }}">
+                    <div class="card" data-tone="indigo">
+                        <h3>My Committee Work</h3>
+                        <p>{{ $myCommitteeWorkCount }}</p>
                     </div>
                 </a>
             @elseif (! $hideCommitteeCards)
@@ -371,6 +388,7 @@
                     <p>{{ $contractsAwarded }}</p>
                 </div>
             @endif
+
         </div>
 
         <!-- <div class="actions">

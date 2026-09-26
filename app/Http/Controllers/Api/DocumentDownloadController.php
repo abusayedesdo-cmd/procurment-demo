@@ -19,6 +19,21 @@ use App\Models\CommitteeMember;
 use App\Support\CommitteeScope;
 use App\Services\CommitteeDocumentText;
 use App\Services\NumberGeneratorService;
+use App\Services\DocxTemplates\RfqDocumentBuilder;
+use App\Services\DocxTemplates\TenderScheduleDocumentBuilder;
+use App\Services\DocxTemplates\TenderOpeningDocumentBuilder;
+use App\Services\DocxTemplates\PurchaseRequisitionDocumentBuilder;
+use App\Services\DocxTemplates\MeetingNoticeDocumentBuilder;
+use App\Services\DocxTemplates\MeetingAttendanceDocumentBuilder;
+use App\Services\DocxTemplates\MeetingMinutesDocumentBuilder;
+use App\Services\DocxTemplates\AnnualPlanDocumentBuilder;
+use App\Services\DocxTemplates\EligibilityReportDocumentBuilder;
+use App\Services\DocxTemplates\TechnicalEvaluationReportDocumentBuilder;
+use App\Services\DocxTemplates\FinancialEvaluationReportDocumentBuilder;
+use App\Services\DocxTemplates\ComparativeStatementDocumentBuilder;
+use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\Settings as PhpWordSettings;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -26,10 +41,13 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 /**
- * Generates the RFQ, Tender Schedule, and Tender Opening documents as
- * PDF (switched from .docx/PHPWord after repeated "file won't open"
- * issues — PDF via DomPDF is a much simpler, more reliable pipeline:
- * plain HTML/Blade in, PDF out, no OOXML internals to get wrong).
+ * Generates the RFQ, Tender Schedule, Tender Opening, PR, Evaluation
+ * Report, Comparative Statement, Meeting, and Annual Plan documents as
+ * editable Word (.docx) files via PHPWord — each document type has its
+ * own builder class under App\Services\DocxTemplates. "Preview" routes
+ * produce the exact same .docx as their "download" counterpart (a
+ * browser can't render .docx inline the way it can a PDF, so both
+ * buttons simply hand the person the Word file).
  */
 class DocumentDownloadController extends Controller
 {
@@ -70,27 +88,76 @@ class DocumentDownloadController extends Controller
         );
     }
 
+    /** Streams a PHPWord document to the browser as a .docx download. */
+    protected function docxResponse(PhpWord $phpWord, string $filename)
+    {
+        return response()->streamDownload(function () use ($phpWord) {
+            IOFactory::createWriter($phpWord, 'Word2007')->save('php://output');
+        }, $this->safe($filename) . '.docx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ]);
+    }
+
+    /**
+     * Renders the same PhpWord object as a PDF, via PHPWord's own PDF
+     * writer (backed by DomPDF, already a dependency for this project).
+     * One builder now produces both formats, instead of maintaining a
+     * separate Blade view per document — pass $inline = true for the
+     * "Preview" routes so the browser opens it in its PDF viewer instead
+     * of downloading it.
+     */
+    protected function pdfResponse(PhpWord $phpWord, string $filename, bool $inline = false)
+    {
+        PhpWordSettings::setPdfRendererName(PhpWordSettings::PDF_RENDERER_DOMPDF);
+        PhpWordSettings::setPdfRendererPath(base_path('vendor/dompdf/dompdf'));
+
+        $writer = IOFactory::createWriter($phpWord, 'PDF');
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $this->safe($filename) . '.pdf', [
+            'Content-Type' => 'application/pdf',
+        ], $inline ? 'inline' : 'attachment');
+    }
+
     public function rfq(Rfq $rfq)
     {
         $this->assertCanActOnRfq($rfq);
 
-        $pdf = Pdf::loadView('documents.rfq', $this->rfqViewData($rfq));
+        $phpWord = (new RfqDocumentBuilder())->build($this->rfqViewData($rfq));
 
-        return $pdf->download("RFQ-{$this->safe($rfq->rfq_number)}.pdf");
+        return $this->docxResponse($phpWord, "RFQ-{$rfq->rfq_number}");
     }
 
     /**
-     * Same document as rfq(), but streamed with an inline
-     * Content-Disposition so the "Preview" button opens it in the
-     * browser's own PDF viewer instead of forcing a download.
+     * Same document as rfq() — the "Preview" button hands the person the
+     * same .docx (a browser can't preview Word content inline the way it
+     * can a PDF), so both routes are kept for URL compatibility but do
+     * the same thing.
      */
     public function rfqPreview(Rfq $rfq)
     {
+        return $this->rfq($rfq);
+    }
+
+    /** PDF version of the same RFQ document (Process doc Step 7: "PDF & Doc. File"). */
+    public function rfqPdf(Rfq $rfq)
+    {
         $this->assertCanActOnRfq($rfq);
 
-        $pdf = Pdf::loadView('documents.rfq', $this->rfqViewData($rfq));
+        $phpWord = (new RfqDocumentBuilder())->build($this->rfqViewData($rfq));
 
-        return $pdf->stream("RFQ-{$this->safe($rfq->rfq_number)}.pdf");
+        return $this->pdfResponse($phpWord, "RFQ-{$rfq->rfq_number}");
+    }
+
+    /** Inline (browser-preview) PDF version — see the note on rfqPreview(). */
+    public function rfqPdfPreview(Rfq $rfq)
+    {
+        $this->assertCanActOnRfq($rfq);
+
+        $phpWord = (new RfqDocumentBuilder())->build($this->rfqViewData($rfq));
+
+        return $this->pdfResponse($phpWord, "RFQ-{$rfq->rfq_number}", true);
     }
 
     /**
@@ -113,6 +180,7 @@ class DocumentDownloadController extends Controller
             'items' => $items,
             'signatoryName' => $signatoryName,
             'signatoryTitle' => $signatoryTitle,
+            'termsConditions' => $rfq->termsConditions()->get(),
         ];
     }
 
@@ -120,23 +188,15 @@ class DocumentDownloadController extends Controller
     {
         $this->assertCanActOnRfq($rfq);
 
-        $pdf = Pdf::loadView('documents.tender-schedule', $this->tenderScheduleViewData($rfq));
+        $phpWord = (new TenderScheduleDocumentBuilder())->build($this->tenderScheduleViewData($rfq));
 
-        return $pdf->download("Tender-Schedule-{$this->safe($rfq->rfq_number)}.pdf");
+        return $this->docxResponse($phpWord, "Tender-Schedule-{$rfq->rfq_number}");
     }
 
-    /**
-     * Same document as tenderSchedule(), but streamed with an inline
-     * Content-Disposition so the "Preview" button opens it in the
-     * browser's own PDF viewer instead of forcing a download.
-     */
+    /** Same document as tenderSchedule() — see the note on rfqPreview(). */
     public function tenderSchedulePreview(Rfq $rfq)
     {
-        $this->assertCanActOnRfq($rfq);
-
-        $pdf = Pdf::loadView('documents.tender-schedule', $this->tenderScheduleViewData($rfq));
-
-        return $pdf->stream("Tender-Schedule-{$this->safe($rfq->rfq_number)}.pdf");
+        return $this->tenderSchedule($rfq);
     }
 
     /**
@@ -184,72 +244,108 @@ class DocumentDownloadController extends Controller
     {
         $eligibilityReport->loadMissing('rfq', 'preparedBy', 'items.vendor');
 
-        $pdf = Pdf::loadView('documents.eligibility-report', [
+        $phpWord = (new EligibilityReportDocumentBuilder())->build([
             'report' => $eligibilityReport,
             'rfq' => $eligibilityReport->rfq,
         ]);
 
-        return $pdf->download("Eligibility-Report-{$this->safe($eligibilityReport->rfq->rfq_number)}.pdf");
+        return $this->pdfResponse($phpWord, "Eligibility-Report-{$eligibilityReport->rfq->rfq_number}");
     }
 
     public function eligibilityReportPreview(EligibilityReport $eligibilityReport)
     {
         $eligibilityReport->loadMissing('rfq', 'preparedBy', 'items.vendor');
 
-        $pdf = Pdf::loadView('documents.eligibility-report', [
+        $phpWord = (new EligibilityReportDocumentBuilder())->build([
             'report' => $eligibilityReport,
             'rfq' => $eligibilityReport->rfq,
         ]);
 
-        return $pdf->stream("Eligibility-Report-{$this->safe($eligibilityReport->rfq->rfq_number)}.pdf");
+        return $this->pdfResponse($phpWord, "Eligibility-Report-{$eligibilityReport->rfq->rfq_number}", inline: true);
+    }
+
+    public function eligibilityReportWord(EligibilityReport $eligibilityReport)
+    {
+        $eligibilityReport->loadMissing('rfq', 'preparedBy', 'items.vendor');
+
+        $phpWord = (new EligibilityReportDocumentBuilder())->build([
+            'report' => $eligibilityReport,
+            'rfq' => $eligibilityReport->rfq,
+        ]);
+
+        return $this->docxResponse($phpWord, "Eligibility-Report-{$eligibilityReport->rfq->rfq_number}");
     }
 
     public function technicalEvaluationReport(TechnicalEvaluationReport $technicalEvaluationReport)
     {
-        $technicalEvaluationReport->loadMissing('rfq', 'preparedBy', 'items.vendor');
+        $technicalEvaluationReport->loadMissing('rfq', 'preparedBy', 'items.vendor', 'items.scores', 'criteria');
 
-        $pdf = Pdf::loadView('documents.technical-evaluation-report', [
+        $phpWord = (new TechnicalEvaluationReportDocumentBuilder())->build([
             'report' => $technicalEvaluationReport,
             'rfq' => $technicalEvaluationReport->rfq,
         ]);
 
-        return $pdf->download("Technical-Evaluation-Report-{$this->safe($technicalEvaluationReport->rfq->rfq_number)}.pdf");
+        return $this->pdfResponse($phpWord, "Technical-Evaluation-Report-{$technicalEvaluationReport->rfq->rfq_number}");
     }
 
     public function technicalEvaluationReportPreview(TechnicalEvaluationReport $technicalEvaluationReport)
     {
-        $technicalEvaluationReport->loadMissing('rfq', 'preparedBy', 'items.vendor');
+        $technicalEvaluationReport->loadMissing('rfq', 'preparedBy', 'items.vendor', 'items.scores', 'criteria');
 
-        $pdf = Pdf::loadView('documents.technical-evaluation-report', [
+        $phpWord = (new TechnicalEvaluationReportDocumentBuilder())->build([
             'report' => $technicalEvaluationReport,
             'rfq' => $technicalEvaluationReport->rfq,
         ]);
 
-        return $pdf->stream("Technical-Evaluation-Report-{$this->safe($technicalEvaluationReport->rfq->rfq_number)}.pdf");
+        return $this->pdfResponse($phpWord, "Technical-Evaluation-Report-{$technicalEvaluationReport->rfq->rfq_number}", inline: true);
+    }
+
+    public function technicalEvaluationReportWord(TechnicalEvaluationReport $technicalEvaluationReport)
+    {
+        $technicalEvaluationReport->loadMissing('rfq', 'preparedBy', 'items.vendor', 'items.scores', 'criteria');
+
+        $phpWord = (new TechnicalEvaluationReportDocumentBuilder())->build([
+            'report' => $technicalEvaluationReport,
+            'rfq' => $technicalEvaluationReport->rfq,
+        ]);
+
+        return $this->docxResponse($phpWord, "Technical-Evaluation-Report-{$technicalEvaluationReport->rfq->rfq_number}");
     }
 
     public function financialEvaluationReport(FinancialEvaluationReport $financialEvaluationReport)
     {
         $financialEvaluationReport->loadMissing('rfq', 'preparedBy', 'items.vendor');
 
-        $pdf = Pdf::loadView('documents.financial-evaluation-report', [
+        $phpWord = (new FinancialEvaluationReportDocumentBuilder())->build([
             'report' => $financialEvaluationReport,
             'rfq' => $financialEvaluationReport->rfq,
         ]);
 
-        return $pdf->download("Financial-Evaluation-Report-{$this->safe($financialEvaluationReport->rfq->rfq_number)}.pdf");
+        return $this->pdfResponse($phpWord, "Financial-Evaluation-Report-{$financialEvaluationReport->rfq->rfq_number}");
     }
 
     public function financialEvaluationReportPreview(FinancialEvaluationReport $financialEvaluationReport)
     {
         $financialEvaluationReport->loadMissing('rfq', 'preparedBy', 'items.vendor');
 
-        $pdf = Pdf::loadView('documents.financial-evaluation-report', [
+        $phpWord = (new FinancialEvaluationReportDocumentBuilder())->build([
             'report' => $financialEvaluationReport,
             'rfq' => $financialEvaluationReport->rfq,
         ]);
 
-        return $pdf->stream("Financial-Evaluation-Report-{$this->safe($financialEvaluationReport->rfq->rfq_number)}.pdf");
+        return $this->pdfResponse($phpWord, "Financial-Evaluation-Report-{$financialEvaluationReport->rfq->rfq_number}", inline: true);
+    }
+
+    public function financialEvaluationReportWord(FinancialEvaluationReport $financialEvaluationReport)
+    {
+        $financialEvaluationReport->loadMissing('rfq', 'preparedBy', 'items.vendor');
+
+        $phpWord = (new FinancialEvaluationReportDocumentBuilder())->build([
+            'report' => $financialEvaluationReport,
+            'rfq' => $financialEvaluationReport->rfq,
+        ]);
+
+        return $this->docxResponse($phpWord, "Financial-Evaluation-Report-{$financialEvaluationReport->rfq->rfq_number}");
     }
 
     public function comparativeStatement(ComparativeStatement $comparativeStatement)
@@ -263,12 +359,12 @@ class DocumentDownloadController extends Controller
 
         $comparativeStatement->loadMissing('preparedBy', 'lowestEvaluatedVendor', 'items.vendor');
 
-        $pdf = Pdf::loadView('documents.comparative-statement', [
+        $phpWord = (new ComparativeStatementDocumentBuilder())->build([
             'statement' => $comparativeStatement,
             'rfq' => $comparativeStatement->rfq,
         ]);
 
-        return $pdf->download("Comparative-Statement-{$this->safe($comparativeStatement->rfq->rfq_number)}.pdf");
+        return $this->pdfResponse($phpWord, "Comparative-Statement-{$comparativeStatement->rfq->rfq_number}");
     }
 
     public function comparativeStatementPreview(ComparativeStatement $comparativeStatement)
@@ -282,12 +378,31 @@ class DocumentDownloadController extends Controller
 
         $comparativeStatement->loadMissing('preparedBy', 'lowestEvaluatedVendor', 'items.vendor');
 
-        $pdf = Pdf::loadView('documents.comparative-statement', [
+        $phpWord = (new ComparativeStatementDocumentBuilder())->build([
             'statement' => $comparativeStatement,
             'rfq' => $comparativeStatement->rfq,
         ]);
 
-        return $pdf->stream("Comparative-Statement-{$this->safe($comparativeStatement->rfq->rfq_number)}.pdf");
+        return $this->pdfResponse($phpWord, "Comparative-Statement-{$comparativeStatement->rfq->rfq_number}", inline: true);
+    }
+
+    public function comparativeStatementWord(ComparativeStatement $comparativeStatement)
+    {
+        $comparativeStatement->loadMissing('rfq.procurementCase');
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $comparativeStatement->rfq?->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
+        $comparativeStatement->loadMissing('preparedBy', 'lowestEvaluatedVendor', 'items.vendor');
+
+        $phpWord = (new ComparativeStatementDocumentBuilder())->build([
+            'statement' => $comparativeStatement,
+            'rfq' => $comparativeStatement->rfq,
+        ]);
+
+        return $this->docxResponse($phpWord, "Comparative-Statement-{$comparativeStatement->rfq->rfq_number}");
     }
 
     public function tenderOpening(TenderOpening $tenderOpening)
@@ -318,7 +433,7 @@ class DocumentDownloadController extends Controller
             ->with('user')
             ->get();
 
-        $pdf = Pdf::loadView('documents.tender-opening', [
+        $phpWord = (new TenderOpeningDocumentBuilder())->build([
             'opening' => $tenderOpening,
             'rfq' => $rfq,
             'committee' => $committee,
@@ -328,7 +443,7 @@ class DocumentDownloadController extends Controller
 
         $rfqNumber = $rfq->rfq_number ?? $tenderOpening->id;
 
-        return $pdf->download("Tender-Opening-{$this->safe($rfqNumber)}.pdf");
+        return $this->docxResponse($phpWord, "Tender-Opening-{$rfqNumber}");
     }
 
     /**
@@ -361,7 +476,7 @@ class DocumentDownloadController extends Controller
             ->sortBy([['acted_at', 'desc'], ['id', 'desc']])
             ->first();
 
-        $pdf = Pdf::loadView('documents.purchase-requisition', [
+        $phpWord = (new PurchaseRequisitionDocumentBuilder())->build([
             'pr' => $purchaseRequisition,
             'amountInWords' => $this->amountInWords((float) $purchaseRequisition->total_estimated_amount),
             'budgetCheck' => $budgetCheck,
@@ -371,7 +486,7 @@ class DocumentDownloadController extends Controller
             'approvedBy' => $approvalByRole('Executive Director'),
         ]);
 
-        return $pdf->download("PR-{$this->safe($purchaseRequisition->pr_number)}.pdf");
+        return $this->docxResponse($phpWord, "PR-{$purchaseRequisition->pr_number}");
     }
 
     /** Bangladeshi grouping (Crore / Lakh / Thousand), for the "In-word" line. */
@@ -470,7 +585,7 @@ class DocumentDownloadController extends Controller
 
         $convener = $this->committeeConvener();
 
-        $pdf = Pdf::loadView('documents.meeting-notice', [
+        $phpWord = (new MeetingNoticeDocumentBuilder())->build([
             'meeting' => $meeting,
             'case' => $meeting->procurementCase,
             'convener' => $convener,
@@ -479,7 +594,7 @@ class DocumentDownloadController extends Controller
             'memberDesignation' => 'Committee Member',
         ]);
 
-        return $pdf->download("Meeting-Notice-{$this->safe($meeting->notice_number)}.pdf");
+        return $this->docxResponse($phpWord, "Meeting-Notice-{$meeting->notice_number}");
     }
 
     public function meetingAttendance(Meeting $meeting, NumberGeneratorService $numbers)
@@ -492,14 +607,14 @@ class DocumentDownloadController extends Controller
             ]);
         }
 
-        $pdf = Pdf::loadView('documents.meeting-attendance', [
+        $phpWord = (new MeetingAttendanceDocumentBuilder())->build([
             'meeting' => $meeting,
             'case' => $meeting->procurementCase,
             'committeeLocation' => 'Dhaka',
             'convener' => $this->committeeConvener(),
         ]);
 
-        return $pdf->download("Meeting-Attendance-{$this->safe($meeting->attendance_number)}.pdf");
+        return $this->docxResponse($phpWord, "Meeting-Attendance-{$meeting->attendance_number}");
     }
 
     public function meetingMinutes(Meeting $meeting, NumberGeneratorService $numbers)
@@ -514,7 +629,7 @@ class DocumentDownloadController extends Controller
 
         [$memberSecretaryName] = $this->conveningOfficer();
 
-        $pdf = Pdf::loadView('documents.meeting-minutes', [
+        $phpWord = (new MeetingMinutesDocumentBuilder())->build([
             'meeting' => $meeting,
             'case' => $meeting->procurementCase,
             'convener' => $this->committeeConvener(),
@@ -522,9 +637,18 @@ class DocumentDownloadController extends Controller
             'committeeLocation' => 'Dhaka',
         ]);
 
-        return $pdf->download("Rezulation-Minutes-{$this->safe($meeting->rezulation_no)}.pdf");
+        return $this->docxResponse($phpWord, "Rezulation-Minutes-{$meeting->rezulation_no}");
     }
 
+    /**
+     * Reverted to the original DomPDF + Blade view for this one document
+     * (instead of the PHPWord auto-PDF conversion used for the other
+     * reports): the Annual Plan matrix has multi-row merged headers and
+     * per-period column groups that render exactly right in hand-written
+     * HTML/CSS, but lose fidelity when auto-converted from PHPWord's
+     * element tree. Uses the same buildAnnualPlanLayout() as the Word/
+     * Excel exports, so all three formats stay in sync.
+     */
     public function annualPlanPdf(ProcurementAnnualPlan $procurementAnnualPlan)
     {
         $procurementAnnualPlan->load('packages.periods.entries', 'packages.category', 'packages.chartOfAccount', 'packages.item.chartOfAccount');
@@ -536,11 +660,7 @@ class DocumentDownloadController extends Controller
         return $pdf->download('annual-plan-' . $procurementAnnualPlan->id . '.pdf');
     }
 
-    /**
-     * Same document as annualPlanPdf(), but streamed with an inline
-     * Content-Disposition so the "Preview" button opens it in the
-     * browser's own PDF viewer instead of forcing a download.
-     */
+    /** Same document as annualPlanPdf(), streamed inline so the browser opens it instead of downloading it. */
     public function annualPlanPdfPreview(ProcurementAnnualPlan $procurementAnnualPlan)
     {
         $procurementAnnualPlan->load('packages.periods.entries', 'packages.category', 'packages.chartOfAccount', 'packages.item.chartOfAccount');
@@ -550,6 +670,17 @@ class DocumentDownloadController extends Controller
             ->setPaper('a3', 'landscape');
 
         return $pdf->stream('annual-plan-' . $procurementAnnualPlan->id . '.pdf');
+    }
+
+    /** Word (.docx) counterpart — separate PHPWord builder, docx writer. */
+    public function annualPlanWord(ProcurementAnnualPlan $procurementAnnualPlan)
+    {
+        $procurementAnnualPlan->load('packages.periods.entries', 'packages.category', 'packages.chartOfAccount', 'packages.item.chartOfAccount');
+        $layout = $this->buildAnnualPlanLayout($procurementAnnualPlan);
+
+        $phpWord = (new AnnualPlanDocumentBuilder())->build(['plan' => $procurementAnnualPlan, 'layout' => $layout]);
+
+        return $this->docxResponse($phpWord, 'annual-plan-' . $procurementAnnualPlan->id);
     }
 
     public function annualPlanExcel(ProcurementAnnualPlan $procurementAnnualPlan)
