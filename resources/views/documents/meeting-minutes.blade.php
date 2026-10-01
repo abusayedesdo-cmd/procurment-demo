@@ -83,7 +83,7 @@
     </table>
 
     <p>
-        The meeting was led by <i>{{ $convener->name ?? '[Convener Name]' }}</i>, Convener of the
+        The meeting was led by <i>{{ $signerName ?: ($convener->name ?? '[Convener Name]') }}</i>, Convener of the
         Central Procurement Committee, {{ $committeeLocation }}. At the beginning, he welcomed all the
         members and thanked them for joining. After that, he started the meeting officially.
     </p>
@@ -173,8 +173,8 @@
 
     <div class="sig-block">
         <p>Approved</p>
-        <!-- <p style="margin-top:24px">({{ $convener->name ?? '[Convener Name]' }})</p> -->
-        <p>Convener,</p>
+        @if ($signerName)<p class="bold" style="margin-top:24px">({{ $signerName }})</p>@endif
+        @if ($signerDesignation)<p>{{ $signerDesignation }},</p>@endif
         <p>Central Procurement Committee, {{ $committeeLocation }}.</p>
     </div>
 </body>

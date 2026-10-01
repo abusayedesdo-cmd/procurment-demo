@@ -83,7 +83,9 @@
             @if (! $m)
               <a href="{{ route('meetings.notice.create', [$case, $type]) }}" class="btn btn-primary" style="padding:5px 10px;font-size:12px">Send notice</a>
             @else
-              <a href="{{ route('api.meetings.notice-document', $m) }}" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Notice PDF</a>
+              <a href="{{ route('api.meetings.notice-preview', $m) }}" target="_blank" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Notice Preview</a>
+              <a href="{{ route('api.meetings.notice-document', $m) }}" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Notice Word</a>
+              <a href="{{ route('api.meetings.notice-pdf', $m) }}" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Notice PDF</a>
             @endif
           </div>
 
@@ -94,7 +96,9 @@
             @if ($m && ! $m->attendance_number)
               <a href="{{ route('meetings.attendance.create', $m) }}" class="btn btn-primary" style="padding:5px 10px;font-size:12px">Record attendance</a>
             @elseif ($m?->attendance_number)
-              <a href="{{ route('api.meetings.attendance-document', $m) }}" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Attendance PDF</a>
+              <a href="{{ route('api.meetings.attendance-preview', $m) }}" target="_blank" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Attendance Preview</a>
+              <a href="{{ route('api.meetings.attendance-document', $m) }}" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Attendance Word</a>
+              <a href="{{ route('api.meetings.attendance-pdf', $m) }}" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Attendance PDF</a>
             @else
               <span style="font-size:12px;color:var(--muted)">Waiting on notice</span>
             @endif
@@ -107,7 +111,9 @@
             @if ($m?->attendance_number && ! $m->rezulation_no)
               <a href="{{ route('meetings.resolution.create', $m) }}" class="btn btn-primary" style="padding:5px 10px;font-size:12px">Finalize resolution</a>
             @elseif ($m?->rezulation_no)
-              <a href="{{ route('api.meetings.minutes-document', $m) }}" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Resolution PDF</a>
+              <a href="{{ route('api.meetings.minutes-preview', $m) }}" target="_blank" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Resolution Preview</a>
+              <a href="{{ route('api.meetings.minutes-document', $m) }}" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Resolution Word</a>
+              <a href="{{ route('api.meetings.minutes-pdf', $m) }}" class="btn btn-outline" style="padding:5px 10px;font-size:12px">Resolution PDF</a>
               <a href="{{ route('meetings.show', $m) }}" class="btn btn-outline" style="padding:5px 10px;font-size:12px">View minutes</a>
             @else
               <span style="font-size:12px;color:var(--muted)">Waiting on attendance</span>

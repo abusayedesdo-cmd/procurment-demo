@@ -66,6 +66,20 @@ class QuotationController extends Controller
             'status' => 'nullable|in:received,opened,evaluated,disqualified,forwarded,rejected',
             'representative_name' => 'nullable|string|max:255',
             'representative_contact' => 'nullable|string|max:50',
+            'attended' => 'sometimes|boolean',
+            'trade_license_submitted' => 'sometimes|boolean',
+            'tin_submitted' => 'sometimes|boolean',
+            'bin_submitted' => 'sometimes|boolean',
+            'opening_remarks' => 'nullable|string',
+            'terms_accepted' => 'sometimes|boolean',
+            'delivery_terms_accepted' => 'sometimes|boolean',
+            'general_experience' => 'nullable|string',
+            'relevant_experience' => 'nullable|string',
+            'submitted_via_portal' => 'sometimes|boolean',
+            'earnest_money_required' => 'sometimes|boolean',
+            'earnest_money_amount' => 'nullable|numeric|min:0',
+            'earnest_money_status' => 'nullable|in:not_required,held,refunded,forfeited',
+            'earnest_money_notes' => 'nullable|string',
         ]);
 
         $rfq = Rfq::with('procurementCase')->findOrFail($validated['rfq_id']);
@@ -74,6 +88,9 @@ class QuotationController extends Controller
             403,
             'This case is currently with a different committee.'
         );
+
+        $validated['status'] = $validated['status'] ?? 'received';
+        $validated['earnest_money_status'] = $validated['earnest_money_status'] ?? 'not_required';
 
         $quotation = Quotation::create($validated);
 

@@ -150,6 +150,7 @@
     .card[data-tone="brand"] { border-left-color: var(--accent); }
     .card[data-tone="violet"] { border-left-color: #7C3AED; }
     .card[data-tone="indigo"] { border-left-color: #4F46E5; }
+    .card[data-tone="orange"] { border-left-color: #F59E0B; }
 
     .card h3 {
         margin: 0 0 .6rem;
@@ -243,6 +244,129 @@
         .header { flex-direction: column; align-items: flex-start; gap: 1rem; }
         .user-block { width: 100%; justify-content: space-between; }
     }
+
+    /* ---- Notifications (pending action items as a bell dropdown) ---- */
+    .notif-wrap { position: relative; }
+
+    .notif-bell {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        cursor: pointer;
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: border-color .15s ease, background .15s ease;
+    }
+
+    .notif-bell:hover { border-color: #CBD5E1; background: #fff; }
+
+    .notif-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #DC2626;
+        color: #fff;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: .64rem;
+        font-weight: 700;
+        min-width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        border: 2px solid var(--paper);
+        line-height: 1;
+    }
+
+    .notif-panel {
+        display: none;
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: 340px;
+        max-height: 440px;
+        overflow-y: auto;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        box-shadow: 0 14px 34px rgba(15,23,42,.16);
+        z-index: 60;
+    }
+
+    .notif-panel.open { display: block; }
+
+    .notif-panel-head {
+        position: sticky;
+        top: 0;
+        background: var(--paper);
+        padding: .8rem 1rem;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .notif-panel-head span.title {
+        font-size: .74rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: var(--muted);
+    }
+
+    .notif-panel-head span.count {
+        background: var(--amber-bg);
+        color: var(--amber);
+        font-size: .68rem;
+        font-weight: 700;
+        padding: .1rem .55rem;
+        border-radius: 999px;
+        border: 1px solid #FDE68A;
+    }
+
+    .notif-list { padding: .4rem; }
+
+    .notif-item {
+        display: flex;
+        align-items: center;
+        gap: .65rem;
+        padding: .65rem .7rem;
+        border-radius: 8px;
+        text-decoration: none;
+        color: var(--ink);
+        font-size: .85rem;
+    }
+
+    .notif-item:hover { background: var(--surface); }
+
+    .notif-item .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: var(--accent);
+        flex-shrink: 0;
+    }
+
+    .notif-item .label { color: var(--muted); }
+    .notif-item .prno { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+
+    .notif-empty {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: .85rem;
+    }
+
+    @media (max-width: 560px) {
+        .notif-panel { width: 88vw; right: -0.5rem; }
+    }
 </style>
 @endsection
 
@@ -258,7 +382,69 @@
                     <span>Management System</span>
                 </div>
             </div>
+            @php
+                $canReview = in_array($user->roleName() ?? null, [\App\Models\User::REVIEWER, \App\Models\User::ADMIN]);
+                $canCheckBudget = in_array($user->roleName() ?? null, [\App\Models\User::BUDGET_CHECKER, \App\Models\User::ADMIN]);
+                $canApprove = in_array($user->roleName() ?? null, [\App\Models\User::APPROVER, \App\Models\User::ADMIN]);
+                $canFocalReview = in_array($user->roleName() ?? null, [\App\Models\User::FOCAL_PERSON, \App\Models\User::ADMIN]);
+                $canEdApprove = in_array($user->roleName() ?? null, [\App\Models\User::EXECUTIVE_DIRECTOR, \App\Models\User::ADMIN]);
+
+                $notifItems = collect();
+                if ($canReview) {
+                    foreach ($awaitingReview as $pr) { $notifItems->push(['label' => 'Review', 'pr' => $pr]); }
+                }
+                if ($canCheckBudget) {
+                    foreach ($awaitingBudgetCheck as $pr) { $notifItems->push(['label' => 'Check Budget', 'pr' => $pr]); }
+                }
+                if ($canFocalReview) {
+                    foreach ($awaitingFocalReview as $pr) { $notifItems->push(['label' => 'Focal Review', 'pr' => $pr]); }
+                }
+                if ($canEdApprove) {
+                    foreach ($awaitingEdApproval as $pr) { $notifItems->push(['label' => 'ED Approval', 'pr' => $pr]); }
+                }
+                if ($canApprove) {
+                    foreach ($awaitingApproval as $pr) { $notifItems->push(['label' => 'Approve', 'pr' => $pr]); }
+                }
+                // PRs transferred to one of this user's committees (Main/Central -> Sub-Committee etc.).
+                foreach (($transferredToMe ?? collect()) as $t) {
+                    $notifItems->push([
+                        'label' => 'Transferred',
+                        'pr' => (object) ['pr_number' => $t->pr_number],
+                        'url' => $t->case_id ? route('cases.show', $t->case_id) : route('committee-work.index'),
+                        'detail' => trim(($t->from ? 'from ' . $t->from . ' ' : '') . '→ ' . $t->to . ($t->date ? ' · ' . $t->date->format('d M Y') : '')),
+                    ]);
+                }
+                $notifCount = $notifItems->count();
+            @endphp
             <div class="user-block">
+                <div class="notif-wrap">
+                    <button type="button" class="notif-bell" onclick="toggleNotifPanel(event)" aria-label="Pending actions">
+                        🔔
+                        @if ($notifCount > 0)
+                            <span class="notif-badge">{{ $notifCount > 99 ? '99+' : $notifCount }}</span>
+                        @endif
+                    </button>
+                    <div class="notif-panel" id="notifPanel">
+                        <div class="notif-panel-head">
+                            <span class="title">Pending Actions</span>
+                            <span class="count">{{ $notifCount }}</span>
+                        </div>
+                        <div class="notif-list">
+                            @forelse ($notifItems as $item)
+                                <a href="{{ $item['url'] ?? (route('purchase-requisitions.show', $item['pr']->id) . '#budget-check') }}" class="notif-item" @if (!empty($item['detail'])) title="{{ $item['detail'] }}" @endif>
+                                    <span class="dot"></span>
+                                    <span class="label">{{ $item['label'] }} —</span>
+                                    <span class="prno">{{ $item['pr']->pr_number }}</span>
+                                    @if (!empty($item['detail']))
+                                        <span class="label" style="font-size:.72rem;margin-left:auto;">{{ $item['detail'] }}</span>
+                                    @endif
+                                </a>
+                            @empty
+                                <div class="notif-empty">No pending actions</div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
                 <div class="user-meta">
                     <div class="name">{{ $user->name ?? '' }}</div>
                     <span class="role">{{ $user->roleLabel() ?? '' }}</span>
@@ -273,53 +459,6 @@
             </div>
         </div>
 
-        @php
-            $canReview = in_array($user->roleName() ?? null, [\App\Models\User::REVIEWER, \App\Models\User::ADMIN]);
-            $canCheckBudget = in_array($user->roleName() ?? null, [\App\Models\User::BUDGET_CHECKER, \App\Models\User::ADMIN]);
-            $canApprove = in_array($user->roleName() ?? null, [\App\Models\User::APPROVER, \App\Models\User::ADMIN]);
-            $canFocalReview = in_array($user->roleName() ?? null, [\App\Models\User::FOCAL_PERSON, \App\Models\User::ADMIN]);
-            $canEdApprove = in_array($user->roleName() ?? null, [\App\Models\User::EXECUTIVE_DIRECTOR, \App\Models\User::ADMIN]);
-        @endphp
-        @if (($canReview && ($awaitingReview->count() ?? 0) > 0) || ($canCheckBudget && ($awaitingBudgetCheck->count() ?? 0) > 0) || ($canApprove && ($awaitingApproval->count() ?? 0) > 0) || ($canFocalReview && ($awaitingFocalReview->count() ?? 0) > 0) || ($canEdApprove && ($awaitingEdApproval->count() ?? 0) > 0))
-            <div class="actions">
-                @if ($canReview)
-                    @foreach ($awaitingReview as $pr)
-                        <a href="{{ route('purchase-requisitions.show', $pr->id) }}#budget-check" class="btn primary">
-                            ✓ Review — {{ $pr->pr_number }}
-                        </a>
-                    @endforeach
-                @endif
-                @if ($canCheckBudget)
-                    @foreach ($awaitingBudgetCheck as $pr)
-                        <a href="{{ route('purchase-requisitions.show', $pr->id) }}#budget-check" class="btn primary">
-                            ✓ Check Budget — {{ $pr->pr_number }}
-                        </a>
-                    @endforeach
-                @endif
-                @if ($canFocalReview)
-                    @foreach ($awaitingFocalReview as $pr)
-                        <a href="{{ route('purchase-requisitions.show', $pr->id) }}#budget-check" class="btn primary">
-                            ✓ Focal Review — {{ $pr->pr_number }}
-                        </a>
-                    @endforeach
-                @endif
-                @if ($canEdApprove)
-                    @foreach ($awaitingEdApproval as $pr)
-                        <a href="{{ route('purchase-requisitions.show', $pr->id) }}#budget-check" class="btn primary">
-                            ✓ ED Approval — {{ $pr->pr_number }}
-                        </a>
-                    @endforeach
-                @endif
-                @if ($canApprove)
-                    @foreach ($awaitingApproval as $pr)
-                        <a href="{{ route('purchase-requisitions.show', $pr->id) }}#budget-check" class="btn primary">
-                            ✓ Approve — {{ $pr->pr_number }}
-                        </a>
-                    @endforeach
-                @endif
-            </div>
-        @endif
-
         <p class="eyebrow">Operations Overview</p>
         <div class="card-grid">
             <a class="card-link" href="{{ route('purchase-requisitions.index') }}?status=draft">
@@ -330,7 +469,7 @@
             </a>
             <a class="card-link" href="{{ route('purchase-requisitions.index') }}?status=reviewed,checked">
                 <div class="card" data-tone="pending">
-                    <h3>Pending Review / Check</h3>
+                    <h3>Pending Review </h3>
                     <p>{{ $pendingPrs }}</p>
                 </div>
             </a>
@@ -347,8 +486,25 @@
                 </div>
             </a>
 
+            <a class="card-link" href="{{ route('annual-plans.index') }}">
+                    <div class="card" data-tone="violet">
+                        <h3>Annual Plan</h3>
+                        <p>{{ $annualPlansCount }}</p>
+                    </div>
+                </a>
+
+        
+ 
+
+                <!-- <a class="card-link" href="{{ route('budget-dashboard') }}">
+                    <div class="card" data-tone="orange">
+                        <h3>Budget Dashboard</h3>
+                        <p>-</p>
+                    </div>
+                </a> -->
+
             @php
-                $hideCommitteeCards = in_array($user->roleName() ?? null, [\App\Models\User::REQUESTER, \App\Models\User::REVIEWER]);
+                $hideCommitteeCards = in_array($user->roleName() ?? null, [\App\Models\User::REQUESTER, \App\Models\User::REVIEWER, \App\Models\User::BUDGET_CHECKER, \App\Models\User::FOCAL_PERSON]);
             @endphp
             @if ($canSeeModules)
                 <a class="card-link" href="{{ route('modules.show', 'procurement-plans') }}?history=1&from=dashboard">
@@ -358,31 +514,22 @@
                     </div>
                 </a>
 
+
+
                 <a class="card-link" href="{{ route('modules.show', 'contract-awards') }}?history=1&from=dashboard">
                     <div class="card" data-tone="brand">
                         <h3>Contracts Awarded</h3>
                         <p>{{ $contractsAwarded }}</p>
                     </div>
                 </a>
-
-                <a class="card-link" href="{{ route('annual-plans.index') }}">
-                    <div class="card" data-tone="violet">
-                        <h3>Annual Plan</h3>
-                        <p>{{ $annualPlansCount }}</p>
-                    </div>
-                </a>
                 
-                <a class="card-link" href="{{ route('committee-work.index') }}">
-                    <div class="card" data-tone="indigo">
-                        <h3>My Committee Work</h3>
-                        <p>{{ $myCommitteeWorkCount }}</p>
-                    </div>
-                </a>
+
             @elseif (! $hideCommitteeCards)
                 <div class="card" data-tone="brand">
                     <h3>Procurement Plans</h3>
                     <p>{{ $activePlans }}</p>
                 </div>
+                
                 <div class="card" data-tone="brand">
                     <h3>Contracts Awarded</h3>
                     <p>{{ $contractsAwarded }}</p>
@@ -406,4 +553,20 @@
             <p>The full process from Procurement Plan through Contract Award, Work Order, and Delivery Receipt is now managed from the Procurement Officer's "All Modules" view.</p>
         </div>
     </div>
+@endsection
+
+@section('scripts')
+<script>
+    function toggleNotifPanel(e) {
+        e.stopPropagation();
+        document.getElementById('notifPanel').classList.toggle('open');
+    }
+    document.addEventListener('click', function (e) {
+        var wrap = document.querySelector('.notif-wrap');
+        var panel = document.getElementById('notifPanel');
+        if (wrap && panel && !wrap.contains(e.target)) {
+            panel.classList.remove('open');
+        }
+    });
+</script>
 @endsection

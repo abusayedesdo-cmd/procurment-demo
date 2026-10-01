@@ -102,6 +102,7 @@ class RfqController extends Controller
         $rfq = Rfq::create(
             \Illuminate\Support\Arr::except($validated, 'terms_condition_ids') + [
                 'rfq_number' => $this->numberGenerator->nextCommitteeMemo('Purchases Committee'),
+                'created_by' => $request->user()?->id,
             ]
         );
 

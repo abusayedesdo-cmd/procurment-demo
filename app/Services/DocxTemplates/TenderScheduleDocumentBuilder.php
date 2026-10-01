@@ -109,7 +109,7 @@ class TenderScheduleDocumentBuilder
             ['Special Conditions of Contract', 'Poor quality/unacceptable delivery and failure to make necessary corrections/replacements as requested by the procuring entity will result in cancellation of the PO.'],
             ['Conditions for Release of Payment', 'Written acceptance of goods based on full compliance with PO/Contract requirements after agreed delivery and (where applicable) successful installation at the delivery point.'],
             ['Annexes to this Tender Document', "Annex-I: Address of Delivery Locations\nAnnex-II: Price Schedule for Goods and Related Services\nAnnex-III: Description/Specifications and Rate Sheet\nAnnex-IV: Terms and Conditions for Supply of Goods and Payment\nAnnex-V: Tender Submission Letter\nAnnex-VI: Contract Agreement"],
-            ['Contact Person for Inquiries (Written inquiries only)', $data['signatoryName'] . "\n" . $data['signatoryTitle'] . ", Central Procurement Committee\nCollegepara (Gobindanagar), Thakurgaon-5100\nEmail: " . ($data['signatoryEmail'] ?: '[email not on file]')],
+            ['Contact Person for Inquiries (Written inquiries only)', $data['signatoryName'] . "\n" . ($data['signatoryTitle'] ? $data['signatoryTitle'] . ', ' : '') . "Central Procurement Committee\nCollegepara (Gobindanagar), Thakurgaon-5100\nEmail: " . ($data['signatoryEmail'] ?: '[email not on file]')],
         ];
 
         foreach ($rows as [$label, $value]) {

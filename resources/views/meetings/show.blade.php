@@ -21,7 +21,7 @@
   </div>
 
   <p style="font-size:13px;margin-top:16px;line-height:1.6">
-    The meeting was led by {{ $meeting->attendees->first()?->name ?? 'the Convener' }}, Convener of the ESDO Central Procurement Committee.
+    The meeting was led by {{ $meeting->recordedBy?->name ?? 'the Convener' }}, Convener of the ESDO Central Procurement Committee.
     At the beginning, he welcomed all the members and thanked them for joining. After that, he started the meeting officially.
   </p>
 
@@ -68,8 +68,9 @@
 
   <div style="margin-top:32px;font-size:13px">
     <div>With thanks,</div>
-    <div style="margin-top:36px"><b>({{ $meeting->attendees->first()?->name }})</b></div>
-    <div>Convener, Central Procurement Committee,</div>
+    @if ($meeting->recordedBy?->name)<div style="margin-top:36px"><b>({{ $meeting->recordedBy->name }})</b></div>@endif
+    @if ($meeting->recordedBy?->designation)<div>{{ $meeting->recordedBy->designation }},</div>@endif
+    <div>Central Procurement Committee,</div>
     <div>ESDO, Dhaka.</div>
   </div>
 
@@ -78,10 +79,15 @@
   </div>
 </div>
 
-<div style="max-width:760px;margin:14px auto 0;text-align:right;display:flex;gap:8px;justify-content:flex-end">
-  <a href="{{ route('api.meetings.notice-document', $meeting) }}" class="btn btn-outline">Notice PDF</a>
-  <a href="{{ route('api.meetings.attendance-document', $meeting) }}" class="btn btn-outline">Attendance PDF</a>
-  <a href="{{ route('api.meetings.minutes-document', $meeting) }}" class="btn btn-outline">Minutes PDF</a>
+<div style="max-width:760px;margin:14px auto 0;text-align:right;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+  @foreach ([['Notice', 'notice'], ['Attendance', 'attendance'], ['Minutes', 'minutes']] as [$docLabel, $docKey])
+    <span style="display:inline-flex;gap:4px;align-items:center">
+      <strong style="font-size:12px">{{ $docLabel }}</strong>
+      <a href="{{ route('api.meetings.'.$docKey.'-preview', $meeting) }}" target="_blank" class="btn btn-outline">Preview</a>
+      <a href="{{ route('api.meetings.'.$docKey.'-document', $meeting) }}" class="btn btn-outline">Word</a>
+      <a href="{{ route('api.meetings.'.$docKey.'-pdf', $meeting) }}" class="btn btn-outline">PDF</a>
+    </span>
+  @endforeach
   <button onclick="window.print()" class="btn btn-outline">Print</button>
 </div>
 

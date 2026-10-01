@@ -86,10 +86,20 @@ Route::middleware('auth')->group(function () {
         // the meeting), Attendance (who showed up), Resolution (decisions +
         // rezulation) — matching the 3 separate sidebar/process-step pages,
         // instead of one combined form.
+
         Route::get('/cases/{case}/meetings/{type}/notice/create', [MeetingController::class, 'createNotice'])
             ->name('meetings.notice.create')->where('type', 'first|second');
         Route::post('/cases/{case}/meetings/{type}/notice', [MeetingController::class, 'storeNotice'])
             ->name('meetings.notice.store')->where('type', 'first|second');
+
+        // Standalone entry point — no Case required up front. The form itself
+        // lets the user optionally pick an existing open Case from a dropdown,
+        // or leave it blank for a general committee meeting not tied to any
+        // specific case.
+        Route::get('/meetings/notice/create', [MeetingController::class, 'createNoticeStandalone'])
+            ->name('meetings.notice.create.standalone');
+        Route::post('/meetings/notice/create', [MeetingController::class, 'storeNoticeStandalone'])
+            ->name('meetings.notice.store.standalone');
 
         Route::get('/meetings/{meeting}/attendance/create', [MeetingController::class, 'createAttendance'])
             ->name('meetings.attendance.create');

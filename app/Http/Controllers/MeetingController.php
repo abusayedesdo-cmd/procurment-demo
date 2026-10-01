@@ -83,9 +83,68 @@ class MeetingController extends Controller
         // Email the notice to the roster now, before the meeting happens —
         // attendance (who actually showed up) isn't recorded until step 2.
         $sentCount = $this->emailNoticeToRoster($meeting);
-        $noticeMsg = $sentCount > 0 ? " Notice emailed to {$sentCount} committee member(s)." : '';
+        $noticeMsg = $sentCount > 0 ? " Notice is being emailed to {$sentCount} committee member(s)." : '';
 
         return redirect()->route('cases.show', $case)->with('ok', 'Meeting notice recorded — ' . $meeting->notice_number . '.' . $noticeMsg . ' Attendance can now be recorded once the meeting is held.');
+    }
+
+    /** Standalone Step 1 — Notice: no Case required up front; the form lets the user optionally pick one. */
+    public function createNoticeStandalone()
+    {
+        return view('meetings.create-notice', [
+            'case' => null,
+            'type' => null,
+            'openCases' => ProcurementCase::query()
+                ->orderByDesc('id')
+                ->limit(200)
+                ->get(['id', 'ref', 'title']),
+        ]);
+    }
+
+    public function storeNoticeStandalone(Request $request, NumberGeneratorService $numbers)
+    {
+        $validator = Validator::make($request->all(), [
+            'case_id' => 'nullable|exists:procurement_cases,id',
+            'meeting_type' => 'required|in:first,second',
+            'location' => 'required|string|max:120',
+            'meeting_date' => 'required|date',
+            'meeting_time' => 'nullable|string|max:40',
+            'agenda' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->route('meetings.notice.create.standalone')
+                ->withErrors($validator)->withInput();
+        }
+        $data = $validator->validated();
+
+        $case = ! empty($data['case_id']) ? ProcurementCase::find($data['case_id']) : null;
+
+        if ($case) {
+            abort_if(
+                $case->meetings()->where('meeting_type', $data['meeting_type'])->exists(),
+                422,
+                ucfirst($data['meeting_type']) . ' meeting notice already sent for this case.'
+            );
+        }
+
+        $meeting = Meeting::create([
+            'procurement_case_id' => $case?->id,
+            'meeting_type' => $data['meeting_type'],
+            'location' => $data['location'],
+            'meeting_date' => $data['meeting_date'],
+            'meeting_time' => $data['meeting_time'] ?? null,
+            'agenda' => $data['agenda'],
+            'notice_number' => $numbers->nextDocMemo('Procurement', 'Notice'),
+            'notice_date' => now(),
+            'recorded_by' => Auth::id(),
+        ]);
+
+        $sentCount = $this->emailNoticeToRoster($meeting);
+        $noticeMsg = $sentCount > 0 ? " Notice is being emailed to {$sentCount} committee member(s)." : '';
+
+        return redirect()->route('meetings.show', $meeting)
+            ->with('ok', 'Meeting notice recorded — ' . $meeting->notice_number . '.' . $noticeMsg . ' Attendance can now be recorded once the meeting is held.');
     }
 
     /** Step 2 — Attendance: who attended the already-noticed meeting. */
@@ -110,6 +169,7 @@ class MeetingController extends Controller
             'attendees.*.name' => 'required|string|max:120',
             'attendees.*.designation' => 'required|string|max:120',
             'attendees.*.committee_member_id' => 'nullable|exists:procurement_committee_members,id',
+            'attendees.*.email' => 'nullable|email|max:190',
         ]);
 
         if ($validator->fails()) {
@@ -129,8 +189,75 @@ class MeetingController extends Controller
             $meeting->update(['attendance_number' => $numbers->nextDocMemo('Procurement', 'Attendence')]);
         });
 
+        [$emailedCount, $noEmail] = $this->emailAttendanceConfirmation($meeting, $data['attendees']);
+        $emailMsg = ($emailedCount > 0 ? " Confirmation is being emailed to {$emailedCount} attendee(s)." : '')
+            . ($noEmail ? ' No email address for: ' . implode(', ', $noEmail) . ' — not emailed.' : '');
+
         return redirect()->route('cases.show', $meeting->procurementCase)
-            ->with('ok', 'Attendance recorded — ' . $meeting->attendance_number . '.');
+            ->with('ok', 'Attendance recorded — ' . $meeting->attendance_number . '.' . $emailMsg);
+    }
+
+    /**
+     * Runs $callback once the HTTP response has already gone to the browser
+     * (Laravel "terminating" callbacks), so saving a notice / attendance no
+     * longer waits on the SMTP server — the page loads straight away and the
+     * emails go out right after. (No queue worker needed.)
+     */
+    private function afterResponse(callable $callback): void
+    {
+        app()->terminating($callback);
+    }
+
+    /**
+     * Emails the attendance confirmation to every attendee that has an address.
+     * Address = the Email typed/pre-filled on the attendance form, else the
+     * email on their Committee Roster entry. Duplicates are sent once.
+     *
+     * @return array{0: int, 1: array<int, string>}  [emails queued, names with no email]
+     */
+    private function emailAttendanceConfirmation(Meeting $meeting, array $attendees): array
+    {
+        $meeting->load('procurementCase');
+
+        $memberIds = array_values(array_unique(array_filter(
+            array_column($attendees, 'committee_member_id')
+        )));
+        $members = $memberIds
+            ? ProcurementCommitteeMember::whereIn('id', $memberIds)->get()->keyBy('id')
+            : collect();
+
+        $recipients = [];
+        $missing = [];
+        foreach ($attendees as $a) {
+            $email = trim((string) ($a['email'] ?? ''));
+            if ($email === '' && ! empty($a['committee_member_id'])) {
+                $email = trim((string) ($members[$a['committee_member_id']]->email ?? ''));
+            }
+            if ($email === '') {
+                $missing[] = $a['name'];
+                continue;
+            }
+            $recipients[strtolower($email)] ??= [$email, $a['name'], $a['designation']];
+        }
+
+        if ($recipients) {
+            $this->afterResponse(function () use ($meeting, $recipients) {
+                foreach ($recipients as [$email, $name, $designation]) {
+                    try {
+                        \Illuminate\Support\Facades\Mail::to($email)
+                            ->send(new \App\Mail\MeetingAttendanceMail($meeting, $name, $designation));
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('Attendance confirmation email failed', [
+                            'meeting_id' => $meeting->id,
+                            'email' => $email,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            });
+        }
+
+        return [count($recipients), $missing];
     }
 
     /** Step 3 — Resolution: decisions + tender schedule / award, finalizes the minutes. */
@@ -258,6 +385,7 @@ class MeetingController extends Controller
             'type' => $type,
             'issue_date' => $issueDate,
             'closing_date' => $closingDate,
+            'created_by' => Auth::id(),
         ]);
 
         return true;
@@ -269,26 +397,27 @@ class MeetingController extends Controller
      * every member of that Sub-Committee (using the email stored on their
      * Committee Roster entry; login-user members fall back to their account
      * email). Sent at Step 1, before the meeting happens, since attendance
-     * (who actually showed up) isn't known until Step 2. Sent synchronously
-     * (no queue worker available on shared hosting) — failures are logged,
+     * (who actually showed up) isn't known until Step 2. Sent without a
+     * queue worker (shared hosting) — failures are logged,
      * not thrown, so a bad/missing SMTP setup never blocks saving the
-     * notice itself. Returns how many were actually sent.
+     * notice itself. The mails go out right AFTER the response (see afterResponse()),
+     * so the page doesn't wait on SMTP. Returns how many recipients were queued.
      */
     private function emailNoticeToRoster(Meeting $meeting): int
     {
         $meeting->load('procurementCase');
         $sent = 0;
 
-        // [email (lowercased) => name] — keyed by email so nobody gets it twice.
         $recipients = [];
-
         foreach (ProcurementCommitteeMember::activeRoster() as $member) {
             if ($member->email) {
                 $recipients[strtolower($member->email)] = $member->name;
             }
         }
 
-        $committee = \App\Support\CommitteeScope::currentCommitteeForCase($meeting->procurementCase);
+        $committee = $meeting->procurementCase
+            ? \App\Support\CommitteeScope::currentCommitteeForCase($meeting->procurementCase)
+            : null;
         if ($committee && $committee->type === 'sub') {
             $subMembers = \App\Models\CommitteeMember::where('committee_id', $committee->id)
                 ->with(['user', 'procurementCommitteeMember'])
@@ -302,21 +431,24 @@ class MeetingController extends Controller
             }
         }
 
-        foreach ($recipients as $email => $name) {
-            try {
-                \Illuminate\Support\Facades\Mail::to($email)
-                    ->send(new \App\Mail\MeetingNoticeMail($meeting, $name));
-                $sent++;
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('Meeting notice email failed', [
-                    'meeting_id' => $meeting->id,
-                    'email' => $email,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        if ($recipients) {
+            $this->afterResponse(function () use ($meeting, $recipients) {
+                foreach ($recipients as $email => $name) {
+                    try {
+                        \Illuminate\Support\Facades\Mail::to($email)
+                            ->send(new \App\Mail\MeetingNoticeMail($meeting, $name));
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('Meeting notice email failed', [
+                            'meeting_id' => $meeting->id,
+                            'email' => $email,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            });
         }
 
-        return $sent;
+        return count($recipients);
     }
 
     public function show(Meeting $meeting)

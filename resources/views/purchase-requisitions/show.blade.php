@@ -648,7 +648,9 @@
                     </h1>
                 </div>
                 <div class="header-actions">
-                    <a href="/api/purchase-requisitions/${pr.id}/pdf" class="btn secondary" target="_blank">Download PDF</a>
+                    <a href="/api/purchase-requisitions/${pr.id}/preview" class="btn secondary" target="_blank">Preview</a>
+                    <a href="/api/purchase-requisitions/${pr.id}/word" class="btn secondary" download>Download Word</a>
+                    <a href="/api/purchase-requisitions/${pr.id}/pdf" class="btn secondary" download>Download PDF</a>
                     
                     <a href="{{ url()->previous() ?: route('purchase-requisitions.index') }}"
                     onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"

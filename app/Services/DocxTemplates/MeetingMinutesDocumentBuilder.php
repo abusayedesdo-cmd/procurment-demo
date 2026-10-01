@@ -51,7 +51,7 @@ class MeetingMinutesDocumentBuilder
         $whenRun->addText($meeting->meeting_date->format('d F, Y') . ($meeting->meeting_time ? ', ' . $meeting->meeting_time : ''), ['italic' => true]);
 
         $section->addText(
-            'The meeting was led by ' . ($convener->name ?? '[Convener Name]') . ', Convener of the Central Procurement '
+            'The meeting was led by ' . (($data['signerName'] ?? '') !== '' ? $data['signerName'] : ($convener->name ?? '[Convener Name]')) . ', Convener of the Central Procurement '
             . "Committee, {$committeeLocation}. At the beginning, he welcomed all the members and thanked them for joining. "
             . 'After that, he started the meeting officially.'
         );
@@ -146,7 +146,12 @@ class MeetingMinutesDocumentBuilder
 
         $section->addTextBreak(1);
         $section->addText('Approved');
-        $section->addText('Convener,');
+        if (($data['signerName'] ?? '') !== '') {
+            $section->addText('(' . $data['signerName'] . ')', $this->b());
+        }
+        if (! empty($data['signerDesignation'])) {
+            $section->addText($data['signerDesignation'] . ',');
+        }
         $section->addText("Central Procurement Committee, {$committeeLocation}.");
 
         return $phpWord;

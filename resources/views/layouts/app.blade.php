@@ -451,6 +451,7 @@
                         </div>
                     </div>
                     <a href="{{ route('settings.committee.index') }}">Committee Roster</a>
+                    <a href="{{ route('meetings.notice.create.standalone') }}">Meeting Notice</a>
                 @endif
                 @if (auth()->user()->roleName() === \App\Models\User::ADMIN)
                     <a href="{{ route('admin.users.index') }}">User Management</a>

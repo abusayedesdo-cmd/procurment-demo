@@ -108,10 +108,14 @@
     .copy-row select { flex: 1; border: 1px solid var(--line); border-radius: 7px; padding: .5rem .6rem; font-size: .85rem; font-family: inherit; }
     .user-checklist { max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: .5rem .75rem; }
     .user-checklist .uc-row { display: flex; align-items: center; gap: .5rem; padding: .35rem 0; font-size: .85rem; }
-    .user-checklist .uc-row .uc-name { flex: 1; }
+    /* The page-wide `input {width:100%; padding}` and `label {display:block; margin-bottom}` rules
+       were stretching the checkboxes and pushing the names onto separate lines — reset them here
+       so checkbox + name + designation + login toggle sit on one line. */
+    .user-checklist input[type="checkbox"] { width: auto; flex: 0 0 auto; margin: 0; padding: 0; accent-color: var(--accent); cursor: pointer; }
+    .user-checklist .uc-row .uc-name { flex: 1; min-width: 0; margin: 0; font-size: .85rem; font-weight: 600; color: var(--ink); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .user-checklist .uc-row .email { color: var(--muted); font-size: .76rem; }
     .user-checklist .uc-row input[type="text"] { width: 130px; border: 1px solid var(--line); border-radius: 6px; padding: .3rem .5rem; font-size: .78rem; font-family: inherit; }
-    .user-checklist .uc-login-toggle { display: flex; align-items: center; gap: .3rem; font-size: .75rem; color: var(--muted); white-space: nowrap; cursor: pointer; }
+    .user-checklist .uc-login-toggle { display: flex; align-items: center; gap: .3rem; margin: 0; font-weight: 500; font-size: .75rem; color: var(--muted); white-space: nowrap; cursor: pointer; }
     .user-checklist .uc-login-fields { display: none; gap: .5rem; flex-wrap: wrap; margin: 0 0 .5rem 1.7rem; }
     .user-checklist .uc-login-fields.show { display: flex; }
     .user-checklist .uc-login-fields input, .user-checklist .uc-login-fields select { border: 1px solid var(--line); border-radius: 6px; padding: .3rem .5rem; font-size: .78rem; font-family: inherit; }

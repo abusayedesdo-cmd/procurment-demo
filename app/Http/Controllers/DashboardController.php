@@ -100,8 +100,44 @@ class DashboardController extends Controller
                 ->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number']))
             : collect();
 
+        // PRs/cases that were transferred TO a committee this user is on (e.g. Main/Central
+        // Committee -> Sub-Committee, or back to the Main Committee). Same "latest transfer
+        // per plan decides who holds it" rule as My Committee Work, so an item drops out of
+        // the bell automatically once it moves on to another committee.
+        $transferredToMe = (function () use ($user) {
+            $myCommitteeIds = CommitteeMember::where('user_id', $user->id)->pluck('committee_id');
+            if ($myCommitteeIds->isEmpty()) {
+                return collect();
+            }
+
+            return SubCommitteeTransfer::with([
+                    'fromCommittee',
+                    'toCommittee',
+                    'procurementPlan.purchaseRequisition.procurementCase',
+                ])
+                ->orderByDesc('transfer_date')
+                ->orderByDesc('id')
+                ->get()
+                ->unique('procurement_plan_id')
+                ->filter(fn ($t) => $myCommitteeIds->contains($t->to_committee_id))
+                ->map(function ($t) {
+                    $pr = $t->procurementPlan?->purchaseRequisition;
+                    $case = $pr?->procurementCase;
+
+                    return (object) [
+                        'pr_number' => $pr?->pr_number ?? ('PR #' . ($t->procurementPlan?->pr_id ?? '?')),
+                        'case_id' => $case?->id,
+                        'from' => $t->fromCommittee?->name,
+                        'to' => $t->toCommittee?->name,
+                        'date' => $t->transfer_date,
+                    ];
+                })
+                ->values();
+        })();
+
         return view('dashboard', [
             'user' => $user,
+            'transferredToMe' => $transferredToMe,
             'draftPrs' => $scopePrs(PurchaseRequisition::where('status', 'draft'))->count(),
             'pendingPrs' => $scopePrs(PurchaseRequisition::whereIn('status', ['reviewed', 'checked', 'focal_reviewed']))->count(),
             'approvedPrs' => $scopePrs(PurchaseRequisition::where('status', 'approved'))->count(),

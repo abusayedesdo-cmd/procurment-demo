@@ -155,6 +155,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('pr-items', PrItemController::class)->except(['store']);
     Route::post('purchase-requisitions/{purchaseRequisition}/attachment', [PurchaseRequisitionController::class, 'uploadAttachment']);
     Route::get('purchase-requisitions/{purchaseRequisition}/pdf', [DocumentDownloadController::class, 'purchaseRequisitionPdf']);
+    Route::get('purchase-requisitions/{purchaseRequisition}/word', [DocumentDownloadController::class, 'purchaseRequisitionWord']);
+    Route::get('purchase-requisitions/{purchaseRequisition}/preview', [DocumentDownloadController::class, 'purchaseRequisitionPreview']);
     Route::get('purchase-requisitions/{purchaseRequisition}/approvals', [PrApprovalController::class, 'index']);
     Route::post('purchase-requisitions/{purchaseRequisition}/approvals', [PrApprovalController::class, 'store']);
     Route::apiResource('boq-details', BoqDetailController::class);
@@ -241,6 +243,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('rfqs/{rfq}/preview', [DocumentDownloadController::class, 'rfqPreview']);
     Route::get('rfqs/{rfq}/tender-schedule-document', [DocumentDownloadController::class, 'tenderSchedule']);
     Route::get('rfqs/{rfq}/tender-schedule-preview', [DocumentDownloadController::class, 'tenderSchedulePreview']);
+    Route::get('rfqs/{rfq}/tender-schedule-pdf', [DocumentDownloadController::class, 'tenderSchedulePdf']);
     Route::get('rfqs/{rfq}/pr-items', [RfqController::class, 'prItems']);
     Route::get('quotations/{quotation}/submission-preview', [QuotationController::class, 'submissionPreview']);
     Route::post('rfqs/{rfq}/quotations/forward-for-evaluation', [QuotationController::class, 'forwardForEvaluation']);
@@ -249,6 +252,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('comparative-statements/{comparativeStatement}/preview', [DocumentDownloadController::class, 'comparativeStatementPreview']);
     Route::get('comparative-statements/{comparativeStatement}/word', [DocumentDownloadController::class, 'comparativeStatementWord']);
     Route::get('tender-openings/{tenderOpening}/document', [DocumentDownloadController::class, 'tenderOpening']);
+    Route::get('tender-openings/{tenderOpening}/pdf', [DocumentDownloadController::class, 'tenderOpeningPdf']);
+    Route::get('tender-openings/{tenderOpening}/preview', [DocumentDownloadController::class, 'tenderOpeningPreview']);
 
     // B, C, D, E — Procurement Officer's desk.
     Route::middleware('role:procurement_officer,admin')->group(function () {
@@ -260,6 +265,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('meetings/{meeting}/notice-document', [DocumentDownloadController::class, 'meetingNotice'])->name('api.meetings.notice-document');
         Route::get('meetings/{meeting}/attendance-document', [DocumentDownloadController::class, 'meetingAttendance'])->name('api.meetings.attendance-document');
         Route::get('meetings/{meeting}/minutes-document', [DocumentDownloadController::class, 'meetingMinutes'])->name('api.meetings.minutes-document');
+        Route::get('meetings/{meeting}/notice-pdf', [DocumentDownloadController::class, 'meetingNoticePdf'])->name('api.meetings.notice-pdf');
+        Route::get('meetings/{meeting}/notice-preview', [DocumentDownloadController::class, 'meetingNoticePreview'])->name('api.meetings.notice-preview');
+        Route::get('meetings/{meeting}/attendance-pdf', [DocumentDownloadController::class, 'meetingAttendancePdf'])->name('api.meetings.attendance-pdf');
+        Route::get('meetings/{meeting}/attendance-preview', [DocumentDownloadController::class, 'meetingAttendancePreview'])->name('api.meetings.attendance-preview');
+        Route::get('meetings/{meeting}/minutes-pdf', [DocumentDownloadController::class, 'meetingMinutesPdf'])->name('api.meetings.minutes-pdf');
+        Route::get('meetings/{meeting}/minutes-preview', [DocumentDownloadController::class, 'meetingMinutesPreview'])->name('api.meetings.minutes-preview');
         Route::apiResource('sub-committee-transfers', SubCommitteeTransferController::class);
         Route::post('uploads', [FileUploadController::class, 'store']);
         Route::apiResource('tender-schedules', TenderScheduleController::class);

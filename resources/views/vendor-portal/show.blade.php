@@ -125,12 +125,54 @@
                         <input type="text" name="trade_license_no" value="{{ old('trade_license_no') }}">
                     </div>
                     <div>
+                        <label>Trade License Expiry Date</label>
+                        <input type="text" name="trade_license_expiry" value="{{ old('trade_license_expiry') }}">
+                    </div>
+                    <div>
+                        <label>Trade License *</label>
+                        <input type="file" name="trade_license_file" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div>
                         <label>VAT Reg. No. (BIN)</label>
                         <input type="text" name="vat_reg_no" value="{{ old('vat_reg_no') }}">
                     </div>
                     <div>
-                        <label>Tax ID (TIN)</label>
-                        <input type="text" name="tax_id" value="{{ old('tax_id') }}">
+                        <label>VAT Expiry Date</label>
+                        <input type="text" name="vat_expiry" value="{{ old('vat_expiry') }}">
+                    </div>
+                    <div>
+                        <label>BIN / VAT Certificate *</label>
+                        <input type="file" name="bin_file" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div>
+                        <label>TIN Reg. No. (TIN)</label>
+                        <input type="text" name="tin_reg_no" value="{{ old('tin_reg_no') }}">
+                    </div>
+                    <div>
+                        <label>TIN Expiry Date</label>
+                        <input type="text" name="tin_expiry" value="{{ old('tin_expiry') }}">
+                    </div>
+                    <div>
+                        <label>TIN Certificate *</label>
+                        <input type="file" name="tin_file" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div>
+                        <label>Tax Clearance Reg.No (PSR)</label>
+                        <input type="text" name="tax_clearance_no" value="{{ old('tax_clearance_no') }}">
+                    </div>
+                    <div>
+                        <label>Tax Clearance Expiry Date</label>
+                        <input type="text" name="tax_clearance_expiry" value="{{ old('tax_clearance_expiry') }}">
+                    </div>
+                    <div>
+                         <label>Tax Clearance Certificate (PSR)</label>
+                        <input type="file" name="psr_file">
                     </div>
                 </div>
             </div>

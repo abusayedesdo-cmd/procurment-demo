@@ -8,6 +8,7 @@ use App\Models\ProcurementCommitteeMember;
 use App\Models\Quotation;
 use App\Models\Rfq;
 use App\Models\TenderOpening;
+use App\Models\User;
 use App\Models\VendorDocument;
 use App\Models\ProcurementAnnualPlan;
 use App\Models\PurchaseRequisition;
@@ -44,10 +45,17 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  * Generates the RFQ, Tender Schedule, Tender Opening, PR, Evaluation
  * Report, Comparative Statement, Meeting, and Annual Plan documents as
  * editable Word (.docx) files via PHPWord — each document type has its
- * own builder class under App\Services\DocxTemplates. "Preview" routes
- * produce the exact same .docx as their "download" counterpart (a
- * browser can't render .docx inline the way it can a PDF, so both
- * buttons simply hand the person the Word file).
+ * own builder class under App\Services\DocxTemplates.
+ *
+ * Every document is offered the same way:
+ *   - Preview  -> PDF, opened inline in the browser
+ *   - Download -> Word (.docx) AND PDF (two separate buttons/routes)
+ * Word comes from the PHPWord builder in App\Services\DocxTemplates; the PDF
+ * of the RFQ, Tender Schedule, Tender Opening, Purchase Requisition and the
+ * three Meeting documents is rendered from the Blade views in
+ * resources/views/documents (the official printed layout), fed with the very
+ * same data. The evaluation reports and the Comparative Statement have no
+ * Blade view, so their PDF is converted from the PHPWord document.
  */
 class DocumentDownloadController extends Controller
 {
@@ -88,14 +96,49 @@ class DocumentDownloadController extends Controller
         );
     }
 
-    /** Streams a PHPWord document to the browser as a .docx download. */
+    /**
+     * Builds the file into a temp file FIRST, then sends it. The old code
+     * streamed straight into php://output, so any failure part-way (missing
+     * PHP extension, unwritable folder, memory) happened AFTER the download
+     * headers were already sent and the browser just showed
+     * ERR_INVALID_RESPONSE with no useful error. Building first means a
+     * failure now returns a normal 500 and is written to laravel.log.
+     */
+    protected function sendGeneratedFile(callable $write, string $downloadName, string $contentType, string $disposition = 'attachment')
+    {
+        $dir = storage_path('app/tmp');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        if (! is_dir($dir) || ! is_writable($dir)) {
+            $dir = sys_get_temp_dir();
+        }
+
+        $tmp = tempnam($dir, 'doc_');
+        if ($tmp === false) {
+            abort(500, 'Server cannot create a temporary file (check storage/app/tmp permissions).');
+        }
+
+        try {
+            $write($tmp);
+        } catch (\Throwable $e) {
+            @unlink($tmp);
+            throw $e; // logged by Laravel, returned as a proper error response
+        }
+
+        return response()
+            ->download($tmp, $downloadName, ['Content-Type' => $contentType], $disposition)
+            ->deleteFileAfterSend(true);
+    }
+
+    /** Sends a PHPWord document to the browser as a .docx download. */
     protected function docxResponse(PhpWord $phpWord, string $filename)
     {
-        return response()->streamDownload(function () use ($phpWord) {
-            IOFactory::createWriter($phpWord, 'Word2007')->save('php://output');
-        }, $this->safe($filename) . '.docx', [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ]);
+        return $this->sendGeneratedFile(
+            fn (string $path) => IOFactory::createWriter($phpWord, 'Word2007')->save($path),
+            $this->safe($filename) . '.docx',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        );
     }
 
     /**
@@ -113,51 +156,83 @@ class DocumentDownloadController extends Controller
 
         $writer = IOFactory::createWriter($phpWord, 'PDF');
 
-        return response()->streamDownload(function () use ($writer) {
-            $writer->save('php://output');
-        }, $this->safe($filename) . '.pdf', [
-            'Content-Type' => 'application/pdf',
-        ], $inline ? 'inline' : 'attachment');
-    }
-
-    public function rfq(Rfq $rfq)
-    {
-        $this->assertCanActOnRfq($rfq);
-
-        $phpWord = (new RfqDocumentBuilder())->build($this->rfqViewData($rfq));
-
-        return $this->docxResponse($phpWord, "RFQ-{$rfq->rfq_number}");
+        return $this->sendGeneratedFile(
+            fn (string $path) => $writer->save($path),
+            $this->safe($filename) . '.pdf',
+            'application/pdf',
+            $inline ? 'inline' : 'attachment'
+        );
     }
 
     /**
-     * Same document as rfq() — the "Preview" button hands the person the
-     * same .docx (a browser can't preview Word content inline the way it
-     * can a PDF), so both routes are kept for URL compatibility but do
-     * the same thing.
+     * PDF from a Blade view (resources/views/documents/*.blade.php) via DomPDF.
+     * This is the "official" printed layout of each document; the Word file
+     * comes from the matching PHPWord builder using the very same data.
      */
+    protected function bladePdfResponse(string $view, array $data, string $filename, bool $inline = false)
+    {
+        return $this->sendGeneratedFile(
+            fn (string $path) => file_put_contents(
+                $path,
+                Pdf::loadView($view, $data)->setPaper('a4', 'portrait')->output()
+            ),
+            $this->safe($filename) . '.pdf',
+            'application/pdf',
+            $inline ? 'inline' : 'attachment'
+        );
+    }
+
+    /**
+     * Sends a document in the requested format.
+     * $format: 'word' (.docx download), 'pdf' (PDF download), 'preview' (PDF inline).
+     *
+     * @param  array{builder: class-string, view: string, data: array, name: string}  $spec
+     *         builder = PHPWord builder used for Word, view = Blade view used for PDF,
+     *         data = variables shared by both, name = download file name (no extension)
+     */
+    protected function respondAs(array $spec, string $format)
+    {
+        if ($format === 'word') {
+            return $this->docxResponse((new $spec['builder']())->build($spec['data']), $spec['name']);
+        }
+
+        return $this->bladePdfResponse($spec['view'], $spec['data'], $spec['name'], $format === 'preview');
+    }
+
+    protected function rfqSpec(Rfq $rfq): array
+    {
+        $this->assertCanActOnRfq($rfq);
+
+        return [
+            'builder' => RfqDocumentBuilder::class,
+            'view' => 'documents.rfq',
+            'data' => $this->rfqViewData($rfq),
+            'name' => "RFQ-{$rfq->rfq_number}",
+        ];
+    }
+
+    /** Word (.docx) download of the RFQ. */
+    public function rfq(Rfq $rfq)
+    {
+        return $this->respondAs($this->rfqSpec($rfq), 'word');
+    }
+
+    /** "Preview" button: the RFQ as a PDF, opened inline in the browser. */
     public function rfqPreview(Rfq $rfq)
     {
-        return $this->rfq($rfq);
+        return $this->respondAs($this->rfqSpec($rfq), 'preview');
     }
 
-    /** PDF version of the same RFQ document (Process doc Step 7: "PDF & Doc. File"). */
+    /** PDF download of the RFQ (Process doc Step 7: "PDF & Doc. File"). */
     public function rfqPdf(Rfq $rfq)
     {
-        $this->assertCanActOnRfq($rfq);
-
-        $phpWord = (new RfqDocumentBuilder())->build($this->rfqViewData($rfq));
-
-        return $this->pdfResponse($phpWord, "RFQ-{$rfq->rfq_number}");
+        return $this->respondAs($this->rfqSpec($rfq), 'pdf');
     }
 
-    /** Inline (browser-preview) PDF version — see the note on rfqPreview(). */
+    /** Inline PDF — same as rfqPreview(), kept for URL compatibility. */
     public function rfqPdfPreview(Rfq $rfq)
     {
-        $this->assertCanActOnRfq($rfq);
-
-        $phpWord = (new RfqDocumentBuilder())->build($this->rfqViewData($rfq));
-
-        return $this->pdfResponse($phpWord, "RFQ-{$rfq->rfq_number}", true);
+        return $this->respondAs($this->rfqSpec($rfq), 'preview');
     }
 
     /**
@@ -169,11 +244,13 @@ class DocumentDownloadController extends Controller
         $rfq->loadMissing(
             'procurementCase.purchaseRequisition.items.item',
             'procurementCase.purchaseRequisition.items.unit',
-            'procurementCase.purchaseRequisition.category'
+            'procurementCase.purchaseRequisition.category',
+            'creator'
         );
         $items = $rfq->procurementCase?->purchaseRequisition?->items ?? collect();
 
-        [$signatoryName, $signatoryTitle] = $this->conveningOfficer();
+        // Older RFQs have no creator on file — keep their previous signatory.
+        [$signatoryName, $signatoryTitle] = $this->creatorSigner($rfq->creator, $this->conveningOfficer());
 
         return [
             'rfq' => $rfq,
@@ -184,19 +261,34 @@ class DocumentDownloadController extends Controller
         ];
     }
 
-    public function tenderSchedule(Rfq $rfq)
+    protected function tenderScheduleSpec(Rfq $rfq): array
     {
         $this->assertCanActOnRfq($rfq);
 
-        $phpWord = (new TenderScheduleDocumentBuilder())->build($this->tenderScheduleViewData($rfq));
-
-        return $this->docxResponse($phpWord, "Tender-Schedule-{$rfq->rfq_number}");
+        return [
+            'builder' => TenderScheduleDocumentBuilder::class,
+            'view' => 'documents.tender-schedule',
+            'data' => $this->tenderScheduleViewData($rfq),
+            'name' => "Tender-Schedule-{$rfq->rfq_number}",
+        ];
     }
 
-    /** Same document as tenderSchedule() — see the note on rfqPreview(). */
+    /** Word (.docx) download of the Tender Schedule. */
+    public function tenderSchedule(Rfq $rfq)
+    {
+        return $this->respondAs($this->tenderScheduleSpec($rfq), 'word');
+    }
+
+    /** "Preview" button: the Tender Schedule as a PDF, opened inline. */
     public function tenderSchedulePreview(Rfq $rfq)
     {
-        return $this->tenderSchedule($rfq);
+        return $this->respondAs($this->tenderScheduleSpec($rfq), 'preview');
+    }
+
+    /** PDF download of the Tender Schedule. */
+    public function tenderSchedulePdf(Rfq $rfq)
+    {
+        return $this->respondAs($this->tenderScheduleSpec($rfq), 'pdf');
     }
 
     /**
@@ -220,7 +312,8 @@ class DocumentDownloadController extends Controller
         $items = $pr?->items ?? collect();
         $itemsByCategory = $items->groupBy(fn ($line) => $line->item->chartOfAccount->name ?? 'General');
 
-        [$signatoryName, $signatoryTitle, $signatoryEmail] = $this->conveningOfficer();
+        $rfq->loadMissing('creator');
+        [$signatoryName, $signatoryTitle, $signatoryEmail] = $this->creatorSigner($rfq->creator, $this->conveningOfficer());
         $convener = $this->committeeConvener();
 
         return [
@@ -405,7 +498,26 @@ class DocumentDownloadController extends Controller
         return $this->docxResponse($phpWord, "Comparative-Statement-{$comparativeStatement->rfq->rfq_number}");
     }
 
+    /** Word (.docx) download of the Tender Opening record. */
     public function tenderOpening(TenderOpening $tenderOpening)
+    {
+        return $this->respondAs($this->buildTenderOpening($tenderOpening), 'word');
+    }
+
+    /** PDF download of the Tender Opening record. */
+    public function tenderOpeningPdf(TenderOpening $tenderOpening)
+    {
+        return $this->respondAs($this->buildTenderOpening($tenderOpening), 'pdf');
+    }
+
+    /** "Preview" button: the Tender Opening record as a PDF, opened inline. */
+    public function tenderOpeningPreview(TenderOpening $tenderOpening)
+    {
+        return $this->respondAs($this->buildTenderOpening($tenderOpening), 'preview');
+    }
+
+    /** Data + builder/view for the Tender Opening document (see respondAs()). */
+    protected function buildTenderOpening(TenderOpening $tenderOpening): array
     {
         $tenderOpening->loadMissing('rfq.procurementCase.purchaseRequisition', 'openedBy');
         abort_unless(
@@ -433,17 +545,20 @@ class DocumentDownloadController extends Controller
             ->with('user')
             ->get();
 
-        $phpWord = (new TenderOpeningDocumentBuilder())->build([
-            'opening' => $tenderOpening,
-            'rfq' => $rfq,
-            'committee' => $committee,
-            'quotations' => $quotations,
-            'checkDoc' => $checkDoc,
-        ]);
-
         $rfqNumber = $rfq->rfq_number ?? $tenderOpening->id;
 
-        return $this->docxResponse($phpWord, "Tender-Opening-{$rfqNumber}");
+        return [
+            'builder' => TenderOpeningDocumentBuilder::class,
+            'view' => 'documents.tender-opening',
+            'data' => [
+                'opening' => $tenderOpening,
+                'rfq' => $rfq,
+                'committee' => $committee,
+                'quotations' => $quotations,
+                'checkDoc' => $checkDoc,
+            ],
+            'name' => "Tender-Opening-{$rfqNumber}",
+        ];
     }
 
     /**
@@ -454,7 +569,7 @@ class DocumentDownloadController extends Controller
      * figures print in the Budgetary Check box; otherwise it prints
      * blank for hand signing, as before.
      */
-    public function purchaseRequisitionPdf(PurchaseRequisition $purchaseRequisition)
+    protected function buildPurchaseRequisition(PurchaseRequisition $purchaseRequisition): array
     {
         $purchaseRequisition->loadMissing('items.item', 'items.unit', 'raisedBy', 'approvals.user');
 
@@ -476,17 +591,38 @@ class DocumentDownloadController extends Controller
             ->sortBy([['acted_at', 'desc'], ['id', 'desc']])
             ->first();
 
-        $phpWord = (new PurchaseRequisitionDocumentBuilder())->build([
-            'pr' => $purchaseRequisition,
-            'amountInWords' => $this->amountInWords((float) $purchaseRequisition->total_estimated_amount),
-            'budgetCheck' => $budgetCheck,
-            'endorsedBy' => $approvalByRole('Reviewer'),
-            'financeRequestedBy' => $approvalByRole('Budget Checker'),
-            'recommendedBy' => $approvalByRole('Focal Person'),
-            'approvedBy' => $approvalByRole('Executive Director'),
-        ]);
+        return [
+            'builder' => PurchaseRequisitionDocumentBuilder::class,
+            'view' => 'documents.purchase-requisition',
+            'data' => [
+                'pr' => $purchaseRequisition,
+                'amountInWords' => $this->amountInWords((float) $purchaseRequisition->total_estimated_amount),
+                'budgetCheck' => $budgetCheck,
+                'endorsedBy' => $approvalByRole('Reviewer'),
+                'financeRequestedBy' => $approvalByRole('Budget Checker'),
+                'recommendedBy' => $approvalByRole('Focal Person'),
+                'approvedBy' => $approvalByRole('Executive Director'),
+            ],
+            'name' => "PR-{$purchaseRequisition->pr_number}",
+        ];
+    }
 
-        return $this->docxResponse($phpWord, "PR-{$purchaseRequisition->pr_number}");
+    /** Word (.docx) download of the Purchase Requisition. */
+    public function purchaseRequisitionWord(PurchaseRequisition $purchaseRequisition)
+    {
+        return $this->respondAs($this->buildPurchaseRequisition($purchaseRequisition), 'word');
+    }
+
+    /** PDF download of the Purchase Requisition (this route used to return a .docx by mistake). */
+    public function purchaseRequisitionPdf(PurchaseRequisition $purchaseRequisition)
+    {
+        return $this->respondAs($this->buildPurchaseRequisition($purchaseRequisition), 'pdf');
+    }
+
+    /** "Preview" button: the Purchase Requisition as a PDF, opened inline. */
+    public function purchaseRequisitionPreview(PurchaseRequisition $purchaseRequisition)
+    {
+        return $this->respondAs($this->buildPurchaseRequisition($purchaseRequisition), 'preview');
     }
 
     /** Bangladeshi grouping (Crore / Lakh / Thousand), for the "In-word" line. */
@@ -562,6 +698,21 @@ class DocumentDownloadController extends Controller
         return ['[Member Secretary Name]', 'Member Secretary/Convener', null];
     }
 
+    /**
+     * Signatory of a paper = the person who CREATED the record — not whoever
+     * happens to open or download it. Returns [name, designation, email];
+     * designation only (the user's own designation), never the system role.
+     * When the record has no creator (older records) $fallback is used.
+     */
+    protected function creatorSigner(?User $creator, array $fallback = ['', '', null]): array
+    {
+        if (! $creator) {
+            return $fallback;
+        }
+
+        return [trim((string) $creator->name), trim((string) $creator->designation), $creator->email];
+    }
+
     /** The committee Convener specifically (for meeting/RFQ minutes/notice sign-off). */
     protected function committeeConvener(string $committeeType = ProcurementCommitteeMember::CENTRAL_PROCUREMENT): ?ProcurementCommitteeMember
     {
@@ -572,9 +723,26 @@ class DocumentDownloadController extends Controller
             ->first();
     }
 
+    /** Word (.docx) download of the Meeting Notice. */
     public function meetingNotice(Meeting $meeting, NumberGeneratorService $numbers)
     {
-        $meeting->load('procurementCase.purchaseRequisition.items.item.chartOfAccount');
+        return $this->respondAs($this->buildMeetingNotice($meeting, $numbers), 'word');
+    }
+
+    public function meetingNoticePdf(Meeting $meeting, NumberGeneratorService $numbers)
+    {
+        return $this->respondAs($this->buildMeetingNotice($meeting, $numbers), 'pdf');
+    }
+
+    public function meetingNoticePreview(Meeting $meeting, NumberGeneratorService $numbers)
+    {
+        return $this->respondAs($this->buildMeetingNotice($meeting, $numbers), 'preview');
+    }
+
+    /** Data + builder/view for the document (see respondAs()). */
+    protected function buildMeetingNotice(Meeting $meeting, NumberGeneratorService $numbers): array
+    {
+        $meeting->load('procurementCase.purchaseRequisition.items.item.chartOfAccount', 'recordedBy');
 
         if (! $meeting->notice_number) {
             $meeting->update([
@@ -584,22 +752,46 @@ class DocumentDownloadController extends Controller
         }
 
         $convener = $this->committeeConvener();
+        // The person who recorded the meeting (see Meeting::recordedBy), not the viewer.
+        [$signerName, $signerDesignation] = $this->creatorSigner($meeting->recordedBy);
 
-        $phpWord = (new MeetingNoticeDocumentBuilder())->build([
-            'meeting' => $meeting,
-            'case' => $meeting->procurementCase,
-            'convener' => $convener,
-            // Central Procurement Committee is addressed as one office per notice — Dhaka by default.
-            'committeeLocation' => 'Dhaka',
-            'memberDesignation' => 'Committee Member',
-        ]);
-
-        return $this->docxResponse($phpWord, "Meeting-Notice-{$meeting->notice_number}");
+        return [
+            'builder' => MeetingNoticeDocumentBuilder::class,
+            'view' => 'documents.meeting-notice',
+            'data' => [
+                'meeting' => $meeting,
+                'case' => $meeting->procurementCase,
+                'convener' => $convener,
+                // Central Procurement Committee is addressed as one office per notice — Dhaka by default.
+                'committeeLocation' => 'Dhaka',
+                'memberDesignation' => 'Committee Member',
+                'signerName' => $signerName,
+                'signerDesignation' => $signerDesignation,
+            ],
+            'name' => "Meeting-Notice-{$meeting->notice_number}",
+        ];
     }
 
+    /** Word (.docx) download of the Meeting Attendance sheet. */
     public function meetingAttendance(Meeting $meeting, NumberGeneratorService $numbers)
     {
-        $meeting->load('procurementCase.purchaseRequisition.items.item.chartOfAccount', 'attendees');
+        return $this->respondAs($this->buildMeetingAttendance($meeting, $numbers), 'word');
+    }
+
+    public function meetingAttendancePdf(Meeting $meeting, NumberGeneratorService $numbers)
+    {
+        return $this->respondAs($this->buildMeetingAttendance($meeting, $numbers), 'pdf');
+    }
+
+    public function meetingAttendancePreview(Meeting $meeting, NumberGeneratorService $numbers)
+    {
+        return $this->respondAs($this->buildMeetingAttendance($meeting, $numbers), 'preview');
+    }
+
+    /** Data + builder/view for the document (see respondAs()). */
+    protected function buildMeetingAttendance(Meeting $meeting, NumberGeneratorService $numbers): array
+    {
+        $meeting->load('procurementCase.purchaseRequisition.items.item.chartOfAccount', 'attendees', 'recordedBy');
 
         if (! $meeting->attendance_number) {
             $meeting->update([
@@ -607,19 +799,44 @@ class DocumentDownloadController extends Controller
             ]);
         }
 
-        $phpWord = (new MeetingAttendanceDocumentBuilder())->build([
-            'meeting' => $meeting,
-            'case' => $meeting->procurementCase,
-            'committeeLocation' => 'Dhaka',
-            'convener' => $this->committeeConvener(),
-        ]);
+        // The person who recorded the meeting (see Meeting::recordedBy), not the viewer.
+        [$signerName, $signerDesignation] = $this->creatorSigner($meeting->recordedBy);
 
-        return $this->docxResponse($phpWord, "Meeting-Attendance-{$meeting->attendance_number}");
+        return [
+            'builder' => MeetingAttendanceDocumentBuilder::class,
+            'view' => 'documents.meeting-attendance',
+            'data' => [
+                'meeting' => $meeting,
+                'case' => $meeting->procurementCase,
+                'committeeLocation' => 'Dhaka',
+                'convener' => $this->committeeConvener(),
+                'signerName' => $signerName,
+                'signerDesignation' => $signerDesignation,
+            ],
+            'name' => "Meeting-Attendance-{$meeting->attendance_number}",
+        ];
     }
 
+    /** Word (.docx) download of the Meeting Minutes / Resolution. */
     public function meetingMinutes(Meeting $meeting, NumberGeneratorService $numbers)
     {
-        $meeting->load('procurementCase.purchaseRequisition.items.item.chartOfAccount', 'attendees', 'awards.vendor');
+        return $this->respondAs($this->buildMeetingMinutes($meeting, $numbers), 'word');
+    }
+
+    public function meetingMinutesPdf(Meeting $meeting, NumberGeneratorService $numbers)
+    {
+        return $this->respondAs($this->buildMeetingMinutes($meeting, $numbers), 'pdf');
+    }
+
+    public function meetingMinutesPreview(Meeting $meeting, NumberGeneratorService $numbers)
+    {
+        return $this->respondAs($this->buildMeetingMinutes($meeting, $numbers), 'preview');
+    }
+
+    /** Data + builder/view for the document (see respondAs()). */
+    protected function buildMeetingMinutes(Meeting $meeting, NumberGeneratorService $numbers): array
+    {
+        $meeting->load('procurementCase.purchaseRequisition.items.item.chartOfAccount', 'attendees', 'awards.vendor', 'recordedBy');
 
         if (! $meeting->rezulation_no) {
             $meeting->update([
@@ -628,16 +845,23 @@ class DocumentDownloadController extends Controller
         }
 
         [$memberSecretaryName] = $this->conveningOfficer();
+        // The person who recorded the meeting (see Meeting::recordedBy), not the viewer.
+        [$signerName, $signerDesignation] = $this->creatorSigner($meeting->recordedBy);
 
-        $phpWord = (new MeetingMinutesDocumentBuilder())->build([
-            'meeting' => $meeting,
-            'case' => $meeting->procurementCase,
-            'convener' => $this->committeeConvener(),
-            'memberSecretaryName' => $memberSecretaryName,
-            'committeeLocation' => 'Dhaka',
-        ]);
-
-        return $this->docxResponse($phpWord, "Rezulation-Minutes-{$meeting->rezulation_no}");
+        return [
+            'builder' => MeetingMinutesDocumentBuilder::class,
+            'view' => 'documents.meeting-minutes',
+            'data' => [
+                'meeting' => $meeting,
+                'case' => $meeting->procurementCase,
+                'convener' => $this->committeeConvener(),
+                'memberSecretaryName' => $memberSecretaryName,
+                'committeeLocation' => 'Dhaka',
+                'signerName' => $signerName,
+                'signerDesignation' => $signerDesignation,
+            ],
+            'name' => "Rezulation-Minutes-{$meeting->rezulation_no}",
+        ];
     }
 
     /**
@@ -845,11 +1069,11 @@ class DocumentDownloadController extends Controller
         $writer = new Xlsx($spreadsheet);
         $filename = 'annual-plan-' . $procurementAnnualPlan->id . '.xlsx';
 
-        return response()->streamDownload(function () use ($writer) {
-            $writer->save('php://output');
-        }, $filename, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ]);
+        return $this->sendGeneratedFile(
+            fn (string $path) => $writer->save($path),
+            $filename,
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
     }
 
   private function buildAnnualPlanLayout(ProcurementAnnualPlan $plan): array

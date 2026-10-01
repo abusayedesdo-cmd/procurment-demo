@@ -34,10 +34,13 @@ class MeetingNoticeDocumentBuilder
         $section->addText('Gobindanagar (Collegepara), Thakurgaon-5100', ['bold' => true, 'color' => '1F4E9C', 'size' => 10.5], $this->c());
         $section->addTextBreak(1);
 
-        return $this->buildInner($phpWord, $section, $meeting, $case, $committeeLocation, $memberDesignation);
+        return $this->buildInner(
+            $phpWord, $section, $meeting, $case, $committeeLocation, $memberDesignation,
+            (string) ($data['signerName'] ?? ''), (string) ($data['signerDesignation'] ?? '')
+        );
     }
 
-    private function buildInner(PhpWord $phpWord, $section, $meeting, $case, string $committeeLocation, string $memberDesignation): PhpWord
+    private function buildInner(PhpWord $phpWord, $section, $meeting, $case, string $committeeLocation, string $memberDesignation, string $signerName = '', string $signerDesignation = ''): PhpWord
     {
         // Replace the placeholder meta table above with a proper mixed-run version.
         $metaRun = $section->addTable(['borderSize' => 0, 'cellMargin' => 0]);
@@ -93,7 +96,12 @@ class MeetingNoticeDocumentBuilder
         $section->addTextBreak(1);
         $section->addText('With Thanks');
         $section->addTextBreak(1);
-        $section->addText('Convener,');
+        if ($signerName !== '') {
+            $section->addText('(' . $signerName . ')', $this->b());
+        }
+        if ($signerDesignation !== '') {
+            $section->addText($signerDesignation . ',');
+        }
         $section->addText("Central Procurement Committee, {$committeeLocation}.");
 
         $section->addTextBreak(2);

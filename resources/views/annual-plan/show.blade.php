@@ -374,6 +374,7 @@
                 </div>
                 <div style="display:flex; gap:.5rem;">
                     <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/pdf/preview" target="_blank">Preview</a>
+                    <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/word" target="_blank">Download Word</a>
                     <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/pdf" target="_blank">Download PDF</a>
                     <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/excel" target="_blank">Download Excel</a>
                 </div>

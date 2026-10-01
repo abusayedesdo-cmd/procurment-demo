@@ -101,7 +101,8 @@
     .team-section { margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--line); }
     .team-section h3 { margin: 0 0 .6rem; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
     .user-checklist { max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: .5rem .75rem; }
-    .user-checklist label { display: flex; align-items: center; gap: .5rem; padding: .35rem 0; font-size: .85rem; cursor: pointer; }
+    .user-checklist label { display: flex; align-items: center; gap: .5rem; margin: 0; padding: .35rem 0; font-size: .85rem; font-weight: 500; color: var(--ink); cursor: pointer; }
+    .user-checklist input[type="checkbox"] { width: auto; flex: 0 0 auto; margin: 0; padding: 0; accent-color: var(--accent); }
     .user-checklist label .email { color: var(--muted); font-size: .76rem; }
     .user-checklist .empty { color: var(--muted); font-size: .82rem; padding: .4rem 0; }
     .new-user-row { display: grid; grid-template-columns: 1.3fr 1.3fr 1fr .9fr; gap: .5rem; margin-bottom: .5rem; }

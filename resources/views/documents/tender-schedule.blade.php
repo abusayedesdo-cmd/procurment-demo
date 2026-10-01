@@ -108,7 +108,7 @@
             <td class="bold">Contact Person for Inquiries (Written inquiries only)</td>
             <td>
                 {{ $signatoryName }}<br>
-                {{ $signatoryTitle }}, Central Procurement Committee<br>
+                {{ $signatoryTitle ? $signatoryTitle . ', ' : '' }}Central Procurement Committee<br>
                 Collegepara (Gobindanagar), Thakurgaon-5100<br>
                 Email: {{ $signatoryEmail ?: '[email not on file]' }}
             </td>

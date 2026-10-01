@@ -451,6 +451,7 @@
                         </div>
                     </div>
                     <a href="<?php echo e(route('settings.committee.index')); ?>">Committee Roster</a>
+                    <a href="<?php echo e(route('meetings.notice.create.standalone')); ?>">Meeting Notice</a>
                 <?php endif; ?>
                 <?php if(auth()->user()->roleName() === \App\Models\User::ADMIN): ?>
                     <a href="<?php echo e(route('admin.users.index')); ?>">User Management</a>

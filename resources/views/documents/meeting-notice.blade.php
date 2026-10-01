@@ -133,8 +133,8 @@
         <p style="margin-top:24px;">With Thanks</p>
 
         <div class="sig-block">
-            <!-- <p>({{ $convener->name ?? '[Convener Name]' }})</p> -->
-            <p>Convener,</p>
+            @if ($signerName)<p class="bold">({{ $signerName }})</p>@endif
+            @if ($signerDesignation)<p>{{ $signerDesignation }},</p>@endif
             <p>Central Procurement Committee, {{ $committeeLocation }}.</p>
         </div>
     </div>

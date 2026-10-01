@@ -42,7 +42,9 @@ return [
             'encryption' => env('MAIL_ENCRYPTION', 'tls'),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            // Give up on an unreachable SMTP server after 15s (was: no limit) so a bad mail
+            // setting can't freeze the page. Override with MAIL_TIMEOUT in .env.
+            'timeout' => env('MAIL_TIMEOUT', 15),
             'local_domain' => env('MAIL_EHLO_DOMAIN'),
         ],
 

@@ -12,7 +12,7 @@
     <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">Step 2 of 3 — Attendance</div>
     <b style="font-size:16px">{{ $meeting->typeLabel() }} — {{ $meeting->location }}, {{ $meeting->meeting_date->format('d M Y') }}@if($meeting->meeting_time), {{ $meeting->meeting_time }}@endif</b>
     <div style="font-size:12.5px;color:var(--muted);margin-top:2px">Case: {{ $meeting->procurementCase->ref }} — {{ $meeting->procurementCase->title }}</div>
-    <div style="font-size:12px;color:var(--muted);margin-top:6px">The roster below is pre-filled — remove anyone who didn't attend, or add someone extra.</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px">The roster below is pre-filled — remove anyone who didn't attend, or add someone extra. A confirmation email goes to every attendee who has an email address (for an extra attendee, type it in the Email box).</div>
   </div>
 
   @if ($errors->any())
@@ -22,8 +22,8 @@
   <div>
     <b style="font-size:13.5px">Attendees</b>
     <div style="border:1px solid var(--line);border-radius:10px;overflow-x:auto;margin-top:10px">
-      <table class="data" id="attendees" style="min-width:520px">
-        <thead><tr><th>Name</th><th>Designation</th><th></th></tr></thead>
+      <table class="data" id="attendees" style="min-width:720px">
+        <thead><tr><th>Name</th><th>Designation</th><th>Email</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -49,6 +49,7 @@
       'id' => $m->id,
       'name' => $m->name,
       'designation' => $m->roleLabel() . ', Central Procurement Committee',
+      'email' => $m->email,
   ]);
 @endphp
 
@@ -56,16 +57,17 @@
 let roster = @json($rosterJs);
 
 let ai = 0;
-function addAttendee(name = '', designation = '', committeeMemberId = '') {
+function addAttendee(name = '', designation = '', committeeMemberId = '', email = '') {
   const i = ai++;
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td><input type="hidden" name="attendees[${i}][committee_member_id]" value="${committeeMemberId}"><input name="attendees[${i}][name]" value="${name}" required style="width:100%;border:1px solid #D9DAE8;border-radius:6px;padding:7px 8px;font-size:13px"></td>
     <td><input name="attendees[${i}][designation]" value="${designation}" required style="width:100%;border:1px solid #D9DAE8;border-radius:6px;padding:7px 8px;font-size:13px"></td>
+    <td><input type="email" name="attendees[${i}][email]" value="${email || ''}" placeholder="Email (optional)" style="width:100%;border:1px solid #D9DAE8;border-radius:6px;padding:7px 8px;font-size:13px"></td>
     <td><button type="button" onclick="this.closest('tr').remove()" style="border:none;background:none;color:var(--bad);font-size:15px;cursor:pointer">×</button></td>`;
   document.querySelector('#attendees tbody').appendChild(tr);
 }
 
-roster.forEach(m => addAttendee(m.name, m.designation, m.id));
+roster.forEach(m => addAttendee(m.name, m.designation, m.id, m.email));
 </script>
 @endsection

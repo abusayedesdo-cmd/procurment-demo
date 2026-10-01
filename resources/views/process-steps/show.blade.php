@@ -199,7 +199,12 @@
                 <h1>{{ $step['subject'] }}</h1>
             </div>
             <div style="display:flex; align-items:center; gap:.6rem; flex-shrink:0;">
-                <a href="{{ ($activePr && $slug !== 'pr-receive') ? route('process-steps.show', 'pr-receive') : route('dashboard') }}"
+                @php
+                    $backUrl = ($activePr && $slug !== 'pr-receive')
+                        ? route('process-steps.show', 'pr-receive')
+                        : ($stepBackUrl ?? route('dashboard'));
+                @endphp
+                <a href="{{ $backUrl }}"
                 class="back-link">&larr; Back</a>
             </div>
         </div>
@@ -478,10 +483,11 @@
                     ${data.map(r => `
                         <tr>
                             <td style="padding:.4rem .4rem .1rem 0; vertical-align:top;">
-                                <input type="checkbox" class="ssc-select-cb" value="${r.id}" id="ssc_r_${r.id}">
+                                <input type="checkbox" class="ssc-select-cb" value="${r.id}" id="ssc_r_${r.id}" data-email="${r.email || ''}">
                             </td>
                             <td style="padding:.4rem 0 .1rem 0;">
                                 <label for="ssc_r_${r.id}" style="font-weight:600; font-size:.85rem; cursor:pointer; word-break:break-word;">${r.name}</label>
+                                <div style="font-size:.75rem; color:var(--muted);">${r.email ? (r.email + ' — checking the box above gives a login with this email.') : 'No email on file.'}</div>
                             </td>
                         </tr>
                         <tr>
@@ -490,6 +496,7 @@
                                 <input type="text" id="ssc_desig_${r.id}" value="${r.designation || ''}" placeholder="Designation" style="width:100%; box-sizing:border-box; padding:.3rem .5rem; font-size:.8rem; border:1px solid var(--line); border-radius:6px;">
                             </td>
                         </tr>
+                        ${r.email ? '' : `
                         <tr>
                             <td style="padding:0 .4rem 0 0; vertical-align:top;">
                                 <input type="checkbox" class="ssc-login-cb" data-roster-id="${r.id}" id="ssc_login_${r.id}">
@@ -505,7 +512,7 @@
                                     <input type="email" id="ssc_email_${r.id}" placeholder="Email" style="width:100%; box-sizing:border-box; padding:.35rem .5rem; font-size:.8rem; border:1px solid var(--line); border-radius:6px;">
                                 </div>
                             </td>
-                        </tr>
+                        </tr>`}
                         <tr><td colspan="2" style="border-bottom:1px solid var(--line); padding-bottom:.4rem;"></td></tr>
                     `).join('')}
                 </table>
@@ -553,21 +560,37 @@
         for (const cb of checked) {
             const desigInput = document.getElementById(`ssc_desig_${cb.value}`);
             const designation = desigInput ? desigInput.value.trim() || null : null;
-            const loginCb = document.getElementById(`ssc_login_${cb.value}`);
+            const rosterEmail = cb.dataset.email || '';
 
             let userId = null;
-            if (loginCb && loginCb.checked) {
-                const emailInput = document.getElementById(`ssc_email_${cb.value}`);
-                const email = emailInput ? emailInput.value.trim() : '';
-                if (!email) throw new Error('No Email was given for a member who was marked for login.');
+            let loginEmail = null;
+            if (rosterEmail) {
+                // Has an email on the roster already — selecting them is enough,
+                // no separate "Give login" step needed.
+                loginEmail = rosterEmail;
+            } else {
+                // No roster email — only give a login if "Give login" was
+                // checked and an email was typed in for this member.
+                const loginCb = document.getElementById(`ssc_login_${cb.value}`);
+                if (loginCb && loginCb.checked) {
+                    const emailInput = document.getElementById(`ssc_email_${cb.value}`);
+                    const typed = emailInput ? emailInput.value.trim() : '';
+                    if (!typed) throw new Error('No Email was given for a member who was marked for login.');
+                    loginEmail = typed;
+                }
+            }
+
+            if (loginEmail) {
                 const { data: login } = await api.post('/committee-roster-logins', {
                     procurement_committee_member_id: cb.value,
                     committee_id: committee.id,
-                    email,
+                    email: loginEmail,
                     designation,
                 });
                 userId = login.user.id;
-                createdLogins.push(`${login.user.name} (${login.user.email}) — password: ${login.password}`);
+                createdLogins.push(login.password
+                    ? `${login.user.name} (${login.user.email}) — password: ${login.password}`
+                    : `${login.user.name} (${login.user.email}) — already had a login, reused it.`);
             }
 
             await api.post('/committee-members', {
@@ -579,7 +602,7 @@
         }
 
         if (createdLogins.length) {
-            alert('New logins created — share them now, they are shown only once:\n' + createdLogins.join('\n'));
+            alert('Committee members with a login:\n' + createdLogins.join('\n') + '\n\n(Share any new passwords now — they are shown only once.)');
         }
 
         // After the page reloads, the new Sub-Committee will be picked up as

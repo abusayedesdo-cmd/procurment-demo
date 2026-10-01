@@ -97,7 +97,12 @@ class MeetingAttendanceDocumentBuilder
 
         $section->addTextBreak(1);
         $section->addText('Approved');
-        $section->addText('Convener,');
+        if (($data['signerName'] ?? '') !== '') {
+            $section->addText('(' . $data['signerName'] . ')', $this->b());
+        }
+        if (! empty($data['signerDesignation'])) {
+            $section->addText($data['signerDesignation'] . ',');
+        }
         $section->addText("Central Procurement Committee, {$committeeLocation}.");
 
         return $phpWord;

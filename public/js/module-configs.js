@@ -189,7 +189,8 @@ const MODULE_CONFIGS = {
             { label: 'Download RFQ (Word)', hrefBuilder: r => `/api/rfqs/${r.id}/document`, download: true },
             { label: 'Download RFQ (PDF)', hrefBuilder: r => `/api/rfqs/${r.id}/pdf`, download: true },
             { label: 'Preview Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-preview` },
-            { label: 'Download Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-document`, download: true },
+            { label: 'Download Schedule (Word)', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-document`, download: true },
+            { label: 'Download Schedule (PDF)', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-pdf`, download: true },
             { label: 'Copy Vendor Link', copyBuilder: r => r.public_token ? `${window.location.origin}/vendor-portal/${r.public_token}` : null },
             { label: 'Finalize RFQ', request: r => r.status === 'finalized' ? null : ({
                 path: `/rfqs/${r.id}/finalize`,
@@ -307,7 +308,8 @@ const MODULE_CONFIGS = {
         ],
         rowActions: [
             { label: 'Preview', hrefBuilder: r => `/api/rfqs/${r.rfq_id}/tender-schedule-preview` },
-            { label: 'Download', hrefBuilder: r => `/api/rfqs/${r.rfq_id}/tender-schedule-document`, download: true },
+            { label: 'Download (Word)', hrefBuilder: r => `/api/rfqs/${r.rfq_id}/tender-schedule-document`, download: true },
+            { label: 'Download (PDF)', hrefBuilder: r => `/api/rfqs/${r.rfq_id}/tender-schedule-pdf`, download: true },
         ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
@@ -364,6 +366,8 @@ const MODULE_CONFIGS = {
     'vendors': {
         title: 'Vendors',
         apiPath: '/vendors',
+        listFilterField: 'rfq_id',      
+        splitLogAndForm: true, 
         listColumns: [
             { key: 'name', label: 'Name' },
             { key: 'contact_person', label: 'Contact' },
@@ -385,6 +389,8 @@ const MODULE_CONFIGS = {
     'quotations': {
         title: 'Quotations Received',
         apiPath: '/quotations',
+        listFilterField: 'rfq_id',      
+        splitLogAndForm: true,          
         listColumns: [
             { key: 'rfq.rfq_number', label: 'RFQ' },
             { key: 'vendor.name', label: 'Vendor' },
@@ -434,12 +440,16 @@ const MODULE_CONFIGS = {
     'tender-openings': {
         title: 'Tender Opening Report',
         apiPath: '/tender-openings',
+        listFilterField: 'rfq_id',      
+        splitLogAndForm: true, 
         listColumns: [
             { key: 'rfq.rfq_number', label: 'RFQ' },
             { key: 'opening_date', label: 'Opening Date' },
         ],
         rowActions: [
-            { label: 'Download', hrefBuilder: r => `/api/tender-openings/${r.id}/document` },
+            { label: 'Preview', hrefBuilder: r => `/api/tender-openings/${r.id}/preview` },
+            { label: 'Download (Word)', hrefBuilder: r => `/api/tender-openings/${r.id}/document`, download: true },
+            { label: 'Download (PDF)', hrefBuilder: r => `/api/tender-openings/${r.id}/pdf`, download: true },
             { label: 'Forward All for Evaluation', request: r => ({
                 path: `/rfqs/${r.rfq_id}/quotations/forward-for-evaluation`,
                 confirm: 'Forward ALL pending quotations of this RFQ for evaluation?',
@@ -503,7 +513,8 @@ const MODULE_CONFIGS = {
         ],
         rowActions: [
             { label: 'Preview', hrefBuilder: r => `/api/eligibility-reports/${r.id}/preview` },
-            { label: 'Download', hrefBuilder: r => `/api/eligibility-reports/${r.id}/document`, download: true },
+            { label: 'Download (Word)', hrefBuilder: r => `/api/eligibility-reports/${r.id}/word`, download: true },
+            { label: 'Download (PDF)', hrefBuilder: r => `/api/eligibility-reports/${r.id}/document`, download: true },
         ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
@@ -540,7 +551,8 @@ const MODULE_CONFIGS = {
         ],
         rowActions: [
             { label: 'Preview', hrefBuilder: r => `/api/technical-evaluation-reports/${r.id}/preview` },
-            { label: 'Download', hrefBuilder: r => `/api/technical-evaluation-reports/${r.id}/document`, download: true },
+            { label: 'Download (Word)', hrefBuilder: r => `/api/technical-evaluation-reports/${r.id}/word`, download: true },
+            { label: 'Download (PDF)', hrefBuilder: r => `/api/technical-evaluation-reports/${r.id}/document`, download: true },
         ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
@@ -606,7 +618,8 @@ const MODULE_CONFIGS = {
         ],
         rowActions: [
             { label: 'Preview', hrefBuilder: r => `/api/financial-evaluation-reports/${r.id}/preview` },
-            { label: 'Download', hrefBuilder: r => `/api/financial-evaluation-reports/${r.id}/document`, download: true },
+            { label: 'Download (Word)', hrefBuilder: r => `/api/financial-evaluation-reports/${r.id}/word`, download: true },
+            { label: 'Download (PDF)', hrefBuilder: r => `/api/financial-evaluation-reports/${r.id}/document`, download: true },
         ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
@@ -641,7 +654,8 @@ const MODULE_CONFIGS = {
         ],
         rowActions: [
             { label: 'Preview', hrefBuilder: r => `/api/comparative-statements/${r.id}/preview` },
-            { label: 'Download', hrefBuilder: r => `/api/comparative-statements/${r.id}/document`, download: true },
+            { label: 'Download (Word)', hrefBuilder: r => `/api/comparative-statements/${r.id}/word`, download: true },
+            { label: 'Download (PDF)', hrefBuilder: r => `/api/comparative-statements/${r.id}/document`, download: true },
         ],
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },

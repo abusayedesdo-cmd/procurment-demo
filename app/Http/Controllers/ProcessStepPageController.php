@@ -89,7 +89,9 @@ class ProcessStepPageController extends Controller
             'subject' => 'Quotations Drop by Vendor',
             'modules' => [
                 ['slug' => 'quotations', 'title' => 'Quotations Received'],
+                ['slug' => 'quotations', 'title' => 'Quotations Received History (All Records)', 'no_context' => true], 
                 ['slug' => 'vendors', 'title' => 'Vendors'],
+                ['slug' => 'vendors', 'title' => 'Vendors History (All Records)', 'no_context' => true],
             ],
         ],
         'quotations-opening' => [
@@ -97,6 +99,7 @@ class ProcessStepPageController extends Controller
             'subject' => 'Quotations Receiving/Opening Report',
             'modules' => [
                 ['slug' => 'tender-openings', 'title' => 'Tender Opening Report'],
+                ['slug' => 'tender-openings', 'title' => 'Tender Opening Report History (All Records)', 'no_context' => true],
                 ['slug' => 'opening-quotation-review', 'title' => 'Quotation Review — Forward for Evaluation / Reject'],
             ],
         ],
@@ -162,6 +165,23 @@ class ProcessStepPageController extends Controller
         $step = self::STEPS[$slug];
         $cases = null;
 
+        $stepStack = session('process_step_stack', []);
+        if (request()->boolean('stepback')) {
+            array_pop($stepStack);
+            if (empty($stepStack) || end($stepStack) !== $slug) {
+                $stepStack = [$slug];
+            }
+        } elseif (empty($stepStack) || end($stepStack) !== $slug) {
+            $stepStack[] = $slug;
+        }
+        if (count($stepStack) > 20) {
+            $stepStack = array_slice($stepStack, -20);
+        }
+        session(['process_step_stack' => $stepStack]);
+
+        $stepBackUrl = count($stepStack) >= 2
+            ? route('process-steps.show', $stepStack[count($stepStack) - 2]) . '?stepback=1'
+            : null;
 
         $activePrId = request()->query('pr_id');
         if (request()->query('clear_pr')) {
@@ -298,6 +318,7 @@ class ProcessStepPageController extends Controller
             'missingSubCommitteeForProject' => $missingSubCommitteeForProject,
             'mainCommitteeId' => $mainCommitteeId,
             'isSubCommitteeHolder' => $isSubCommitteeHolder,
+            'stepBackUrl' => $stepBackUrl,
         ]);
     }
 

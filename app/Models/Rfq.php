@@ -23,6 +23,7 @@ class Rfq extends Model
         'status',
         'finalized_at',
         'finalized_by',
+        'created_by',
     ];
 
     protected $casts = [
@@ -30,6 +31,12 @@ class Rfq extends Model
         'closing_date' => 'date',
         'finalized_at' => 'datetime',
     ];
+
+    /** The user who created this RFQ — the signatory printed on its documents. */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 
     // The officer-selected items from the RFQ Terms & Conditions master
     // list (see rfq-terms-conditions module). If empty, the document

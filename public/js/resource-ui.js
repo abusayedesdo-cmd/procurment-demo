@@ -104,9 +104,13 @@ async function initResourcePage(config) {
             }
 
             if (field.type === 'multi_checkbox') {
+                // Inline styles on purpose: the page-wide `label` (display:block, bottom
+                // margin) and `input` (width:100%, padding) rules would otherwise push the
+                // checkbox onto its own line above the text.
                 const opts = (selectCache[field.name] || []).map(r => `
-                    <label style="display:block; font-size:.85rem; padding:.2rem 0; cursor:pointer;">
-                        <input type="checkbox" class="mc_${field.name}" value="${r.id}"> ${optionLabel(field, r)}
+                    <label style="display:flex; align-items:center; gap:.55rem; margin:0; padding:.3rem 0; font-size:.85rem; font-weight:500; color:var(--ink); cursor:pointer;">
+                        <input type="checkbox" class="mc_${field.name}" value="${r.id}" style="width:auto; flex:0 0 auto; margin:0; padding:0; accent-color:var(--accent);">
+                        <span>${optionLabel(field, r)}</span>
                     </label>`).join('');
                 return `
                     <div class="form-field full-width">
@@ -418,6 +422,68 @@ async function initResourcePage(config) {
                 if (el) el.checked = !!val;
             });
         });
+    }
+
+    function wireQuotationPortalAutofill() {
+        if (config.apiPath !== '/quotations') return;
+        const rfqEl = document.getElementById('field_rfq_id');
+        const vendorEl = document.getElementById('field_vendor_id');
+        if (!rfqEl || !vendorEl) return;
+
+        let cachedRfqId = null;
+        let portalQuotations = [];
+
+        async function loadPortalQuotationsFor(rfqId) {
+            if (cachedRfqId === rfqId) return portalQuotations;
+            try {
+                const { data } = await api.get(`${config.apiPath}?rfq_id=${rfqId}&per_page=100`);
+                portalQuotations = data.filter(q => q.submitted_via_portal);
+            } catch (e) {
+                portalQuotations = [];
+            }
+            cachedRfqId = rfqId;
+            return portalQuotations;
+        }
+
+        async function tryAutofill() {
+            const rfqId = rfqEl.value;
+            const vendorId = vendorEl.value;
+            if (!rfqId || !vendorId) return;
+
+            const matches = await loadPortalQuotationsFor(rfqId);
+            const match = matches.find(q => String(q.vendor_id) === String(vendorId));
+            if (!match) return;
+
+            const textFields = {
+                representative_name: match.representative_name,
+                representative_contact: match.representative_contact,
+                quoted_amount: match.quoted_amount,
+                general_experience: match.general_experience,
+                relevant_experience: match.relevant_experience,
+            };
+            Object.entries(textFields).forEach(([name, val]) => {
+                const el = document.getElementById(`field_${name}`);
+                if (el && val != null) el.value = val;
+            });
+
+            const checkFields = {
+                trade_license_submitted: match.trade_license_submitted,
+                tin_submitted: match.tin_submitted,
+                bin_submitted: match.bin_submitted,
+                terms_accepted: match.terms_accepted,
+                delivery_terms_accepted: match.delivery_terms_accepted,
+                submitted_via_portal: match.submitted_via_portal,
+            };
+            Object.entries(checkFields).forEach(([name, val]) => {
+                const el = document.getElementById(`field_${name}`);
+                if (el) el.checked = !!val;
+            });
+
+            showSuccess(`${match.vendor?.name ?? 'এই ভেন্ডরের'} Vendor Portal সাবমিশন পাওয়া গেছে — নিচের ফিল্ডগুলো সেখান থেকে auto-fill করা হলো। যাচাই করে, Attended/Opening Remarks যোগ করে Save করুন।`);
+        }
+
+        rfqEl.addEventListener('change', tryAutofill);
+        vendorEl.addEventListener('change', tryAutofill);
     }
 
     function renderRowAction(a, row) {
@@ -743,7 +809,8 @@ async function initResourcePage(config) {
         wireAutofill();
         wireCreateShortcuts();
         wirePrItemPicker();
-        wireEligibilityAutofill()
+        wireEligibilityAutofill();
+        wireQuotationPortalAutofill();
         applyQueryPrefill();
     }
 

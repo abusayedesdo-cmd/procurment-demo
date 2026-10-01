@@ -24,12 +24,29 @@ class CommitteeRosterLoginController extends Controller
         $validated = $request->validate([
             'procurement_committee_member_id' => 'required|exists:procurement_committee_members,id',
             'committee_id' => 'required|exists:purchase_committees,id',
-            'email' => 'required|email|unique:users,email',
+            'email' => 'required|email',
             'designation' => 'nullable|string|max:255',
         ]);
 
         $rosterMember = ProcurementCommitteeMember::findOrFail($validated['procurement_committee_member_id']);
         $committee = PurchaseCommittee::findOrFail($validated['committee_id']);
+
+        // Same roster member (e.g. a Procurement Manager who already has a
+        // login from an earlier Sub-Committee) can be added to another
+        // Sub-Committee — just reuse their existing account instead of
+        // failing on the unique-email check or making a second one.
+        $existing = User::where('email', $validated['email'])->first();
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'message' => 'This email already has a login — reusing the existing account.',
+                'data' => [
+                    'user' => $existing,
+                    'password' => null,
+                    'reused' => true,
+                ],
+            ], 200);
+        }
 
         $roleId = Role::where('name', User::PROCUREMENT_OFFICER)->value('id');
         abort_if(! $roleId, 500, '"Procurement Officer" role not found — check the Role seeder.');
@@ -51,6 +68,7 @@ class CommitteeRosterLoginController extends Controller
             'data' => [
                 'user' => $user,
                 'password' => $password,
+                'reused' => false,
             ],
         ], 201);
     }
