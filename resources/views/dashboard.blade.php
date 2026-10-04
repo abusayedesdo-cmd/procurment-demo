@@ -486,12 +486,15 @@
                 </div>
             </a>
 
-            <a class="card-link" href="{{ route('annual-plans.index') }}">
+            {{-- Annual Plan belongs to the Accountant (Budget Checker); Admin keeps access too. --}}
+            @if (in_array($user->roleName() ?? null, [\App\Models\User::BUDGET_CHECKER, \App\Models\User::ADMIN]))
+                <a class="card-link" href="{{ route('annual-plans.index') }}">
                     <div class="card" data-tone="violet">
                         <h3>Annual Plan</h3>
                         <p>{{ $annualPlansCount }}</p>
                     </div>
                 </a>
+            @endif
 
         
  

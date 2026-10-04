@@ -484,12 +484,15 @@
                 </div>
             </a>
 
-            <a class="card-link" href="<?php echo e(route('annual-plans.index')); ?>">
+            
+            <?php if(in_array($user->roleName() ?? null, [\App\Models\User::BUDGET_CHECKER, \App\Models\User::ADMIN])): ?>
+                <a class="card-link" href="<?php echo e(route('annual-plans.index')); ?>">
                     <div class="card" data-tone="violet">
                         <h3>Annual Plan</h3>
                         <p><?php echo e($annualPlansCount); ?></p>
                     </div>
                 </a>
+            <?php endif; ?>
 
         
  

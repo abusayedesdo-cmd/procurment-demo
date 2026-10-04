@@ -433,6 +433,8 @@
                 <?php endif; ?>
                 <?php if(in_array(auth()->user()->roleName(), [\App\Models\User::BUDGET_CHECKER, \App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN])): ?>
                     <a href="<?php echo e(route('budget-dashboard')); ?>">Budget Dashboard</a>
+                <?php endif; ?>
+                <?php if(in_array(auth()->user()->roleName(), [\App\Models\User::BUDGET_CHECKER, \App\Models\User::ADMIN])): ?>
                     <a href="<?php echo e(route('annual-plans.index')); ?>">Annual Plan</a>
                 <?php endif; ?>
                 <?php if(in_array(auth()->user()->roleName(), [\App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN])): ?>

@@ -217,7 +217,7 @@ class MeetingController extends Controller
      */
     private function emailAttendanceConfirmation(Meeting $meeting, array $attendees): array
     {
-        $meeting->load('procurementCase');
+        $meeting->load('procurementCase.purchaseRequisition', 'recordedBy');
 
         $memberIds = array_values(array_unique(array_filter(
             array_column($attendees, 'committee_member_id')
@@ -240,12 +240,34 @@ class MeetingController extends Controller
             $recipients[strtolower($email)] ??= [$email, $a['name'], $a['designation']];
         }
 
+        // The user who is recording the attendance = the sender shown in the e-mail.
+        $sender = Auth::user();
+        $senderName = $sender?->name;
+        $senderDesignation = $sender?->designation;
+
         if ($recipients) {
-            $this->afterResponse(function () use ($meeting, $recipients) {
+            $this->afterResponse(function () use ($meeting, $recipients, $senderName, $senderDesignation) {
+                // Build the PR PDF once (not per recipient). If it can't be built the
+                // confirmation still goes out, just without the attachment.
+                $pr = $meeting->procurementCase?->purchaseRequisition;
+                $prNumber = $pr?->pr_number;
+                $prPdf = null;
+                if ($pr) {
+                    try {
+                        $prPdf = app(\App\Http\Controllers\Api\DocumentDownloadController::class)
+                            ->purchaseRequisitionPdfBytes($pr);
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('PR PDF for attendance email failed', [
+                            'meeting_id' => $meeting->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
                 foreach ($recipients as [$email, $name, $designation]) {
                     try {
                         \Illuminate\Support\Facades\Mail::to($email)
-                            ->send(new \App\Mail\MeetingAttendanceMail($meeting, $name, $designation));
+                            ->send(new \App\Mail\MeetingAttendanceMail($meeting, $name, $designation, $prNumber, $prPdf, $senderName, $senderDesignation));
                     } catch (\Throwable $e) {
                         \Illuminate\Support\Facades\Log::warning('Attendance confirmation email failed', [
                             'meeting_id' => $meeting->id,
@@ -431,12 +453,17 @@ class MeetingController extends Controller
             }
         }
 
+        // The user who is sending the notice = the sender shown in the e-mail.
+        $sender = Auth::user();
+        $senderName = $sender?->name;
+        $senderDesignation = $sender?->designation;
+
         if ($recipients) {
-            $this->afterResponse(function () use ($meeting, $recipients) {
+            $this->afterResponse(function () use ($meeting, $recipients, $senderName, $senderDesignation) {
                 foreach ($recipients as $email => $name) {
                     try {
                         \Illuminate\Support\Facades\Mail::to($email)
-                            ->send(new \App\Mail\MeetingNoticeMail($meeting, $name));
+                            ->send(new \App\Mail\MeetingNoticeMail($meeting, $name, $senderName, $senderDesignation));
                     } catch (\Throwable $e) {
                         \Illuminate\Support\Facades\Log::warning('Meeting notice email failed', [
                             'meeting_id' => $meeting->id,

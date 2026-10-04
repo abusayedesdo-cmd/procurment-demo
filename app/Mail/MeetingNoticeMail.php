@@ -13,8 +13,12 @@ class MeetingNoticeMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public Meeting $meeting, public string $recipientName)
-    {
+    public function __construct(
+        public Meeting $meeting,
+        public string $recipientName,
+        public ?string $senderName = null,
+        public ?string $senderDesignation = null,
+    ) {
     }
 
     public function envelope(): Envelope
@@ -34,6 +38,9 @@ class MeetingNoticeMail extends Mailable
             with: [
                 'meeting' => $this->meeting,
                 'recipientName' => $this->recipientName,
+                // The user who sent this notice — name + own designation (never the role).
+                'authorName' => $this->senderName ?: $this->meeting->recordedBy?->name,
+                'authorDesignation' => $this->senderName ? $this->senderDesignation : $this->meeting->recordedBy?->designation,
             ],
         );
     }

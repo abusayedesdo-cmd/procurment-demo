@@ -33,6 +33,12 @@
             <tr><td class="label">Date</td><td>{{ optional($meeting->meeting_date)->format('d F, Y') }}</td></tr>
             <tr><td class="label">Time</td><td>{{ $meeting->meeting_time ?? '—' }}</td></tr>
             <tr><td class="label">Location</td><td>{{ $meeting->location }}</td></tr>
+            @if (!empty($authorName))
+                <tr>
+                    <td class="label">Sent by</td>
+                    <td>{{ $authorName }}@if (!empty($authorDesignation)), {{ $authorDesignation }}@endif</td>
+                </tr>
+            @endif
         </table>
 
         <div class="agenda-box">
@@ -43,6 +49,15 @@
         <p style="margin-top:20px;">Please make yourself available at the above date, time, and location.</p>
 
         <p>Thank you.</p>
+
+        @if (!empty($authorName))
+            <p style="margin-top:18px">
+                Regards,<br>
+                <strong>{{ $authorName }}</strong>
+                @if (!empty($authorDesignation))<br>{{ $authorDesignation }}@endif
+                <br>Central Procurement Committee, ESDO
+            </p>
+        @endif
 
         <div class="footer">
             This is a system-generated notice from the ESDO Procurement Management System.

@@ -185,12 +185,13 @@ const MODULE_CONFIGS = {
         ],
         rowActions: [
             { label: 'Manage Items', hrefBuilder: r => `/modules/rfq-items?new=1&field_rfq_id=${r.id}&context_label=${encodeURIComponent('RFQ ' + r.rfq_number)}` },
-            { label: 'Preview RFQ', hrefBuilder: r => `/api/rfqs/${r.id}/preview` },
-            { label: 'Download RFQ (Word)', hrefBuilder: r => `/api/rfqs/${r.id}/document`, download: true },
-            { label: 'Download RFQ (PDF)', hrefBuilder: r => `/api/rfqs/${r.id}/pdf`, download: true },
-            { label: 'Preview Schedule', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-preview` },
-            { label: 'Download Schedule (Word)', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-document`, download: true },
-            { label: 'Download Schedule (PDF)', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-pdf`, download: true },
+            // All RFQ + Tender Schedule documents live in one "Documents" menu (Preview opens the PDF).
+            { group: 'Documents', section: 'RFQ', label: 'Preview', hrefBuilder: r => `/api/rfqs/${r.id}/preview` },
+            { group: 'Documents', section: 'RFQ', label: 'Word', hrefBuilder: r => `/api/rfqs/${r.id}/document`, download: true },
+            { group: 'Documents', section: 'RFQ', label: 'PDF', hrefBuilder: r => `/api/rfqs/${r.id}/pdf`, download: true },
+            { group: 'Documents', section: 'Tender Schedule', label: 'Preview', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-preview` },
+            { group: 'Documents', section: 'Tender Schedule', label: 'Word', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-document`, download: true },
+            { group: 'Documents', section: 'Tender Schedule', label: 'PDF', hrefBuilder: r => `/api/rfqs/${r.id}/tender-schedule-pdf`, download: true },
             { label: 'Copy Vendor Link', copyBuilder: r => r.public_token ? `${window.location.origin}/vendor-portal/${r.public_token}` : null },
             { label: 'Finalize RFQ', request: r => r.status === 'finalized' ? null : ({
                 path: `/rfqs/${r.id}/finalize`,

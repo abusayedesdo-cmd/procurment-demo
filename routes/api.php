@@ -178,10 +178,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('procurement-annual-plans', [ProcurementAnnualPlanController::class, 'index']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}', [ProcurementAnnualPlanController::class, 'show']);
     Route::get('procurement-annual-plans/{procurementAnnualPlan}/packages', [ProcurementPlanPackageController::class, 'index']);
-    Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf', [DocumentDownloadController::class, 'annualPlanPdf']);
-    Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf/preview', [DocumentDownloadController::class, 'annualPlanPdfPreview']);
-    Route::get('procurement-annual-plans/{procurementAnnualPlan}/word', [DocumentDownloadController::class, 'annualPlanWord']);
-    Route::get('procurement-annual-plans/{procurementAnnualPlan}/excel', [DocumentDownloadController::class, 'annualPlanExcel']);
+    // Annual Plan documents (PDF / Word / Excel) — Accountant (Budget Checker) and Admin only.
+    Route::middleware('role:budget_checker,admin')->group(function () {
+        Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf', [DocumentDownloadController::class, 'annualPlanPdf']);
+        Route::get('procurement-annual-plans/{procurementAnnualPlan}/pdf/preview', [DocumentDownloadController::class, 'annualPlanPdfPreview']);
+        Route::get('procurement-annual-plans/{procurementAnnualPlan}/word', [DocumentDownloadController::class, 'annualPlanWord']);
+        Route::get('procurement-annual-plans/{procurementAnnualPlan}/excel', [DocumentDownloadController::class, 'annualPlanExcel']);
+    });
 
     // District/Upazila lookups — readable by everyone logged in. These back
     // the Annual Plan create form (Accountant/budget_checker) as well as

@@ -433,6 +433,8 @@
                 @endif
                 @if (in_array(auth()->user()->roleName(), [\App\Models\User::BUDGET_CHECKER, \App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN]))
                     <a href="{{ route('budget-dashboard') }}">Budget Dashboard</a>
+                @endif
+                @if (in_array(auth()->user()->roleName(), [\App\Models\User::BUDGET_CHECKER, \App\Models\User::ADMIN]))
                     <a href="{{ route('annual-plans.index') }}">Annual Plan</a>
                 @endif
                 @if (in_array(auth()->user()->roleName(), [\App\Models\User::PROCUREMENT_OFFICER, \App\Models\User::ADMIN]))

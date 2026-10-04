@@ -43,9 +43,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/committee-work', [CommitteeWorkController::class, 'index'])->name('committee-work.index');
     Route::get('/budget-dashboard', [BudgetDashboardPageController::class, 'index'])->name('budget-dashboard');
-    Route::get('/annual-plans', [AnnualPlanPageController::class, 'index'])->name('annual-plans.index');
-    Route::get('/annual-plans/create', [AnnualPlanPageController::class, 'create'])->name('annual-plans.create');
-    Route::get('/annual-plans/{id}', [AnnualPlanPageController::class, 'show'])->name('annual-plans.show');
+    // Annual Plan module — Accountant (Budget Checker) only; Admin keeps access.
+    Route::middleware('role:budget_checker,admin')->group(function () {
+        Route::get('/annual-plans', [AnnualPlanPageController::class, 'index'])->name('annual-plans.index');
+        Route::get('/annual-plans/create', [AnnualPlanPageController::class, 'create'])->name('annual-plans.create');
+        Route::get('/annual-plans/{id}', [AnnualPlanPageController::class, 'show'])->name('annual-plans.show');
+    });
 
     Route::prefix('purchase-requisitions')->name('purchase-requisitions.')->group(function () {
         Route::get('/', [PurchaseRequisitionPageController::class, 'index'])->name('index');

@@ -607,6 +607,17 @@ class DocumentDownloadController extends Controller
         ];
     }
 
+    /**
+     * The Purchase Requisition as PDF bytes — same layout as its "Download PDF"
+     * button. Used to attach the PR to the meeting attendance e-mail.
+     */
+    public function purchaseRequisitionPdfBytes(PurchaseRequisition $purchaseRequisition): string
+    {
+        $spec = $this->buildPurchaseRequisition($purchaseRequisition);
+
+        return Pdf::loadView($spec['view'], $spec['data'])->setPaper('a4', 'portrait')->output();
+    }
+
     /** Word (.docx) download of the Purchase Requisition. */
     public function purchaseRequisitionWord(PurchaseRequisition $purchaseRequisition)
     {

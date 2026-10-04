@@ -29,7 +29,55 @@ function formatCell(value) {
     return value;
 }
 
+// Shared look for every module's Log table: grouped action menus, status badges and a
+// card layout on phones (no sideways scrolling). Injected once per page.
+function injectResourceUiStyles() {
+    if (document.getElementById('resource-ui-styles')) return;
+    const css = `
+    .act-wrap { display:flex; flex-wrap:wrap; gap:.4rem; align-items:flex-start; }
+    .act-wrap .btn { padding:.35rem .7rem; font-size:.8rem; white-space:nowrap; }
+    .act-menu { display:inline-block; }
+    .act-menu > summary { list-style:none; cursor:pointer; user-select:none; }
+    .act-menu > summary::-webkit-details-marker { display:none; }
+    .act-menu[open] > summary { background:var(--surface); border-color:#CBD5E1; }
+    .act-pop { margin-top:.4rem; padding:.55rem .65rem; border:1px solid var(--line); border-radius:10px; background:var(--surface); min-width:230px; }
+    .act-sec + .act-sec { border-top:1px solid var(--line); margin-top:.45rem; padding-top:.45rem; }
+    .act-sec-title { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--muted); margin-bottom:.3rem; }
+    .act-links { display:flex; flex-wrap:wrap; gap:.35rem; }
+    .act-link { display:inline-block; padding:.3rem .65rem; border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--ink); font-size:.78rem; font-weight:600; text-decoration:none; }
+    .act-link:hover { border-color:var(--accent); color:var(--accent); }
+    .st-badge { display:inline-block; padding:.12rem .6rem; border-radius:999px; font-size:.75rem; font-weight:600; background:#EEF2F7; color:#334155; text-transform:capitalize; }
+    .st-badge.st-finalized, .st-badge.st-approved, .st-badge.st-completed, .st-badge.st-active { background:#DCFCE7; color:#166534; }
+    .st-badge.st-rejected, .st-badge.st-cancelled, .st-badge.st-failed { background:#FEE2E2; color:#991B1B; }
+    .st-badge.st-pending, .st-badge.st-submitted { background:#FEF3C7; color:#92400E; }
+    @media (max-width: 760px) {
+        table.resp-table, .resp-table tbody, .resp-table tr, .resp-table td { display:block; width:100%; }
+        .resp-table thead { display:none; }
+        .resp-table tr { border:1px solid var(--line); border-radius:12px; padding:.55rem .9rem; margin-bottom:.8rem; background:#fff; }
+        .resp-table tbody tr:hover td { background:transparent; }
+        .resp-table td { border:0; padding:.3rem 0; display:flex; justify-content:space-between; align-items:baseline; gap:.75rem; text-align:right; }
+        .resp-table td::before { content:attr(data-label); flex:0 0 36%; text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:700; color:var(--muted); }
+        .resp-table td.act-cell { display:block; text-align:left; border-top:1px solid var(--line); margin-top:.45rem; padding-top:.65rem; }
+        .resp-table td.act-cell::before { display:none; }
+        .act-wrap .btn, .act-link { padding:.5rem .85rem; font-size:.85rem; }
+        .act-menu { display:block; width:100%; }
+        .act-menu > summary { text-align:center; }
+    }`;
+    const el = document.createElement('style');
+    el.id = 'resource-ui-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+    // Opening one action menu closes the others.
+    document.addEventListener('toggle', e => {
+        const d = e.target;
+        if (d && d.classList && d.classList.contains('act-menu') && d.open) {
+            document.querySelectorAll('details.act-menu[open]').forEach(o => { if (o !== d) o.open = false; });
+        }
+    }, true);
+}
+
 async function initResourcePage(config) {
+    injectResourceUiStyles();
     const root = document.getElementById('resourceRoot');
     root.innerHTML = '<div class="state-panel">Loading…</div>';
 
@@ -559,6 +607,47 @@ async function initResourcePage(config) {
         return `<a href="${href}" class="btn secondary" style="padding:.3rem .6rem; font-size:.8rem;" ${attrs}>${a.label}</a>`;
     }
 
+    // Row actions. An action with `group: 'Documents'` (and optional `section: 'RFQ'`) is
+    // folded into ONE "Documents ▾" menu instead of its own button — keeps rows with many
+    // links tidy. The menu sits where the group's first action was listed.
+    function renderRowActions(row) {
+        const loose = [];
+        const groups = {};
+        (config.rowActions || []).forEach(a => {
+            if (a.group) {
+                if (!groups[a.group]) { groups[a.group] = []; loose.push({ __group: a.group }); }
+                groups[a.group].push(a);
+            } else {
+                loose.push(a);
+            }
+        });
+        const html = loose
+            .map(item => item.__group ? renderActionGroup(item.__group, groups[item.__group], row) : renderRowAction(item, row))
+            .filter(Boolean)
+            .join('');
+        return `<div class="act-wrap">${html}</div>`;
+    }
+
+    function renderActionGroup(name, items, row) {
+        const sections = [];
+        items.forEach(a => {
+            const href = a.hrefBuilder ? a.hrefBuilder(row) : null;
+            if (!href) return;
+            const title = a.section || '';
+            let sec = sections.find(x => x.title === title);
+            if (!sec) { sec = { title, links: [] }; sections.push(sec); }
+            const attrs = a.download ? 'download' : 'target="_blank" rel="noopener"';
+            sec.links.push(`<a href="${href}" class="act-link" ${attrs}>${a.label}</a>`);
+        });
+        if (!sections.length) return '';
+        const body = sections.map(x => `
+            <div class="act-sec">
+                ${x.title ? `<div class="act-sec-title">${x.title}</div>` : ''}
+                <div class="act-links">${x.links.join('')}</div>
+            </div>`).join('');
+        return `<details class="act-menu"><summary class="btn secondary">${name} &#9662;</summary><div class="act-pop">${body}</div></details>`;
+    }
+
     function getListFilterQuery() {
         if (!config.listFilterField) return '';
         const ctxVal = window.moduleContext && window.moduleContext.filterValue;
@@ -592,7 +681,7 @@ async function initResourcePage(config) {
                     <div style="font-size:.9rem; font-weight:600;">${formatCell(getByPath(row, c.key))}</div>
                 </div>`).join('');
             const actions = config.rowActions
-                ? `<div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.85rem;">${config.rowActions.map(a => renderRowAction(a, row)).join(' ')}</div>`
+                ? `<div style="margin-top:.85rem;">${renderRowActions(row)}</div>`
                 : '';
             return `
                 <div style="border:1px solid var(--line); border-radius:10px; padding:1rem 1.1rem; margin-bottom:.85rem;">
@@ -653,9 +742,15 @@ async function initResourcePage(config) {
                 return;
             }
             tbody.innerHTML = data.map(row => {
-                const cells = config.listColumns.map(c => `<td>${formatCell(getByPath(row, c.key))}</td>`).join('');
+                const cells = config.listColumns.map(c => {
+                    const raw = getByPath(row, c.key);
+                    const shown = (c.key === 'status' && typeof raw === 'string' && raw)
+                        ? `<span class="st-badge st-${raw.toLowerCase().replace(/[^a-z0-9]+/g, '-')}">${raw}</span>`
+                        : formatCell(raw);
+                    return `<td data-label="${c.label}"><span>${shown}</span></td>`;
+                }).join('');
                 const actions = config.rowActions
-                    ? `<td>${config.rowActions.map(a => renderRowAction(a, row)).join(' ')}</td>`
+                    ? `<td class="act-cell" data-label="Action">${renderRowActions(row)}</td>`
                     : '';
                 return `<tr>${cells}${actions}</tr>`;
             }).join('');
@@ -741,7 +836,7 @@ async function initResourcePage(config) {
                 <input type="text" id="logSearchInput" placeholder="Search…" class="input" style="width:100%; max-width:320px;">
             </div>
             <div style="overflow-x:auto; margin-top:1rem;">
-                <table>
+                <table class="resp-table">
                     <thead><tr>${config.listColumns.map(c => `<th>${c.label}</th>`).join('')}${config.rowActions ? '<th>Action</th>' : ''}</tr></thead>
                     <tbody id="listBody"><tr><td colspan="${config.listColumns.length + (config.rowActions ? 1 : 0)}" class="muted">Loading…</td></tr></tbody>
                 </table>

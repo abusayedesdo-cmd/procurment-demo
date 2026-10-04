@@ -28,12 +28,37 @@
 
         <table class="meta">
             <tr><td class="label">Case Reference</td><td>{{ $meeting->procurementCase->ref ?? '—' }}</td></tr>
+            @if (!empty($prNumber))
+                <tr><td class="label">PR No.</td><td>{{ $prNumber }}</td></tr>
+            @endif
             <tr><td class="label">Attendance No.</td><td>{{ $meeting->attendance_number ?? '—' }}</td></tr>
             <tr><td class="label">Date</td><td>{{ optional($meeting->meeting_date)->format('d F, Y') }}</td></tr>
             <tr><td class="label">Designation (this meeting)</td><td>{{ $designation }}</td></tr>
+            @if (!empty($authorName))
+                <tr>
+                    <td class="label">Sent by</td>
+                    <td>{{ $authorName }}@if (!empty($authorDesignation)), {{ $authorDesignation }}@endif</td>
+                </tr>
+            @endif
         </table>
 
+        @if (!empty($hasPrAttachment))
+            <p>
+                The Purchase Requisition (<strong>{{ $prNumber }}</strong>) for this meeting is attached to this
+                email as a PDF — open the attachment to view or download it.
+            </p>
+        @endif
+
         <p>Thank you for attending.</p>
+
+        @if (!empty($authorName))
+            <p style="margin-top:18px">
+                Regards,<br>
+                <strong>{{ $authorName }}</strong>
+                @if (!empty($authorDesignation))<br>{{ $authorDesignation }}@endif
+                <br>Central Procurement Committee, ESDO
+            </p>
+        @endif
 
         <div class="footer">
             This is a system-generated confirmation from the ESDO Procurement Management System.
