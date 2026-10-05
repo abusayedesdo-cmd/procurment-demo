@@ -25,21 +25,15 @@ class MeetingAttendanceDocumentBuilder
         $phpWord = $this->newPhpWord();
         $section = $this->addSection($phpWord);
 
-        $this->addLetterhead($section, 'Eco-Social Development Organization (ESDO)');
-        $section->addText(
-            'House # 748, Baitul Aman Housing Society, Road # 8, Adabor, Dhaka-1207',
-            ['bold' => true, 'color' => '1F4E9C', 'size' => 10], $this->c()
-        );
-        $section->addText('Gobindanagar (Collegepara), Thakurgaon-5100', ['bold' => true, 'color' => '1F4E9C', 'size' => 10], $this->c());
-        $section->addTextBreak(1);
+        // The ESDO pad (header with logo/name, footer with addresses) is added to the file after it is written.
 
         $meta = $section->addTable(['borderSize' => 0, 'cellMargin' => 0]);
         $meta->addRow();
-        $left = $meta->addCell(6300);
+        $left = $meta->addCell(6200);
         $leftRun = $left->addTextRun();
         $leftRun->addText('Attendance Number: ', $this->b());
         $leftRun->addText((string) $meeting->attendance_number, ['italic' => true]);
-        $right = $meta->addCell(2700);
+        $right = $meta->addCell(2680);
         $rightRun = $right->addTextRun(['alignment' => 'end']);
         $rightRun->addText('Attendance Date: ', $this->b());
         $rightRun->addText($meeting->meeting_date->format('d F, Y'), ['italic' => true]);
@@ -60,8 +54,8 @@ class MeetingAttendanceDocumentBuilder
             ['Total Amount of Purchase Requisition (PR):', number_format(Txt::totalAmount($case), 2) . ' Tk'],
         ] as [$label, $value]) {
             $sumTable->addRow();
-            $sumTable->addCell(4600)->addText($label);
-            $sumTable->addCell(4400)->addText($value, ['italic' => true]);
+            $sumTable->addCell(4500)->addText($label);
+            $sumTable->addCell(4380)->addText($value, ['italic' => true]);
         }
 
         $section->addText('Meeting Agenda:', array_merge($this->b(), ['size' => 10.5, 'underline' => 'single']));
@@ -70,7 +64,7 @@ class MeetingAttendanceDocumentBuilder
         $section->addText('Attendance of Procurement Committee Meeting:', array_merge($this->b(), ['size' => 10.5, 'underline' => 'single']));
         $table = $section->addTable($this->borderedTableStyle());
         $table->addRow();
-        foreach ([['Sl. No.', 800], ['Name', 3000], ['Designation', 2400], ['Signature', 2000], ['Remarks', 1800]] as [$h, $w]) {
+        foreach ([['Sl. No.', 700], ['Name', 2600], ['Designation', 2100], ['Signature', 1700], ['Remarks', 1780]] as [$h, $w]) {
             $table->addCell($w, $this->headerCellStyle())->addText($h, $this->b());
         }
 
@@ -78,20 +72,20 @@ class MeetingAttendanceDocumentBuilder
         if ($attendees->isEmpty()) {
             for ($i = 0; $i < 4; $i++) {
                 $table->addRow();
-                $table->addCell(800)->addText(str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT), [], $this->c());
-                $table->addCell(3000)->addText('');
-                $table->addCell(2400)->addText('');
-                $table->addCell(2000)->addText('');
-                $table->addCell(1800)->addText('');
+                $table->addCell(700)->addText(str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT), [], $this->c());
+                $table->addCell(2600)->addText('');
+                $table->addCell(2100)->addText('');
+                $table->addCell(1700)->addText('');
+                $table->addCell(1780)->addText('');
             }
         } else {
             foreach ($attendees as $i => $attendee) {
                 $table->addRow();
-                $table->addCell(800)->addText(str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT), [], $this->c());
-                $table->addCell(3000)->addText($attendee->name);
-                $table->addCell(2400)->addText($attendee->designation);
-                $table->addCell(2000)->addText('');
-                $table->addCell(1800)->addText((string) $attendee->remarks);
+                $table->addCell(700)->addText(str_pad((string) ($i + 1), 2, '0', STR_PAD_LEFT), [], $this->c());
+                $table->addCell(2600)->addText($attendee->name);
+                $table->addCell(2100)->addText($attendee->designation);
+                $table->addCell(1700)->addText('');
+                $table->addCell(1780)->addText((string) $attendee->remarks);
             }
         }
 

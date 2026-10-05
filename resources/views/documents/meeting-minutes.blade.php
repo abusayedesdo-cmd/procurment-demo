@@ -1,6 +1,3 @@
-@extends('documents.layout')
-
-@section('content')
 @php
     use App\Services\CommitteeDocumentText as Txt;
 @endphp
@@ -10,14 +7,8 @@
     <meta charset="utf-8">
     <title>Rezulation/Minutes {{ $meeting->rezulation_no }}</title>
     <style>
-        @page { margin: 22px 28px 40px 28px; }
+        @include('documents._pad-css')
         body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #111; margin: 0; }
-
-        .letterhead { width: 100%; position: relative; min-height: 54px; margin-bottom: 6px; }
-        .letterhead img { position: absolute; left: 0; top: 2px; height: 48px; width: auto; }
-        .org-name { margin-left: 60px; font-size: 17px; font-weight: bold; color: #111; line-height: 1.25; padding-top: 4px; }
-
-        .address { text-align: center; font-size: 12.5px; font-weight: bold; color: #1f4e9c; line-height: 1.35; margin: 2px 0 10px; }
 
         table.plain { width: 100%; border-collapse: collapse; margin: 4px 0; }
         table.plain td { border: none; padding: 1px 0; vertical-align: top; }
@@ -43,32 +34,10 @@
         .sig-block { margin-top: 26px; }
         .sig-block p { margin: 2px 0; }
 
-        .page-footer {
-            position: fixed;
-            bottom: -28px; left: 0; right: 0;
-            text-align: right;
-            font-size: 9px;
-            color: #555;
-            border-top: 1px solid #ccc;
-            padding-top: 4px;
-        }
-        .page-footer:after { content: counter(page) " | Page"; }
     </style>
 </head>
 <body>
-    <div class="page-footer"></div>
-
-    <div class="letterhead">
-        @if (file_exists(public_path('img/esdo-logo.png')))
-            <img src="{{ public_path('img/esdo-logo.png') }}">
-        @endif
-        <div class="org-name">Eco-Social Development Organization (ESDO)</div>
-    </div>
-
-    <div class="address">
-        House # 748, Baitul Aman Housing Society, Road # 8, Adabor, Dhaka-1207<br>
-        Gobindanagar (Collegepara), Thakurgaon-5100
-    </div>
+    @include('documents._pad')
 
     <p><span class="bold">Rezulation/Minutes Number:</span> <i>{{ $meeting->rezulation_no }}</i></p>
 

@@ -85,8 +85,6 @@ class EligibilityReportItemController extends Controller
             && ($validated['bin_verified'] ?? false)
             && ($validated['psr_verified'] ?? false);
 
-        $eligibilityReportItem = EligibilityReportItem::create($validated);
-
         $eligibilityReportItem->update($validated);
 
         return response()->json([

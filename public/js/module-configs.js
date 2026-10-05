@@ -513,6 +513,10 @@ const MODULE_CONFIGS = {
             { key: 'prepared_by.name', label: 'Prepared By' },
         ],
         rowActions: [
+            { label: 'Load Vendors from Quotations', request: r => ({
+                path: `/eligibility-reports/${r.id}/sync-vendors`,
+                confirm: 'Add a result row for every quotation of this RFQ that is not on the report yet?',
+            }) },
             { label: 'Preview', hrefBuilder: r => `/api/eligibility-reports/${r.id}/preview` },
             { label: 'Download (Word)', hrefBuilder: r => `/api/eligibility-reports/${r.id}/word`, download: true },
             { label: 'Download (PDF)', hrefBuilder: r => `/api/eligibility-reports/${r.id}/document`, download: true },
@@ -551,6 +555,10 @@ const MODULE_CONFIGS = {
             { key: 'prepared_by.name', label: 'Prepared By' },
         ],
         rowActions: [
+            { label: 'Load Vendors', request: r => ({
+                path: `/technical-evaluation-reports/${r.id}/sync-vendors`,
+                confirm: 'Add a score row for every eligible vendor that is not on this report yet?',
+            }) },
             { label: 'Preview', hrefBuilder: r => `/api/technical-evaluation-reports/${r.id}/preview` },
             { label: 'Download (Word)', hrefBuilder: r => `/api/technical-evaluation-reports/${r.id}/word`, download: true },
             { label: 'Download (PDF)', hrefBuilder: r => `/api/technical-evaluation-reports/${r.id}/document`, download: true },
@@ -618,6 +626,10 @@ const MODULE_CONFIGS = {
             { key: 'prepared_by.name', label: 'Prepared By' },
         ],
         rowActions: [
+            { label: 'Load Vendors', request: r => ({
+                path: `/financial-evaluation-reports/${r.id}/sync-vendors`,
+                confirm: 'Add an amount row for every technically evaluated vendor that is not on this report yet?',
+            }) },
             { label: 'Preview', hrefBuilder: r => `/api/financial-evaluation-reports/${r.id}/preview` },
             { label: 'Download (Word)', hrefBuilder: r => `/api/financial-evaluation-reports/${r.id}/word`, download: true },
             { label: 'Download (PDF)', hrefBuilder: r => `/api/financial-evaluation-reports/${r.id}/document`, download: true },
@@ -654,6 +666,10 @@ const MODULE_CONFIGS = {
             { key: 'lowest_evaluated_vendor.name', label: 'Lowest Evaluated Vendor' },
         ],
         rowActions: [
+            { label: 'Load Vendors', request: r => ({
+                path: `/comparative-statements/${r.id}/sync-vendors`,
+                confirm: 'Add every vendor of the Financial Evaluation that is not on this statement yet, then recalculate marks, ranks and the winner?',
+            }) },
             { label: 'Preview', hrefBuilder: r => `/api/comparative-statements/${r.id}/preview` },
             { label: 'Download (Word)', hrefBuilder: r => `/api/comparative-statements/${r.id}/word`, download: true },
             { label: 'Download (PDF)', hrefBuilder: r => `/api/comparative-statements/${r.id}/document`, download: true },

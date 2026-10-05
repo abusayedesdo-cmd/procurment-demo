@@ -1,8 +1,6 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Purchase Requisitions'); ?>
 
-@section('title', 'Purchase Requisitions')
-
-@section('styles')
+<?php $__env->startSection('styles'); ?>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
 
@@ -279,19 +277,19 @@
         .page-header { flex-direction: column; align-items: flex-start; }
     }
 </style>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
     <div class="shell">
         <div class="page-header">
             <div>
                 <p class="eyebrow">Procurement</p>
                 <h1 id="pageTitle">Purchase Requisitions</h1>
             </div>
-            <a href="{{ route('dashboard') }}" id="backLink" class="btn secondary" style="display:none">← Back to Dashboard</a>
-            @if (auth()->user()->isPrCreator())
-                <a href="{{ route('purchase-requisitions.create') }}" id="newPrBtn" class="btn primary">+ New PR</a>
-            @endif
+            <a href="<?php echo e(route('dashboard')); ?>" id="backLink" class="btn secondary" style="display:none">← Back to Dashboard</a>
+            <?php if(auth()->user()->isPrCreator()): ?>
+                <a href="<?php echo e(route('purchase-requisitions.create')); ?>" id="newPrBtn" class="btn primary">+ New PR</a>
+            <?php endif; ?>
         </div>
 
         <div class="panel">
@@ -311,27 +309,27 @@
                             <th>Date</th>
                             <th class="num">Total (৳)</th>
                             <th>Status</th>
-                            @if (auth()->user()->canManageProcurement())
+                            <?php if(auth()->user()->canManageProcurement()): ?>
                                 <th>Action</th>
-                            @endif
+                            <?php endif; ?>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody id="prTableBody">
-                        <tr><td colspan="{{ auth()->user()->canManageProcurement() ? 8 : 7 }}" class="muted-cell">Loading…</td></tr>
+                        <tr><td colspan="<?php echo e(auth()->user()->canManageProcurement() ? 8 : 7); ?>" class="muted-cell">Loading…</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('scripts')
+<?php $__env->startSection('scripts'); ?>
 <script>
     const tbody = document.getElementById('prTableBody');
     const errorBox = document.getElementById('errorBox');
     const statusFilters = document.getElementById('statusFilters');
-    const CAN_MANAGE_PROCUREMENT = @json(auth()->user()->canManageProcurement());
+    const CAN_MANAGE_PROCUREMENT = <?php echo json_encode(auth()->user()->canManageProcurement(), 15, 512) ?>;
     const COLSPAN = CAN_MANAGE_PROCUREMENT ? 8 : 7;const currentUserRole = window.currentUserRole;
     const HIGH_VALUE_THRESHOLD = 750000; // keep in sync with PrApprovalController
 
@@ -563,4 +561,5 @@
 
     loadPrs();
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/purchase-requisitions/index.blade.php ENDPATH**/ ?>

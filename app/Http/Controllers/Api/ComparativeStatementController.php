@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ComparativeStatement;
 use App\Models\Rfq;
+use App\Services\EvaluationVendorSeeder;
 use App\Support\CommitteeScope;
 use Illuminate\Http\Request;
 
@@ -69,11 +70,40 @@ class ComparativeStatementController extends Controller
 
         $comparativeStatement = ComparativeStatement::create($validated);
 
+        // Vendor rows used to be typed in one by one, so a new statement printed "[No comparative items recorded yet]".
+        $seeded = EvaluationVendorSeeder::seedComparative($comparativeStatement);
+
         return response()->json([
             'success' => true,
-            'message' => 'ComparativeStatement created successfully',
-            'data' => $comparativeStatement,
+            'message' => $seeded > 0
+                ? "Comparative Statement created with {$seeded} vendor(s), marks and ranking loaded from the evaluations"
+                : 'Comparative Statement created — no vendors to load yet (Financial Evaluation is empty); use "Load Vendors" once it is filled',
+            'data' => $comparativeStatement->load('items'),
         ], 201);
+    }
+
+    /**
+     * POST comparative-statements/{id}/sync-vendors — adds the vendors that are on the Financial
+     * Evaluation but not on this statement yet, then recalculates total marks, ranks and the winner.
+     */
+    public function syncVendors(ComparativeStatement $comparativeStatement)
+    {
+        $comparativeStatement->loadMissing('rfq.procurementCase');
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $comparativeStatement->rfq?->procurementCase),
+            403,
+            'This case is currently with a different committee.'
+        );
+
+        $seeded = EvaluationVendorSeeder::seedComparative($comparativeStatement);
+
+        return response()->json([
+            'success' => true,
+            'message' => $seeded > 0
+                ? "{$seeded} vendor(s) loaded and ranked"
+                : 'No new vendors to add — every vendor of the Financial Evaluation is already on this statement',
+            'data' => $comparativeStatement->load('items'),
+        ]);
     }
 
     public function update(Request $request, ComparativeStatement $comparativeStatement)

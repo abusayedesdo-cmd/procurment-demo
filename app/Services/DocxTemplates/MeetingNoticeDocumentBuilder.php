@@ -26,13 +26,7 @@ class MeetingNoticeDocumentBuilder
         $phpWord = $this->newPhpWord();
         $section = $this->addSection($phpWord);
 
-        $this->addLetterhead($section, 'Eco-Social Development Organization (ESDO)');
-        $section->addText(
-            'House # 748, Baitul Aman Housing Society, Road # 8, Adabor, Dhaka-1207',
-            ['bold' => true, 'color' => '1F4E9C', 'size' => 10.5], $this->c()
-        );
-        $section->addText('Gobindanagar (Collegepara), Thakurgaon-5100', ['bold' => true, 'color' => '1F4E9C', 'size' => 10.5], $this->c());
-        $section->addTextBreak(1);
+        // The ESDO pad (header with logo/name, footer with addresses) is added to the file after it is written.
 
         return $this->buildInner(
             $phpWord, $section, $meeting, $case, $committeeLocation, $memberDesignation,
@@ -45,11 +39,11 @@ class MeetingNoticeDocumentBuilder
         // Replace the placeholder meta table above with a proper mixed-run version.
         $metaRun = $section->addTable(['borderSize' => 0, 'cellMargin' => 0]);
         $metaRun->addRow();
-        $left = $metaRun->addCell(4500);
+        $left = $metaRun->addCell(4440);
         $leftRun = $left->addTextRun();
         $leftRun->addText('Notice Number: ', $this->b());
         $leftRun->addText((string) $meeting->notice_number, ['italic' => true]);
-        $right = $metaRun->addCell(4500);
+        $right = $metaRun->addCell(4440);
         $rightRun = $right->addTextRun(['alignment' => Jc::END]);
         $rightRun->addText('Notice Date: ', $this->b());
         $rightRun->addText($this->fmtDate($meeting->notice_date), ['italic' => true]);
@@ -81,8 +75,8 @@ class MeetingNoticeDocumentBuilder
             ['Total Amount of Purchase Requisition (PR):', number_format(Txt::totalAmount($case), 2) . ' Tk'],
         ] as [$label, $value]) {
             $sumTable->addRow();
-            $sumTable->addCell(4600)->addText($label);
-            $sumTable->addCell(4400)->addText($value, ['italic' => true]);
+            $sumTable->addCell(4500)->addText($label);
+            $sumTable->addCell(4380)->addText($value, ['italic' => true]);
         }
 
         $when = $meeting->meeting_date->format('d F, Y') . ($meeting->meeting_time ? ', ' . $meeting->meeting_time : '');
@@ -103,19 +97,6 @@ class MeetingNoticeDocumentBuilder
             $section->addText($signerDesignation . ',');
         }
         $section->addText("Central Procurement Committee, {$committeeLocation}.");
-
-        $section->addTextBreak(2);
-        $section->addText(
-            'Dhaka Office: ESDO House: House # 748, Road No: 08, Baitul Aman Housing Society, Adabar, Dhaka-1207, Bangladesh, '
-            . 'Phone No: +88-02-58154857, Contact No: 01713149259, Email: esdobangladesh@hotmail.com, Web: www.esdo.net.bd',
-            array_merge($this->b(), ['size' => 8]), $this->c()
-        );
-        $section->addText(
-            'Head Office: Collegepara, Thakurgaon-5100, Tel: 0561-52149, 0561-61614 Mobile: 0174-063360 Fax: 0561-61599, '
-            . 'E-mail: esdobangladesh@hotmail.com, web: www.esdo.net.bd',
-            array_merge($this->b(), ['size' => 8]), $this->c()
-        );
-        $section->addText('Registration No: DSS: Thakur-440/88, NGO Bureau-694/93 (Renewed 2018), MRA 0000204', ['size' => 8], $this->c());
 
         return $phpWord;
     }

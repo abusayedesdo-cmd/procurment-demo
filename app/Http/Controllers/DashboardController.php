@@ -56,19 +56,27 @@ class DashboardController extends Controller
                 : $results;
         };
 
+        // All PRs this user may see (newest first) — feeds the pipeline counts and the
+        // "Recent purchase requisitions" table on the dashboard.
+        $allPrs = $scopePrs(PurchaseRequisition::orderByDesc('id'));
+        $stageCounts = $allPrs->countBy('status');
+        $recentPrs = $allPrs->take(8)->map(fn ($pr) => (object) $pr->only([
+            'id', 'pr_number', 'project_name', 'requestor_name', 'total_estimated_amount', 'status', 'requisition_date',
+        ]))->values();
+
         $awaitingReview = $canReview
-            ? $scopePrs(PurchaseRequisition::where('status', 'draft')->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number']))
+            ? $scopePrs(PurchaseRequisition::where('status', 'draft')->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number', 'project_name', 'total_estimated_amount', 'created_at']))
             : collect();
 
         $awaitingBudgetCheck = $canCheckBudget
-            ? $scopePrs(PurchaseRequisition::where('status', 'reviewed')->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number']))
+            ? $scopePrs(PurchaseRequisition::where('status', 'reviewed')->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number', 'project_name', 'total_estimated_amount', 'created_at']))
             : collect();
 
         // 'checked' status is exclusive to the PR window and now belongs to
         // Focal Person (see below). The Approver role only still acts on
         // the BOQ/TOR/Design & Drawing windows, at their 'reviewed' stage.
         $awaitingApproval = $canApprove
-            ? $scopePrs(PurchaseRequisition::where('status', 'reviewed')->where('window_type', '!=', 'PR')->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number']))
+            ? $scopePrs(PurchaseRequisition::where('status', 'reviewed')->where('window_type', '!=', 'PR')->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number', 'project_name', 'total_estimated_amount', 'created_at']))
             : collect();
 
         $threshold = \App\Http\Controllers\Api\PrApprovalController::HIGH_VALUE_THRESHOLD;
@@ -81,7 +89,7 @@ class DashboardController extends Controller
                             $q2->whereNull('routed_to')->where('total_estimated_amount', '<', $threshold);
                         });
                 })
-                ->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number']))
+                ->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number', 'project_name', 'total_estimated_amount', 'created_at']))
             : collect();
 
         $awaitingEdApproval = $canEdApprove
@@ -97,7 +105,7 @@ class DashboardController extends Controller
                             });
                     });
             })
-                ->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number']))
+                ->orderBy('id'))->map(fn ($pr) => (object) $pr->only(['id', 'pr_number', 'project_name', 'total_estimated_amount', 'created_at']))
             : collect();
 
         // PRs/cases that were transferred TO a committee this user is on (e.g. Main/Central
@@ -138,6 +146,9 @@ class DashboardController extends Controller
         return view('dashboard', [
             'user' => $user,
             'transferredToMe' => $transferredToMe,
+            'stageCounts' => $stageCounts,
+            'recentPrs' => $recentPrs,
+            'hasCommittee' => ! empty($committeeIds),
             'draftPrs' => $scopePrs(PurchaseRequisition::where('status', 'draft'))->count(),
             'pendingPrs' => $scopePrs(PurchaseRequisition::whereIn('status', ['reviewed', 'checked', 'focal_reviewed']))->count(),
             'approvedPrs' => $scopePrs(PurchaseRequisition::where('status', 'approved'))->count(),

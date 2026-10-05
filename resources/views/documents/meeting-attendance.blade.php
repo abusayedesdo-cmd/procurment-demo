@@ -1,6 +1,3 @@
-@extends('documents.layout')
-
-@section('content')
 @php
     use App\Services\CommitteeDocumentText as Txt;
 @endphp
@@ -11,14 +8,8 @@
     <meta charset="utf-8">
     <title>Meeting Attendance {{ $meeting->attendance_number }}</title>
     <style>
-        @page { margin: 15px 25px 15px 25px; }
+        @include('documents._pad-css')
         body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #111; margin: 0; line-height: 1.2; }
-
-        .letterhead { width: 100%; position: relative; min-height: 42px; margin-bottom: 2px; }
-        .letterhead img { position: absolute; left: 0; top: 0px; height: 40px; width: auto; }
-        .org-name { margin-left: 50px; font-size: 15px; font-weight: bold; color: #111; line-height: 1.1; padding-top: 2px; }
-
-        .address { text-align: center; font-size: 11px; font-weight: bold; color: #1f4e9c; line-height: 1.2; margin: 2px 0 6px; }
 
         table.plain { width: 100%; border-collapse: collapse; margin: 2px 0; }
         table.plain td { border: none; padding: 1px 0; vertical-align: top; }
@@ -41,17 +32,7 @@
     </style>
 </head>
 <body>
-    <div class="letterhead">
-        @if (file_exists(public_path('img/esdo-logo.png')))
-            <img src="{{ public_path('img/esdo-logo.png') }}">
-        @endif
-        <div class="org-name">Eco-Social Development Organization (ESDO)</div>
-    </div>
-
-    <div class="address">
-        House # 748, Baitul Aman Housing Society, Road # 8, Adabor, Dhaka-1207<br>
-        Gobindanagar (Collegepara), Thakurgaon-5100
-    </div>
+    @include('documents._pad')
 
     <table class="plain">
         <tr>
@@ -123,4 +104,3 @@
     </div>
 </body>
 </html>
-@endsection

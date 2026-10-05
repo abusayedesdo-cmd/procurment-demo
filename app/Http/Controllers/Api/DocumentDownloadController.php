@@ -22,6 +22,7 @@ use App\Services\CommitteeDocumentText;
 use App\Services\NumberGeneratorService;
 use App\Services\DocxTemplates\RfqDocumentBuilder;
 use App\Services\DocxTemplates\TenderScheduleDocumentBuilder;
+use App\Services\DocxTemplates\Support\EsdoPadApplier;
 use App\Services\DocxTemplates\TenderOpeningDocumentBuilder;
 use App\Services\DocxTemplates\PurchaseRequisitionDocumentBuilder;
 use App\Services\DocxTemplates\MeetingNoticeDocumentBuilder;
@@ -132,10 +133,16 @@ class DocumentDownloadController extends Controller
     }
 
     /** Sends a PHPWord document to the browser as a .docx download. */
-    protected function docxResponse(PhpWord $phpWord, string $filename)
+    protected function docxResponse(PhpWord $phpWord, string $filename, bool $pad = false)
     {
         return $this->sendGeneratedFile(
-            fn (string $path) => IOFactory::createWriter($phpWord, 'Word2007')->save($path),
+            function (string $path) use ($phpWord, $pad) {
+                IOFactory::createWriter($phpWord, 'Word2007')->save($path);
+                if ($pad) {
+                    // ESDO letterhead pad (header, footer, margins) from resources/pad.
+                    EsdoPadApplier::apply($path);
+                }
+            },
             $this->safe($filename) . '.docx',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         );
@@ -193,7 +200,7 @@ class DocumentDownloadController extends Controller
     protected function respondAs(array $spec, string $format)
     {
         if ($format === 'word') {
-            return $this->docxResponse((new $spec['builder']())->build($spec['data']), $spec['name']);
+            return $this->docxResponse((new $spec['builder']())->build($spec['data']), $spec['name'], (bool) ($spec['pad'] ?? false));
         }
 
         return $this->bladePdfResponse($spec['view'], $spec['data'], $spec['name'], $format === 'preview');
@@ -769,6 +776,7 @@ class DocumentDownloadController extends Controller
         return [
             'builder' => MeetingNoticeDocumentBuilder::class,
             'view' => 'documents.meeting-notice',
+            'pad' => true, // Word + PDF carry the ESDO letterhead pad
             'data' => [
                 'meeting' => $meeting,
                 'case' => $meeting->procurementCase,
@@ -816,6 +824,7 @@ class DocumentDownloadController extends Controller
         return [
             'builder' => MeetingAttendanceDocumentBuilder::class,
             'view' => 'documents.meeting-attendance',
+            'pad' => true, // Word + PDF carry the ESDO letterhead pad
             'data' => [
                 'meeting' => $meeting,
                 'case' => $meeting->procurementCase,
@@ -862,6 +871,7 @@ class DocumentDownloadController extends Controller
         return [
             'builder' => MeetingMinutesDocumentBuilder::class,
             'view' => 'documents.meeting-minutes',
+            'pad' => true, // Word + PDF carry the ESDO letterhead pad
             'data' => [
                 'meeting' => $meeting,
                 'case' => $meeting->procurementCase,

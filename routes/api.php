@@ -251,6 +251,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('quotations/{quotation}/submission-preview', [QuotationController::class, 'submissionPreview']);
     Route::post('rfqs/{rfq}/quotations/forward-for-evaluation', [QuotationController::class, 'forwardForEvaluation']);
     Route::post('rfqs/{rfq}/quotations/reject', [QuotationController::class, 'rejectAtOpening']);
+    Route::post('comparative-statements/{comparativeStatement}/sync-vendors', [ComparativeStatementController::class, 'syncVendors']);
     Route::get('comparative-statements/{comparativeStatement}/document', [DocumentDownloadController::class, 'comparativeStatement']);
     Route::get('comparative-statements/{comparativeStatement}/preview', [DocumentDownloadController::class, 'comparativeStatementPreview']);
     Route::get('comparative-statements/{comparativeStatement}/word', [DocumentDownloadController::class, 'comparativeStatementWord']);
@@ -279,6 +280,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('tender-schedules', TenderScheduleController::class);
         Route::apiResource('tender-proposals', TenderProposalController::class);
         Route::apiResource('tender-advertisements', TenderAdvertisementController::class);
+        Route::post('eligibility-reports/{eligibilityReport}/sync-vendors', [EligibilityReportController::class, 'syncVendors']);
+        Route::post('technical-evaluation-reports/{technicalEvaluationReport}/sync-vendors', [TechnicalEvaluationReportController::class, 'syncVendors']);
+        Route::post('financial-evaluation-reports/{financialEvaluationReport}/sync-vendors', [FinancialEvaluationReportController::class, 'syncVendors']);
         Route::apiResource('eligibility-reports', EligibilityReportController::class);
         Route::apiResource('eligibility-report-items', EligibilityReportItemController::class);
         Route::apiResource('technical-evaluation-reports', TechnicalEvaluationReportController::class);

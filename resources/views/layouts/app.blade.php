@@ -466,9 +466,8 @@
                     <span class="avatar">{{ strtoupper(substr(auth()->user()->name ?? '?', 0, 1)) }}</span>
                     <span class="user-meta">
                         <span class="user-name">{{ auth()->user()->name ?? '' }}</span>
-                        <span class="user-role">{{ \App\Models\User::ROLE_LABELS[auth()->user()->roleName()] ?? auth()->user()->roleName() }}</span>
                         @if (!empty(auth()->user()->designation))
-                            <span class="user-designation">{{ auth()->user()->designation }}</span>
+                            <span class="user-role">{{ auth()->user()->designation }}</span>
                         @endif
                     </span>
                 </div>

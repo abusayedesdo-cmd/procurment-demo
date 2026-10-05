@@ -466,9 +466,8 @@
                     <span class="avatar"><?php echo e(strtoupper(substr(auth()->user()->name ?? '?', 0, 1))); ?></span>
                     <span class="user-meta">
                         <span class="user-name"><?php echo e(auth()->user()->name ?? ''); ?></span>
-                        <span class="user-role"><?php echo e(\App\Models\User::ROLE_LABELS[auth()->user()->roleName()] ?? auth()->user()->roleName()); ?></span>
                         <?php if(!empty(auth()->user()->designation)): ?>
-                            <span class="user-designation"><?php echo e(auth()->user()->designation); ?></span>
+                            <span class="user-role"><?php echo e(auth()->user()->designation); ?></span>
                         <?php endif; ?>
                     </span>
                 </div>

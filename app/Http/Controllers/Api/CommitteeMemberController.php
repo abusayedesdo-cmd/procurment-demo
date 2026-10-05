@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\CommitteeMember;
+use App\Models\ProcurementCommitteeMember;
 use App\Models\PurchaseCommittee;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class CommitteeMemberController extends Controller
@@ -55,6 +57,16 @@ class CommitteeMemberController extends Controller
         ]);
 
         $this->assertWithinMaxSize($validated['committee_id']);
+
+        // A roster member who already has a login (same e-mail) must be linked to it, otherwise
+        // committee-scoped access (e.g. "only the PRs transferred to my committee") treats that
+        // login as a member of NO committee and shows it everything.
+        if (empty($validated['user_id']) && ! empty($validated['procurement_committee_member_id'])) {
+            $email = ProcurementCommitteeMember::whereKey($validated['procurement_committee_member_id'])->value('email');
+            if ($email) {
+                $validated['user_id'] = User::whereRaw('LOWER(email) = ?', [strtolower(trim($email))])->value('id');
+            }
+        }
 
         $committeeMember = CommitteeMember::create($validated);
 

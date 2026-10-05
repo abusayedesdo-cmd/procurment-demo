@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Quotation Submission — {{ $rfq->rfq_number }}</title>
+    <title>Quotation Submission — <?php echo e($rfq->rfq_number); ?></title>
     <style>
         :root { --ink:#0F172A; --muted:#64748B; --line:#E2E8F0; --accent:#0D9488; --accent-dark:#0F766E; --bg:#F8FAFC; }
         * { box-sizing: border-box; }
@@ -42,91 +42,92 @@
     <div class="header">
         <h1>Quotation Submission</h1>
         <div class="meta">
-            RFQ #{{ $rfq->rfq_number }} — {{ $rfq->subject }} ({{ $rfq->type }})<br>
-            Closing Date: {{ optional($rfq->closing_date)->format('Y-m-d') }}
+            RFQ #<?php echo e($rfq->rfq_number); ?> — <?php echo e($rfq->subject); ?> (<?php echo e($rfq->type); ?>)<br>
+            Closing Date: <?php echo e(optional($rfq->closing_date)->format('Y-m-d')); ?>
+
         </div>
     </div>
 
-    @if ($pr)
+    <?php if($pr): ?>
         <div class="card">
             <h2>Purchase Requisition Reference</h2>
             <div class="row">
                 <div>
                     <label>PR Number</label>
-                    <p style="margin:0; font-weight:600;">{{ $pr->pr_number }}</p>
+                    <p style="margin:0; font-weight:600;"><?php echo e($pr->pr_number); ?></p>
                 </div>
                 <div>
                     <label>Category</label>
-                    <p style="margin:0; font-weight:600;">{{ $pr->category->name ?? '-' }}</p>
+                    <p style="margin:0; font-weight:600;"><?php echo e($pr->category->name ?? '-'); ?></p>
                 </div>
                 <div>
                     <label>Window / Nature</label>
-                    <p style="margin:0; font-weight:600;">{{ $pr->window_type }}</p>
+                    <p style="margin:0; font-weight:600;"><?php echo e($pr->window_type); ?></p>
                 </div>
                 <div>
                     <label>Project</label>
-                    <p style="margin:0; font-weight:600;">{{ $pr->project_name ?? '-' }}</p>
+                    <p style="margin:0; font-weight:600;"><?php echo e($pr->project_name ?? '-'); ?></p>
                 </div>
                 <div>
                     <label>Requisition Date</label>
-                    <p style="margin:0; font-weight:600;">{{ optional($pr->requisition_date)->format('Y-m-d') }}</p>
+                    <p style="margin:0; font-weight:600;"><?php echo e(optional($pr->requisition_date)->format('Y-m-d')); ?></p>
                 </div>
             </div>
         </div>
-    @endif
+    <?php endif; ?>
 
-    @if ($closed)
+    <?php if($closed): ?>
         <div class="closed-notice">This RFQ's closing date has passed — new quotations can no longer be submitted.</div>
-    @else
-        @if ($errors->any())
+    <?php else: ?>
+        <?php if($errors->any()): ?>
             <div class="error-box">
                 <ul>
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
+                    <?php $__currentLoopData = $errors->all(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $error): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <li><?php echo e($error); ?></li>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </ul>
             </div>
-        @endif
+        <?php endif; ?>
 
-        <form method="POST" action="{{ route('vendor-portal.store', $rfq->public_token) }}" enctype="multipart/form-data" id="quoteForm">
-            @csrf
+        <form method="POST" action="<?php echo e(route('vendor-portal.store', $rfq->public_token)); ?>" enctype="multipart/form-data" id="quoteForm">
+            <?php echo csrf_field(); ?>
 
             <div class="card">
                 <h2>Vendor / Company Information</h2>
                 <div class="row">
                     <div>
                         <label>Vendor / Company Name *</label>
-                        <input type="text" name="vendor_name" value="{{ old('vendor_name') }}" required>
+                        <input type="text" name="vendor_name" value="<?php echo e(old('vendor_name')); ?>" required>
                     </div>
                     <div>
                         <label>Email *</label>
-                        <input type="email" name="email" value="{{ old('email') }}" required>
+                        <input type="email" name="email" value="<?php echo e(old('email')); ?>" required>
                     </div>
                 </div>
                 <div class="row">
                     <div>
                         <label>Address</label>
-                        <input type="text" name="vendor_address" value="{{ old('vendor_address') }}">
+                        <input type="text" name="vendor_address" value="<?php echo e(old('vendor_address')); ?>">
                     </div>
                 </div>
                 <div class="row">
                     <div>
                         <label>Representative Name *</label>
-                        <input type="text" name="representative_name" value="{{ old('representative_name') }}" required>
+                        <input type="text" name="representative_name" value="<?php echo e(old('representative_name')); ?>" required>
                     </div>
                     <div>
                         <label>Cell Number *</label>
-                        <input type="text" name="representative_contact" value="{{ old('representative_contact') }}" required>
+                        <input type="text" name="representative_contact" value="<?php echo e(old('representative_contact')); ?>" required>
                     </div>
                 </div>
                 <div class="row">
                     <div>
                         <label>Trade License No.</label>
-                        <input type="text" name="trade_license_no" value="{{ old('trade_license_no') }}">
+                        <input type="text" name="trade_license_no" value="<?php echo e(old('trade_license_no')); ?>">
                     </div>
                     <div>
                         <label>Trade License Expiry Date</label>
-                        <input type="text" name="trade_license_expiry" value="{{ old('trade_license_expiry') }}">
+                        <input type="text" name="trade_license_expiry" value="<?php echo e(old('trade_license_expiry')); ?>">
                     </div>
                     <div>
                         <label>Trade License *</label>
@@ -136,11 +137,11 @@
                 <div class="row">
                     <div>
                         <label>VAT Reg. No. (BIN)</label>
-                        <input type="text" name="vat_reg_no" value="{{ old('vat_reg_no') }}">
+                        <input type="text" name="vat_reg_no" value="<?php echo e(old('vat_reg_no')); ?>">
                     </div>
                     <div>
                         <label>VAT Expiry Date</label>
-                        <input type="text" name="vat_expiry" value="{{ old('vat_expiry') }}">
+                        <input type="text" name="vat_expiry" value="<?php echo e(old('vat_expiry')); ?>">
                     </div>
                     <div>
                         <label>BIN / VAT Certificate *</label>
@@ -150,11 +151,11 @@
                 <div class="row">
                     <div>
                         <label>TIN Reg. No. (TIN)</label>
-                        <input type="text" name="tin_reg_no" value="{{ old('tin_reg_no') }}">
+                        <input type="text" name="tin_reg_no" value="<?php echo e(old('tin_reg_no')); ?>">
                     </div>
                     <div>
                         <label>TIN Expiry Date</label>
-                        <input type="text" name="tin_expiry" value="{{ old('tin_expiry') }}">
+                        <input type="text" name="tin_expiry" value="<?php echo e(old('tin_expiry')); ?>">
                     </div>
                     <div>
                         <label>TIN Certificate *</label>
@@ -164,11 +165,11 @@
                 <div class="row">
                     <div>
                         <label>Tax Clearance Reg.No (PSR)</label>
-                        <input type="text" name="tax_clearance_no" value="{{ old('tax_clearance_no') }}">
+                        <input type="text" name="tax_clearance_no" value="<?php echo e(old('tax_clearance_no')); ?>">
                     </div>
                     <div>
                         <label>Tax Clearance Expiry Date</label>
-                        <input type="text" name="tax_clearance_expiry" value="{{ old('tax_clearance_expiry') }}">
+                        <input type="text" name="tax_clearance_expiry" value="<?php echo e(old('tax_clearance_expiry')); ?>">
                     </div>
                     <div>
                          <label>Tax Clearance Certificate (PSR)</label>
@@ -191,31 +192,31 @@
                     <div class="row">
                         <div>
                             <label>Owner Name</label>
-                            <input type="text" name="owner_name" value="{{ old('owner_name') }}">
+                            <input type="text" name="owner_name" value="<?php echo e(old('owner_name')); ?>">
                         </div>
                         <div>
                             <label>Group / Subcategory</label>
-                            <input type="text" name="group_subcategory" value="{{ old('group_subcategory') }}" placeholder="e.g. Group-A1">
+                            <input type="text" name="group_subcategory" value="<?php echo e(old('group_subcategory')); ?>" placeholder="e.g. Group-A1">
                         </div>
                     </div>
                     <div class="row">
                         <div>
                             <label>Bank Account Name</label>
-                            <input type="text" name="bank_account_name" value="{{ old('bank_account_name') }}">
+                            <input type="text" name="bank_account_name" value="<?php echo e(old('bank_account_name')); ?>">
                         </div>
                         <div>
                             <label>Bank Name</label>
-                            <input type="text" name="bank_name" value="{{ old('bank_name') }}">
+                            <input type="text" name="bank_name" value="<?php echo e(old('bank_name')); ?>">
                         </div>
                         <div>
                             <label>Bank Account Number</label>
-                            <input type="text" name="bank_account_number" value="{{ old('bank_account_number') }}">
+                            <input type="text" name="bank_account_number" value="<?php echo e(old('bank_account_number')); ?>">
                         </div>
                     </div>
                     <div class="row">
                         <div>
                             <label>Bank Address</label>
-                            <input type="text" name="bank_address" value="{{ old('bank_address') }}">
+                            <input type="text" name="bank_address" value="<?php echo e(old('bank_address')); ?>">
                         </div>
                     </div>
                 </div>
@@ -268,23 +269,23 @@
                 <div class="row" style="grid-template-columns: 1fr;">
                     <div>
                         <label>General Experience</label>
-                        <textarea name="general_experience" rows="3">{{ old('general_experience') }}</textarea>
+                        <textarea name="general_experience" rows="3"><?php echo e(old('general_experience')); ?></textarea>
                     </div>
                 </div>
                 <div class="row" style="grid-template-columns: 1fr;">
                     <div>
                         <label>Relevant Experience</label>
-                        <textarea name="relevant_experience" rows="3">{{ old('relevant_experience') }}</textarea>
+                        <textarea name="relevant_experience" rows="3"><?php echo e(old('relevant_experience')); ?></textarea>
                     </div>
                 </div>
             </div>
 
             <div class="card">
                 <h2>Rate Schedule</h2>
-                @if ($rfq->items->isEmpty())
+                <?php if($rfq->items->isEmpty()): ?>
                     <p style="color:#B91C1C; font-size:.88rem;">No items have been added to this RFQ yet. Please contact the ESDO procurement team — once items are added, you can return to this same link to submit your quotation.</p>
-                @else
-                @php $globalIndex = 0; $schemeGroups = $rfq->items->groupBy('scheme_name'); @endphp
+                <?php else: ?>
+                <?php $globalIndex = 0; $schemeGroups = $rfq->items->groupBy('scheme_name'); ?>
                 <table>
                     <thead>
                         <tr>
@@ -298,53 +299,53 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($schemeGroups as $schemeIndex => $groupItems)
-                            @if ($schemeGroups->count() > 1 || $schemeIndex)
+                        <?php $__currentLoopData = $schemeGroups; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $schemeIndex => $groupItems): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <?php if($schemeGroups->count() > 1 || $schemeIndex): ?>
                                 <tr>
-                                    <td colspan="7" style="background:#F1F5F9; font-weight:700;">{{ $loop->iteration }}. {{ $schemeIndex ?: 'Other Items' }}</td>
+                                    <td colspan="7" style="background:#F1F5F9; font-weight:700;"><?php echo e($loop->iteration); ?>. <?php echo e($schemeIndex ?: 'Other Items'); ?></td>
                                 </tr>
-                            @endif
-                            @foreach ($groupItems as $item)
+                            <?php endif; ?>
+                            <?php $__currentLoopData = $groupItems; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                 <tr>
-                                    <td>{{ $item->serial_no ?? $globalIndex + 1 }}</td>
-                                    <td>{{ $item->category ?? '-' }}</td>
-                                    <td>{{ $item->description }}</td>
-                                    <td>{{ $item->unit->name ?? '-' }}</td>
-                                    <td>{{ rtrim(rtrim(number_format($item->quantity, 2), '0'), '.') }}</td>
+                                    <td><?php echo e($item->serial_no ?? $globalIndex + 1); ?></td>
+                                    <td><?php echo e($item->category ?? '-'); ?></td>
+                                    <td><?php echo e($item->description); ?></td>
+                                    <td><?php echo e($item->unit->name ?? '-'); ?></td>
+                                    <td><?php echo e(rtrim(rtrim(number_format($item->quantity, 2), '0'), '.')); ?></td>
                                     <td>
-                                        <input type="hidden" name="items[{{ $globalIndex }}][rfq_item_id]" value="{{ $item->id }}">
+                                        <input type="hidden" name="items[<?php echo e($globalIndex); ?>][rfq_item_id]" value="<?php echo e($item->id); ?>">
                                         <input type="number" step="0.01" min="0" class="unit-price"
-                                            data-qty="{{ $item->quantity }}" data-row="{{ $globalIndex }}"
-                                            data-scheme="{{ $schemeIndex }}"
-                                            name="items[{{ $globalIndex }}][unit_price]" required>
+                                            data-qty="<?php echo e($item->quantity); ?>" data-row="<?php echo e($globalIndex); ?>"
+                                            data-scheme="<?php echo e($schemeIndex); ?>"
+                                            name="items[<?php echo e($globalIndex); ?>][unit_price]" required>
                                     </td>
-                                    <td class="amount-cell" id="amount_{{ $globalIndex }}">0.00</td>
+                                    <td class="amount-cell" id="amount_<?php echo e($globalIndex); ?>">0.00</td>
                                 </tr>
-                                @php $globalIndex++; @endphp
-                            @endforeach
-                            @if ($schemeGroups->count() > 1)
+                                <?php $globalIndex++; ?>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                            <?php if($schemeGroups->count() > 1): ?>
                                 <tr class="total-row">
-                                    <td colspan="6">Total Amount of {{ $schemeIndex ?: 'Other Items' }}</td>
-                                    <td id="subtotal_{{ Str::slug($schemeIndex ?: 'other') }}">0.00</td>
+                                    <td colspan="6">Total Amount of <?php echo e($schemeIndex ?: 'Other Items'); ?></td>
+                                    <td id="subtotal_<?php echo e(Str::slug($schemeIndex ?: 'other')); ?>">0.00</td>
                                 </tr>
-                            @endif
-                        @endforeach
+                            <?php endif; ?>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         <tr class="total-row">
                             <td colspan="6">Grand Total</td>
                             <td id="grandTotal">0.00</td>
                         </tr>
                     </tbody>
                 </table>
-                @endif
+                <?php endif; ?>
                 <p class="hint">Enter the Unit Price on each line — the Amount and Total are calculated automatically.</p>
             </div>
 
             <div class="card">
                 <h2>Terms &amp; Conditions</h2>
-                @if ($rfq->terms_conditions)
-                    <p style="white-space:pre-line; font-size:.88rem;">{{ $rfq->terms_conditions }}</p>
+                <?php if($rfq->terms_conditions): ?>
+                    <p style="white-space:pre-line; font-size:.88rem;"><?php echo e($rfq->terms_conditions); ?></p>
                     <hr style="border:none; border-top:1px solid var(--line); margin:1rem 0;">
-                @endif
+                <?php endif; ?>
                 <p style="white-space:pre-line; font-size:.85rem; color:#475569;">1. Quoted prices must be inclusive of applicable VAT and Tax.
                 2. Quantities beyond what is ordered may not be supplied without ESDO's written approval.
                 3. Goods/services must be delivered on time and to the specified quality standard.
@@ -365,9 +366,9 @@
                 </label>
             </div>
 
-           <button type="submit" class="btn" @if($rfq->items->isEmpty()) disabled style="opacity:.5; cursor:not-allowed;" @endif>Submit Quotation</button>
+           <button type="submit" class="btn" <?php if($rfq->items->isEmpty()): ?> disabled style="opacity:.5; cursor:not-allowed;" <?php endif; ?>>Submit Quotation</button>
         </form>
-    @endif
+    <?php endif; ?>
 </div>
 
 <script>
@@ -406,4 +407,4 @@
     }
 </script>
 </body>
-</html>
+</html><?php /**PATH D:\New Poject\Project_procrument\resources\views/vendor-portal/show.blade.php ENDPATH**/ ?>

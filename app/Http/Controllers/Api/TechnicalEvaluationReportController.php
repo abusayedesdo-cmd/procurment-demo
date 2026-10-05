@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\TechnicalEvaluationReport;
+use App\Services\EvaluationVendorSeeder;
 use Illuminate\Http\Request;
 
 class TechnicalEvaluationReportController extends Controller
@@ -46,11 +47,33 @@ class TechnicalEvaluationReportController extends Controller
 
         $technicalEvaluationReport = TechnicalEvaluationReport::create($validated);
 
+        // Vendor rows used to be typed in one by one, so a new report printed "[No ... items recorded yet]".
+        $seeded = EvaluationVendorSeeder::seedTechnical($technicalEvaluationReport);
+
         return response()->json([
             'success' => true,
-            'message' => 'TechnicalEvaluationReport created successfully',
-            'data' => $technicalEvaluationReport,
+            'message' => $seeded > 0
+                ? "Technical Evaluation Report created with {$seeded} vendor(s) loaded automatically"
+                : 'Technical Evaluation Report created — no vendors to load yet (earlier steps are empty); use "Load Vendors" once they are filled',
+            'data' => $technicalEvaluationReport->load('items'),
         ], 201);
+    }
+
+    /**
+     * POST {id}/sync-vendors — adds the vendors that are not on the report yet
+     * (rows that already exist are never touched or duplicated).
+     */
+    public function syncVendors(TechnicalEvaluationReport $technicalEvaluationReport)
+    {
+        $seeded = EvaluationVendorSeeder::seedTechnical($technicalEvaluationReport);
+
+        return response()->json([
+            'success' => true,
+            'message' => $seeded > 0
+                ? "{$seeded} vendor(s) loaded"
+                : 'No new vendors to add',
+            'data' => $technicalEvaluationReport->load('items'),
+        ]);
     }
 
     public function update(Request $request, TechnicalEvaluationReport $technicalEvaluationReport)
