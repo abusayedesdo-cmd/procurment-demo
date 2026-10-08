@@ -677,7 +677,7 @@ const MODULE_CONFIGS = {
         formFields: [
             { name: 'rfq_id', label: 'RFQ', type: 'select', source: '/rfqs', labelField: 'rfq_number', required: true },
             { name: 'prepared_by', label: '', type: 'currentUser' },
-            { name: 'lowest_evaluated_vendor_id', label: 'Lowest Evaluated Vendor', type: 'select', source: '/vendors', labelField: 'name' },
+            { name: 'lowest_evaluated_vendor_id', label: 'Lowest Evaluated Vendor', type: 'select', source: '/vendors', labelField: 'name', dependsOn: { field: 'rfq_id', param: 'rfq_id' } },
             { name: 'file_path', label: 'File (path/URL)', type: 'file' },
         ],
     },

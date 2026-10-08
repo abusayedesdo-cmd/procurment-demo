@@ -74,18 +74,32 @@
     </table>
 
     <h2>Terms &amp; Conditions</h2>
+    @php
+        // Same rule as the Word builder: the terms the officer ticked on the RFQ form;
+        // RFQs with nothing ticked (created before the feature) keep the old standard list.
+        $fallbackTerms = [
+            'Legal Document PDF Copy must be Submitted with Quotation: (Trade License, VAT Registration, TIN Certificate, PSR)',
+            'Relevant Experience Certificate PDF Copy must be Submitted with Quotation.',
+            'General Experience Certificate PDF Copy must be Submitted with Quotation.',
+            'RFQ Receiving PDF Copy Need to Attach with the Quotation.',
+            'As per govt. rules and regulation vat & tax will be deducted at the time of payment.',
+            'The given price of the product must be valid for at least 15 days, and within this time frame the supplier is bound to supply products at the given price.',
+            'Mode of payment: Payment will be made through Account Payee cheque/Pay order/RTGS/BEFTN or DD in favour of the supplying vendor after successful delivery of goods.',
+            'ESDO reserves the authority to cancel — partially or fully — any quotation with or without explanation.',
+            'ESDO never allows any harassment to women and children, and never allows child labour. Any institution or organization associated with such practices is strongly discouraged from participating in the bid.',
+        ];
+        $pickedTerms = ($termsConditions ?? collect())->isNotEmpty()
+            ? $termsConditions->pluck('text')->all()
+            : $fallbackTerms;
+        // "Additional Terms (optional, free text)": one extra numbered term per non-empty line.
+        $extraTerms = array_values(array_filter(array_map('trim', preg_split('/\R/', (string) $rfq->terms_conditions))));
+    @endphp
     <ol class="terms">
-        <li>Legal Document PDF Copy must be Submitted with Quotation: (Trade License, VAT Registration, TIN Certificate, PSR)</li>
-        <li>Relevant Experience Certificate PDF Copy must be Submitted with Quotation.</li>
-        <li>General Experience Certificate PDF Copy must be Submitted with Quotation.</li>
-        <li>RFQ Receiving PDF Copy Need to Attach with the Quotation.</li>
         <li>Quotation will be Opened on {{ optional($rfq->closing_date)->format('d F, Y') ?: '[date]' }} at 04:00 PM (Those who will submit the quotation are invited to present at the opening time).</li>
         <li>Delivery Location: equipment must be delivered to "[Delivery Schedule]" office in {{ $rfq->procurementCase->purchaseRequisition->delivery_location ?? '[Project Location]' }}.</li>
-        <li>As per govt. rules and regulation vat &amp; tax will be deducted at the time of payment.</li>
-        <li>The given price of the product must be valid for at least 15 days, and within this time frame the supplier is bound to supply products at the given price.</li>
-        <li>Mode of payment: Payment will be made through Account Payee cheque/Pay order/RTGS/BEFTN or DD in favour of the supplying vendor after successful delivery of goods.</li>
-        <li>ESDO reserves the authority to cancel — partially or fully — any quotation with or without explanation.</li>
-        <li>ESDO never allows any harassment to women and children, and never allows child labour. Any institution or organization associated with such practices is strongly discouraged from participating in the bid.</li>
+        @foreach (array_merge($pickedTerms, $extraTerms) as $term)
+            <li>{{ $term }}</li>
+        @endforeach
     </ol>
 
     <p style="margin-top:20px;">Thanks, with best regards</p>

@@ -129,13 +129,16 @@ class RfqDocumentBuilder
             ? $selectedTerms->pluck('text')->all()
             : $fallbackTerms;
 
+        // "Additional Terms (optional, free text)": one extra numbered term per non-empty line.
+        $extraTerms = array_values(array_filter(array_map('trim', preg_split('/\R/', (string) $rfq->terms_conditions))));
+
         $section->addTextBreak(1);
         $section->addText('Terms & Conditions', array_merge($this->b(), ['size' => 12, 'underline' => 'single']));
         $this->addNumberedList($section, array_merge([
             // Per-RFQ facts — always generated fresh, not editable from the list.
             'Quotation will be Opened on ' . ($closing ?: '[date]') . ' at 04:00 PM (Those who will submit the quotation are invited to present at the opening time).',
             'Delivery Location: equipment must be delivered to "[Delivery Schedule]" office in ' . ($pr?->delivery_location ?? '[Project Location]') . '.',
-        ], $pickedTerms));
+        ], $pickedTerms, $extraTerms));
 
         if ($rfq->distribution_process) {
             $section->addTextBreak(1);

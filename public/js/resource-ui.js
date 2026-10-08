@@ -116,6 +116,9 @@ async function initResourcePage(config) {
     async function loadSelectOptions() {
         const selectFields = config.formFields.filter(f => f.type === 'select' || f.type === 'multi_checkbox');
         await Promise.all(selectFields.map(async f => {
+            // `dependsOn` selects (e.g. CS "Lowest Evaluated Vendor") stay empty until
+            // their parent field (the RFQ) is chosen — see wireDependentSelects().
+            if (f.dependsOn) { selectCache[f.name] = []; return; }
             try {
                 const sep = f.source.includes('?') ? '&' : '?';
                 const { data } = await api.get(`${f.source}${sep}per_page=500`);
@@ -251,6 +254,40 @@ async function initResourcePage(config) {
         });
     }
 
+
+    // `field.dependsOn = { field, param }`: this <select>'s options are re-fetched from
+    // `field.source?param=<parent value>` every time the parent <select> changes, so e.g.
+    // choosing an RFQ lists ONLY the vendors that quoted for that RFQ, not every vendor.
+    function wireDependentSelects() {
+        config.formFields.forEach(field => {
+            if (!field.dependsOn || field.type !== 'select') return;
+            const sourceEl = document.getElementById(`field_${field.dependsOn.field}`);
+            const targetEl = document.getElementById(`field_${field.name}`);
+            if (!sourceEl || !targetEl) return;
+            const blank = '<option value="">-- Select --</option>';
+            let latest = 0;
+            const reload = async () => {
+                const ticket = ++latest;
+                const keep = targetEl.value;
+                const parentVal = sourceEl.value;
+                targetEl.innerHTML = blank;
+                selectCache[field.name] = [];
+                if (!parentVal) return;
+                try {
+                    const sep = field.source.includes('?') ? '&' : '?';
+                    const { data } = await api.get(`${field.source}${sep}per_page=500&${field.dependsOn.param}=${encodeURIComponent(parentVal)}`);
+                    if (ticket !== latest) return; // a newer RFQ choice already replaced this answer
+                    selectCache[field.name] = data;
+                    targetEl.innerHTML = blank + data.map(r => `<option value="${r.id}">${optionLabel(field, r)}</option>`).join('');
+                    if (keep && data.some(r => String(r.id) === String(keep))) targetEl.value = keep;
+                } catch (e) {
+                    showError(e);
+                }
+            };
+            sourceEl.addEventListener('change', reload);
+            if (sourceEl.value) reload();
+        });
+    }
 
     function wireCreateShortcuts() {
         config.formFields.forEach(field => {
@@ -907,6 +944,7 @@ async function initResourcePage(config) {
         wireEligibilityAutofill();
         wireQuotationPortalAutofill();
         applyQueryPrefill();
+        wireDependentSelects(); // after prefill, so a pre-chosen RFQ loads its vendors straight away
     }
 
     wireLogSearch();

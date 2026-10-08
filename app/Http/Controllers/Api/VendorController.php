@@ -13,6 +13,13 @@ class VendorController extends Controller
         $query = Vendor::query();
         $query->with(['documents']);
 
+        // Vendors page opened for one RFQ (listFilterField = rfq_id): only the vendors
+        // who submitted a quotation (portal link or manual entry) for THAT RFQ.
+        if ($request->filled('rfq_id')) {
+            $rfqId = $request->integer('rfq_id');
+            $query->whereHas('quotations', fn ($q) => $q->where('rfq_id', $rfqId));
+        }
+
         $items = $query->latest('id')->paginate($request->integer('per_page', 20));
 
         return response()->json([

@@ -32,7 +32,7 @@ class DashboardController extends Controller
 
        
         $committeeIds = CommitteeScope::committeeIdsForUser($user);
-        $isCommitteeOnly = ! empty($committeeIds) && ! CommitteeScope::hasUnrestrictedAccess($user);
+        $isCommitteeOnly = CommitteeScope::isHoldingScoped($user);
 
         // Plans currently held by the user's committee — SAME rule as the
         // Procurement Plans list page (CommitteeScope::visiblePlanIdsFor):

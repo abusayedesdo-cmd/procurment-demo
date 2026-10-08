@@ -83,7 +83,7 @@ class MeetingController extends Controller
         // Email the notice to the roster now, before the meeting happens —
         // attendance (who actually showed up) isn't recorded until step 2.
         $sentCount = $this->emailNoticeToRoster($meeting);
-        $noticeMsg = $sentCount > 0 ? " Notice is being emailed to {$sentCount} committee member(s)." : '';
+        $noticeMsg = $this->noticeEmailMessage($sentCount);
 
         return redirect()->route('cases.show', $case)->with('ok', 'Meeting notice recorded — ' . $meeting->notice_number . '.' . $noticeMsg . ' Attendance can now be recorded once the meeting is held.');
     }
@@ -141,7 +141,7 @@ class MeetingController extends Controller
         ]);
 
         $sentCount = $this->emailNoticeToRoster($meeting);
-        $noticeMsg = $sentCount > 0 ? " Notice is being emailed to {$sentCount} committee member(s)." : '';
+        $noticeMsg = $this->noticeEmailMessage($sentCount);
 
         return redirect()->route('meetings.show', $meeting)
             ->with('ok', 'Meeting notice recorded — ' . $meeting->notice_number . '.' . $noticeMsg . ' Attendance can now be recorded once the meeting is held.');
@@ -413,33 +413,34 @@ class MeetingController extends Controller
         return true;
     }
 
+    /** Names of committee members who had no e-mail on file for the last emailNoticeToRoster() call. */
+    private array $noticeMissingEmails = [];
+
     /**
-     * Email the notice to every active Central Procurement roster member with
-     * an email on file, PLUS — when the case is currently with a Sub-Committee —
-     * every member of that Sub-Committee (using the email stored on their
-     * Committee Roster entry; login-user members fall back to their account
-     * email). Sent at Step 1, before the meeting happens, since attendance
-     * (who actually showed up) isn't known until Step 2. Sent without a
-     * queue worker (shared hosting) — failures are logged,
-     * not thrown, so a bad/missing SMTP setup never blocks saving the
-     * notice itself. The mails go out right AFTER the response (see afterResponse()),
-     * so the page doesn't wait on SMTP. Returns how many recipients were queued.
+     * Email the notice ONLY to the committee that currently holds the case:
+     *  - case with a Sub-Committee  -> that Sub-Committee's members only
+     *    (roster e-mail first, then the login account's e-mail);
+     *  - case with Main/Central (or no case picked) -> the active Central
+     *    Procurement roster members that have an e-mail.
+     * Members with no e-mail are skipped but remembered in
+     * $noticeMissingEmails so the page can say so. Several members that share
+     * one e-mail address get ONE mail addressed to all their names.
+     * Sent without a queue worker (shared hosting) — failures are logged, not
+     * thrown, and the mails go out right AFTER the response (afterResponse()).
+     * Returns how many mails were queued.
      */
     private function emailNoticeToRoster(Meeting $meeting): int
     {
         $meeting->load('procurementCase');
-        $sent = 0;
-
-        $recipients = [];
-        foreach (ProcurementCommitteeMember::activeRoster() as $member) {
-            if ($member->email) {
-                $recipients[strtolower($member->email)] = $member->name;
-            }
-        }
+        $this->noticeMissingEmails = [];
 
         $committee = $meeting->procurementCase
             ? \App\Support\CommitteeScope::currentCommitteeForCase($meeting->procurementCase)
             : null;
+
+        // [email => [names...]]
+        $byEmail = [];
+
         if ($committee && $committee->type === 'sub') {
             $subMembers = \App\Models\CommitteeMember::where('committee_id', $committee->id)
                 ->with(['user', 'procurementCommitteeMember'])
@@ -447,10 +448,26 @@ class MeetingController extends Controller
 
             foreach ($subMembers as $cm) {
                 $email = $cm->procurementCommitteeMember?->email ?: $cm->user?->email;
+                $name = $cm->member_name ?? $email ?? 'Member';
                 if ($email) {
-                    $recipients[strtolower($email)] ??= ($cm->member_name ?? $email);
+                    $byEmail[strtolower(trim($email))][] = $name;
+                } else {
+                    $this->noticeMissingEmails[] = $name;
                 }
             }
+        } else {
+            foreach (ProcurementCommitteeMember::activeRoster() as $member) {
+                if ($member->email) {
+                    $byEmail[strtolower(trim($member->email))][] = $member->name;
+                } else {
+                    $this->noticeMissingEmails[] = $member->name;
+                }
+            }
+        }
+
+        $recipients = [];
+        foreach ($byEmail as $email => $names) {
+            $recipients[$email] = implode(' / ', array_unique($names));
         }
 
         // The user who is sending the notice = the sender shown in the e-mail.
@@ -476,6 +493,18 @@ class MeetingController extends Controller
         }
 
         return count($recipients);
+    }
+
+    /** Flash-message tail describing who got the notice and who could not be reached. */
+    private function noticeEmailMessage(int $sentCount): string
+    {
+        $msg = $sentCount > 0 ? " Notice is being emailed to {$sentCount} recipient(s)." : '';
+
+        if ($this->noticeMissingEmails) {
+            $msg .= ' No email on file for: ' . implode(', ', $this->noticeMissingEmails) . ' — they were NOT notified.';
+        }
+
+        return $msg;
     }
 
     public function show(Meeting $meeting)

@@ -71,7 +71,14 @@ class CommitteeScope
             return true;
         }
 
-        return self::userIsMemberOf($user, self::currentCommitteeForPlanId($procurementPlanId));
+        $current = self::currentCommitteeForPlanId($procurementPlanId);
+
+        // Center/Main Procurement: only while the plan has NOT been sent to a sub-committee.
+        if (self::isCenterProcurement($user)) {
+            return self::isHeldByMain($current);
+        }
+
+        return self::userIsMemberOf($user, $current);
     }
 
     public static function userIsMemberOf(User $user, ?PurchaseCommittee $committee): bool
@@ -96,7 +103,13 @@ class CommitteeScope
             return false;
         }
 
-        return self::userIsMemberOf($user, self::currentCommitteeForCase($case));
+        $current = self::currentCommitteeForCase($case);
+
+        if (self::isCenterProcurement($user)) {
+            return self::isHeldByMain($current);
+        }
+
+        return self::userIsMemberOf($user, $current);
     }
 
    
@@ -122,6 +135,10 @@ class CommitteeScope
             return true;
         }
 
+        if (self::isCenterProcurement($user)) {
+            return self::isHeldByMain(self::currentCommitteeForPurchaseRequisition($pr));
+        }
+
         if (empty(self::committeeIdsForUser($user))) {
             return true;
         }
@@ -130,17 +147,52 @@ class CommitteeScope
     }
 
 
+    /**
+     * Only Admin sees/acts on everything regardless of where a PR currently sits.
+     * (Procurement Officers are NOT unrestricted any more: Center/Main Procurement
+     * loses a PR once it is transferred to a sub-committee.)
+     * Focal Person / Executive Director are untouched: they have no committee rows,
+     * so they keep the "see everything" behaviour in prVisibleToUser()/visiblePlanIdsFor().
+     */
     public static function hasUnrestrictedAccess(User $user): bool
     {
+        return $user->isAdmin();
+    }
+
+    /**
+     * Center / Main Procurement = a Procurement Officer who is not a member of any
+     * Sub-Committee. Works across all projects, but only on PRs still held by Main.
+     */
+    public static function isCenterProcurement(User $user): bool
+    {
+        if (! $user->isProcurementOfficer()) {
+            return false;
+        }
+
+        $subIds = PurchaseCommittee::where('type', 'sub')->select('id');
+
+        return ! CommitteeMember::where('user_id', $user->id)
+            ->whereIn('committee_id', $subIds)
+            ->exists();
+    }
+
+    /** A plan/PR/case is with Main unless its latest transfer points to a sub-committee. */
+    public static function isHeldByMain(?PurchaseCommittee $committee): bool
+    {
+        return ! $committee || $committee->type === 'main';
+    }
+
+    /**
+     * true = this user's visibility depends on who currently holds the PR/plan
+     * (used by the dashboard). Admin, Focal Person, ED, requesters etc. are not.
+     */
+    public static function isHoldingScoped(User $user): bool
+    {
         if ($user->isAdmin()) {
-            return true;
+            return false;
         }
 
-        if ($user->isProcurementOfficer()) {
-            return empty(self::committeeIdsForUser($user));
-        }
-
-        return false;
+        return $user->isProcurementOfficer() || ! empty(self::committeeIdsForUser($user));
     }
 
 
@@ -159,7 +211,22 @@ class CommitteeScope
     {
         $committeeIds = self::committeeIdsForUser($user);
 
-        if (self::hasUnrestrictedAccess($user) || empty($committeeIds)) {
+        if (self::hasUnrestrictedAccess($user)) {
+            return null;
+        }
+
+        // Center/Main Procurement: every plan EXCEPT those whose latest transfer is to a sub-committee.
+        if (self::isCenterProcurement($user)) {
+            $subHeld = \App\Models\SubCommitteeTransfer::with('toCommittee')
+                ->orderByDesc('transfer_date')->orderByDesc('id')->get()
+                ->unique('procurement_plan_id')
+                ->filter(fn ($t) => $t->toCommittee && $t->toCommittee->type === 'sub')
+                ->pluck('procurement_plan_id')->all();
+
+            return \App\Models\ProcurementPlan::whereNotIn('id', $subHeld)->pluck('id')->all();
+        }
+
+        if (empty($committeeIds)) {
             return null;
         }
 
