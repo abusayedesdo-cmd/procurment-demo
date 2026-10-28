@@ -28,7 +28,7 @@ class ComparativeStatementDocumentBuilder
         $rfq = $data['rfq'];
 
         $rfq->loadMissing(['items.unit', 'quotations.vendor', 'quotations.items', 'tenderOpenings', 'procurementCase.purchaseRequisition']);
-        $statement->loadMissing('lowestEvaluatedVendor');
+        $statement->loadMissing('lowestEvaluatedVendor', 'items.vendor');
 
         $items = $rfq->items;
         $received = $rfq->quotations;
@@ -69,7 +69,7 @@ class ComparativeStatementDocumentBuilder
             $section->addImage($logo, ['width' => 55, 'height' => 55, 'alignment' => Jc::CENTER]);
         }
         $section->addText('Eco-Social Development Organization (ESDO)', array_merge($this->b(), ['size' => 14]), $this->c());
-        $section->addText('Collegepara (Gobindanagar), Thakurgaon, Rangpur, Bangladesh', ['size' => 9, 'color' => '555555'], $this->c());
+        $section->addText(($data['committeeAddress'] ?? 'Collegepara (Gobindanagar), Thakurgaon, Rangpur, Bangladesh'), ['size' => 9, 'color' => '555555'], $this->c());
         $section->addTextBreak(1);
 
         $section->addText('Comparative Report of Quotations', array_merge($this->b(), ['size' => 14, 'underline' => 'single']), $this->c());
@@ -139,6 +139,54 @@ class ComparativeStatementDocumentBuilder
             $isWinner = $winner && $q->id === $winner->id;
             $table->addCell($pair, ['gridSpan' => 2, 'bgColor' => 'EEEEEE'])
                 ->addText($this->fmtMoney($figures[$q->id]['sum']), ['bold' => true, 'underline' => $isWinner ? 'single' : 'none'], ['alignment' => Jc::RIGHT]);
+        }
+
+        // ---- Evaluation marks (Technical + Financial [+ Sample Verification]) — only when marks exist ----
+        $marked = $statement->items->whereNotNull('total_marks')->sortBy(fn ($i) => $i->rank ?? PHP_INT_MAX)->values();
+        if ($marked->isNotEmpty()) {
+            $hasSample = $marked->contains(fn ($i) => $i->sample_marks !== null);
+            $section->addTextBreak(1);
+            $section->addText('Evaluation Marks', array_merge($this->b(), ['size' => 11]));
+
+            $w = $hasSample
+                ? ['sl' => 600, 'name' => 4000, 'email' => 2500, 'bid' => 1700, 'tech' => 1100, 'fin' => 1100, 'sample' => 1300, 'total' => 1300, 'rank' => 800]
+                : ['sl' => 600, 'name' => 5300, 'email' => 2600, 'bid' => 1800, 'tech' => 1200, 'fin' => 1200, 'total' => 1100, 'rank' => 600];
+            $mt = $section->addTable($this->borderedTableStyle());
+            $mt->addRow();
+            $head = ['sl' => 'Sl. No.', 'name' => 'Name & Address of Bidder', 'email' => 'Email Address', 'bid' => 'Total Bid Price Amount BDT',
+                'tech' => 'Mark of Technical Evaluation', 'fin' => 'Mark of Financial Evaluation', 'sample' => 'Mark of Sample Verification',
+                'total' => 'Total Mark', 'rank' => 'Rank'];
+            foreach ($w as $key => $width) {
+                $mt->addCell($width, $this->headerCellStyle())->addText($head[$key], $this->b(), $this->c());
+            }
+            $ordinal = function (?int $n): string {
+                if (! $n) {
+                    return '-';
+                }
+                $s = ['th', 'st', 'nd', 'rd'];
+                $v = $n % 100;
+
+                return $n . ($s[($v - 20) % 10] ?? $s[$v] ?? $s[0]);
+            };
+            $mark = fn ($v) => $v === null ? '-' : number_format((float) $v, 2);
+            foreach ($marked as $k => $m) {
+                $mt->addRow();
+                $mt->addCell($w['sl'])->addText((string) ($k + 1), [], $this->c());
+                $cell = $mt->addCell($w['name']);
+                $cell->addText($m->vendor->name ?? '');
+                if (! empty($m->vendor->address)) {
+                    $cell->addText($m->vendor->address, ['size' => 9]);
+                }
+                $mt->addCell($w['email'])->addText((string) ($m->vendor->email ?? ''), ['size' => 9]);
+                $mt->addCell($w['bid'])->addText($this->fmtMoney($m->amount), [], ['alignment' => Jc::RIGHT]);
+                $mt->addCell($w['tech'])->addText($mark($m->technical_marks), [], $this->c());
+                $mt->addCell($w['fin'])->addText($mark($m->financial_marks), [], $this->c());
+                if ($hasSample) {
+                    $mt->addCell($w['sample'])->addText($mark($m->sample_marks), [], $this->c());
+                }
+                $mt->addCell($w['total'])->addText($mark($m->total_marks), $this->b(), $this->c());
+                $mt->addCell($w['rank'])->addText($ordinal($m->rank ? (int) $m->rank : null), [], $this->c());
+            }
         }
 
         // ---- Decision notes (3 bullets, as on ESDO's Excel/paper statements) ----

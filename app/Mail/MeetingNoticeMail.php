@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Meeting;
+use App\Support\MeetingCommittee;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -24,10 +25,12 @@ class MeetingNoticeMail extends Mailable
     public function envelope(): Envelope
     {
         $ref = $this->meeting->procurementCase->ref ?? '';
+        $committee = MeetingCommittee::forMeeting($this->meeting)?->name;
 
         return new Envelope(
             subject: 'Meeting Notice — ' . ucfirst($this->meeting->meeting_type) . ' Meeting'
-                . ($ref ? " ({$ref})" : ''),
+                . ($ref ? " ({$ref})" : '')
+                . ($committee ? " — {$committee}" : ''),
         );
     }
 
@@ -38,6 +41,7 @@ class MeetingNoticeMail extends Mailable
             with: [
                 'meeting' => $this->meeting,
                 'recipientName' => $this->recipientName,
+                'committeeName' => MeetingCommittee::forMeeting($this->meeting)?->name ?? 'Central Procurement Committee',
                 // The user who sent this notice — name + own designation (never the role).
                 'authorName' => $this->senderName ?: $this->meeting->recordedBy?->name,
                 'authorDesignation' => $this->senderName ? $this->senderDesignation : $this->meeting->recordedBy?->designation,

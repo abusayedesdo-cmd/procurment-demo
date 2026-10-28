@@ -24,12 +24,12 @@
         <p>
             You are hereby notified of the following
             <strong>{{ ucfirst($meeting->meeting_type) }} Meeting</strong>
-            of the Central Procurement Committee.
+            of the {{ $committeeName }}.
         </p>
 
         <table class="meta">
-            <tr><td class="label">Case Reference</td><td>{{ $meeting->procurementCase->ref ?? '—' }}</td></tr>
-            <tr><td class="label">Rezulation No.</td><td>{{ $meeting->rezulation_no ?? '—' }}</td></tr>
+            <tr><td class="label">PR Reference</td><td>{{ $meeting->procurementCase->ref ?? '—' }}</td></tr>
+            <!--<tr><td class="label">Rezulation No.</td><td>{{ $meeting->rezulation_no ?? '—' }}</td></tr>-->
             <tr><td class="label">Date</td><td>{{ optional($meeting->meeting_date)->format('d F, Y') }}</td></tr>
             <tr><td class="label">Time</td><td>{{ $meeting->meeting_time ?? '—' }}</td></tr>
             <tr><td class="label">Location</td><td>{{ $meeting->location }}</td></tr>
@@ -55,7 +55,7 @@
                 Regards,<br>
                 <strong>{{ $authorName }}</strong>
                 @if (!empty($authorDesignation))<br>{{ $authorDesignation }}@endif
-                <br>Central Procurement Committee, ESDO
+                <br>{{ $committeeName }}, ESDO
             </p>
         @endif
 

@@ -47,6 +47,7 @@ class ComparativeStatementItemController extends Controller
             'financial_evaluation_item_id' => 'nullable|exists:financial_evaluation_items,id',
             'technical_evaluation_item_id' => 'nullable|exists:technical_evaluation_items,id',
             'amount' => 'required|numeric|min:0',
+            'sample_marks' => 'nullable|numeric|min:0|max:100',
         ]);
 
         $validated = $this->attachMarks($validated);
@@ -68,9 +69,10 @@ class ComparativeStatementItemController extends Controller
             'financial_evaluation_item_id' => 'nullable|exists:financial_evaluation_items,id',
             'technical_evaluation_item_id' => 'nullable|exists:technical_evaluation_items,id',
             'amount' => 'sometimes|required|numeric|min:0',
+            'sample_marks' => 'nullable|numeric|min:0|max:100',
         ]);
 
-        $validated = $this->attachMarks($validated);
+        $validated = $this->attachMarks($validated, $comparativeStatementItem->sample_marks);
         $comparativeStatementItem->update($validated);
         $this->recalculateRanksAndWinner($comparativeStatementItem->comparative_statement_id);
 
@@ -96,7 +98,7 @@ class ComparativeStatementItemController extends Controller
     // Financial/Technical Evaluation থেকে সেই ভেন্ডরের marks টেনে এনে
     // financial_marks/technical_marks/total_marks বসিয়ে দেয় — ম্যানুয়ালি
     // টাইপ করতে হয় না, তাই কারচুপির সুযোগও থাকে না।
-    private function attachMarks(array $data): array
+    private function attachMarks(array $data, $existingSample = null): array
     {
         $financialMarks = null;
         $technicalMarks = null;
@@ -108,10 +110,17 @@ class ComparativeStatementItemController extends Controller
             $technicalMarks = TechnicalEvaluationItem::find($data['technical_evaluation_item_id'])?->score;
         }
 
+        // Sample Verification mark is typed by the committee (optional). Left out of the request on an
+        // update = keep what is saved. When present it is added to the total.
+        $sampleMarks = array_key_exists('sample_marks', $data)
+            ? ($data['sample_marks'] !== null && $data['sample_marks'] !== '' ? (float) $data['sample_marks'] : null)
+            : ($existingSample !== null ? (float) $existingSample : null);
+
         $data['financial_marks'] = $financialMarks;
         $data['technical_marks'] = $technicalMarks;
-        $data['total_marks'] = ($financialMarks !== null || $technicalMarks !== null)
-            ? round(($financialMarks ?? 0) + ($technicalMarks ?? 0), 2)
+        $data['sample_marks'] = $sampleMarks;
+        $data['total_marks'] = ($financialMarks !== null || $technicalMarks !== null || $sampleMarks !== null)
+            ? round(($financialMarks ?? 0) + ($technicalMarks ?? 0) + ($sampleMarks ?? 0), 2)
             : null;
 
         return $data;

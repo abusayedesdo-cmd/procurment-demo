@@ -181,7 +181,7 @@
         position: absolute;
         top: calc(100% + 10px);
         right: 0;
-        width: 340px;
+        width: 400px;
         max-height: 440px;
         overflow-y: auto;
         background: var(--paper);
@@ -248,6 +248,18 @@
     .notif-item .label { color: var(--muted); }
     .notif-item .prno { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
 
+    .notif-item .label,
+    .notif-item .prno { white-space: nowrap; flex-shrink: 0; }
+
+    /* right-hand detail (time / transfer info): stay on one line, truncate if too long */
+    .notif-item .detail {
+        min-width: 0;
+        flex-shrink: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     .notif-empty {
         padding: 2rem 1rem;
         text-align: center;
@@ -283,6 +295,7 @@
         if ($canFocalReview) { foreach ($awaitingFocalReview as $pr) { $notifItems->push(['label' => 'Focal Review', 'pr' => $pr]); } }
         if ($canEdApprove) { foreach ($awaitingEdApproval as $pr) { $notifItems->push(['label' => 'ED Approval', 'pr' => $pr]); } }
         if ($canApprove) { foreach ($awaitingApproval as $pr) { $notifItems->push(['label' => 'Approve', 'pr' => $pr]); } }
+                        if ($isMainProcurement ?? false) { foreach (($awaitingMainProcurement ?? collect()) as $pr) { $notifItems->push(['label' => 'New Approved PR', 'pr' => $pr, 'url' => route('cases.create', ['pr_id' => $pr->id]), 'detail' => $pr->arrived_at->format('d M, h:i A')]); } }
         foreach (($transferredToMe ?? collect()) as $t) {
             $notifItems->push([
                 'label' => 'Transferred',
@@ -293,11 +306,12 @@
         }
         $notifCount = $notifItems->count();
         // Only roles that approve/check PRs, or sit on a committee, get a "Needs your action" panel.
-        $hasTaskRole = $canReview || $canCheckBudget || $canApprove || $canFocalReview || $canEdApprove || $hasCommittee;
+        $hasTaskRole = $canReview || $canCheckBudget || $canApprove || $canFocalReview || $canEdApprove || $hasCommittee || ($isMainProcurement ?? false);
 
         $dhaka = now('Asia/Dhaka');
         $greeting = $dhaka->hour < 12 ? 'Good morning' : ($dhaka->hour < 17 ? 'Good afternoon' : 'Good evening');
         $firstName = trim(explode(' ', trim($user->name ?? ''))[0] ?? '');
+        $secondName = trim(explode(' ', trim($user->name ?? ''))[1] ?? '');
 
         $svg = [
             'file' => '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
@@ -330,7 +344,7 @@
         {{-- ===== Header ===== --}}
         <div class="dash-head">
             <div>
-                <h1>{{ $greeting }}{{ $firstName !== '' ? ', ' . $firstName : '' }}</h1>
+                <h1>{{ $greeting }}{{ $secondName !== '' ? ', ' . $secondName : '' }}</h1>
                 @if (!empty($user->designation))
                     <div class="sub"><b>{{ $user->designation }}</b></div>
                 @endif
@@ -356,7 +370,7 @@
                                     <span class="label">{{ $item['label'] }} —</span>
                                     <span class="prno">{{ $item['pr']->pr_number }}</span>
                                     @if (!empty($item['detail']))
-                                        <span class="label" style="font-size:.72rem;margin-left:auto;">{{ $item['detail'] }}</span>
+                                        <span class="label detail" style="font-size:.72rem;margin-left:auto;">{{ $item['detail'] }}</span>
                                     @endif
                                 </a>
                             @empty
@@ -473,7 +487,8 @@
                                 $metaParts = [];
                                 if (! empty($pr->project_name)) { $metaParts[] = $pr->project_name; }
                                 if (isset($pr->total_estimated_amount)) { $metaParts[] = $money($pr->total_estimated_amount); }
-                                if (! empty($pr->created_at)) { $metaParts[] = 'waiting ' . \Illuminate\Support\Carbon::parse($pr->created_at)->diffForHumans(null, true); }
+                                $waitSince = $pr->arrived_at ?? ($pr->created_at ?? null);
+                                if (! empty($waitSince)) { $metaParts[] = 'waiting ' . \Illuminate\Support\Carbon::parse($waitSince)->diffForHumans(null, true); }
                                 if (! empty($item['detail'])) { $metaParts[] = $item['detail']; }
                             @endphp
                             <a class="task" href="{{ $url }}">

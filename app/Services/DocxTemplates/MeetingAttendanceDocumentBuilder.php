@@ -10,7 +10,7 @@ use PhpOffice\PhpWord\PhpWord;
  * Builds the Committee Meeting Attendance sheet. Mirrors
  * resources/views/documents/meeting-attendance.blade.php.
  *
- * Expects: ['meeting', 'case', 'committeeLocation', 'convener'].
+ * Expects: ['meeting', 'case', 'committeeName', 'committeeLocation', 'convener'].
  */
 class MeetingAttendanceDocumentBuilder
 {
@@ -21,6 +21,7 @@ class MeetingAttendanceDocumentBuilder
         $meeting = $data['meeting'];
         $case = $data['case'];
         $committeeLocation = $data['committeeLocation'];
+        $committeeName = $data['committeeName'] ?? 'Central Procurement Committee';
 
         $phpWord = $this->newPhpWord();
         $section = $this->addSection($phpWord);
@@ -97,7 +98,7 @@ class MeetingAttendanceDocumentBuilder
         if (! empty($data['signerDesignation'])) {
             $section->addText($data['signerDesignation'] . ',');
         }
-        $section->addText("Central Procurement Committee, {$committeeLocation}.");
+        $section->addText("{$committeeName}, {$committeeLocation}.");
 
         return $phpWord;
     }

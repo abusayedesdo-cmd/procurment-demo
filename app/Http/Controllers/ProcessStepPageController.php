@@ -274,6 +274,8 @@ class ProcessStepPageController extends Controller
                 ])
                 ->latest('id')->get(['id', 'pr_number', 'project_name', 'total_estimated_amount'])
                 ->filter(fn ($pr) => \App\Support\CommitteeScope::prVisibleToUser($user, $pr))
+                // Notification-bell PRs (approved, no case opened yet) first; then the rest, newest first.
+                ->sortBy(fn ($pr) => [$pr->procurementCase ? 1 : 0, -$pr->id])
                 ->values();
         }
         $usesCasesFlow = collect($step['modules'])->contains(fn ($m) => ($m['route'] ?? null) === 'cases.index');

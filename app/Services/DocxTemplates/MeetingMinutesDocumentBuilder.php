@@ -23,9 +23,15 @@ class MeetingMinutesDocumentBuilder
         $convener = $data['convener'];
         $memberSecretaryName = $data['memberSecretaryName'];
         $committeeLocation = $data['committeeLocation'];
+        $committeeName = $data['committeeName'] ?? 'Central Procurement Committee';
 
         $phpWord = $this->newPhpWord();
         $section = $this->addSection($phpWord);
+
+        if (($data['committeeAddress'] ?? '') !== '') {
+            $section->addText(rtrim($data['committeeAddress'], '.') . '.', ['size' => 10], ['alignment' => 'center']);
+        }
+        $section->addText('Rezulation', array_merge($this->b(), ['size' => 14]), ['alignment' => 'center']);
 
         // The ESDO pad (header with logo/name, footer with addresses) is added to the file after it is written.
 
@@ -45,8 +51,8 @@ class MeetingMinutesDocumentBuilder
         $whenRun->addText($meeting->meeting_date->format('d F, Y') . ($meeting->meeting_time ? ', ' . $meeting->meeting_time : ''), ['italic' => true]);
 
         $section->addText(
-            'The meeting was led by ' . (($data['signerName'] ?? '') !== '' ? $data['signerName'] : ($convener->name ?? '[Convener Name]')) . ', Convener of the Central Procurement '
-            . "Committee, {$committeeLocation}. At the beginning, he welcomed all the members and thanked them for joining. "
+            'The meeting was led by ' . (($data['signerName'] ?? '') !== '' ? $data['signerName'] : ($convener->name ?? '[Convener Name]')) . ', Convener of the ' . $committeeName
+            . ", {$committeeLocation}. At the beginning, he welcomed all the members and thanked them for joining. "
             . 'After that, he started the meeting officially.'
         );
 
@@ -88,7 +94,7 @@ class MeetingMinutesDocumentBuilder
 
         $section->addText('1. Reading and approval of the minutes of the previous meeting:', $this->b());
         $section->addText(
-            "The Member Secretary of the Central Procurement Committee, {$committeeLocation}, {$memberSecretaryName}, read out "
+            "The Member Secretary of the {$committeeName}, {$committeeLocation}, {$memberSecretaryName}, read out "
             . 'the rezulation/minutes of the previous meeting. After review, the convener approved the rezulation/minutes '
             . 'without any amendment, addition, or deletion.'
         );
@@ -98,7 +104,7 @@ class MeetingMinutesDocumentBuilder
         $category = Txt::categoryName($case);
         $section->addText("2. Regarding the {$verb} {$subCategory} for the {$category}:", $this->b());
         $decisionText = $meeting->decisions ?: (
-            'A requisition was submitted to the Central Procurement Committee, ' . $committeeLocation . ' for the '
+            'A requisition was submitted to the ' . $committeeName . ', ' . $committeeLocation . ' for the '
             . $verb . ' ' . $subCategory . ' for the ' . $category . ' under the ' . (Txt::projectName($case) ?? 'N/A') . ' Project.'
         );
         $section->addText($decisionText);
@@ -134,7 +140,7 @@ class MeetingMinutesDocumentBuilder
 
         $section->addText('3. Miscellaneous:', $this->b());
         $section->addText(
-            "As there were no further issues for discussion, the Central Procurement Committee, {$committeeLocation} "
+            "As there were no further issues for discussion, the {$committeeName}, {$committeeLocation} "
             . 'thanked all members for their active participation and declared the meeting adjourned.'
         );
 
@@ -146,7 +152,7 @@ class MeetingMinutesDocumentBuilder
         if (! empty($data['signerDesignation'])) {
             $section->addText($data['signerDesignation'] . ',');
         }
-        $section->addText("Central Procurement Committee, {$committeeLocation}.");
+        $section->addText("{$committeeName}, {$committeeLocation}.");
 
         return $phpWord;
     }

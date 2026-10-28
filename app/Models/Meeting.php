@@ -11,6 +11,8 @@ class Meeting extends Model
 
     protected $fillable = [
         'procurement_case_id',
+        'committee_id',
+        'office',
         'meeting_type',
         'rezulation_no',
         'location',
@@ -47,6 +49,12 @@ class Meeting extends Model
     public function procurementCase()
     {
         return $this->belongsTo(ProcurementCase::class, 'procurement_case_id');
+    }
+
+    /** The committee (Main/Central or a Sub-Committee) this meeting was called for. */
+    public function committee()
+    {
+        return $this->belongsTo(PurchaseCommittee::class, 'committee_id')->withoutGlobalScopes();
     }
 
     public function recordedBy()

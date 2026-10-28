@@ -18,6 +18,17 @@
         .badge.yes { background:#DCFCE7; color:#166534; }
         .badge.no { background:#FEE2E2; color:#991B1B; }
         .doc-link { display:inline-block; margin:.2rem .6rem .2rem 0; padding:.35rem .7rem; background:#F1F5F9; border-radius:6px; text-decoration:none; color:#0F172A; font-size:.85rem; }
+        /* Uploaded documents: small previews; click opens the file on its own in a new tab. */
+        .doc-grid { display:flex; flex-wrap:wrap; gap:.9rem; }
+        .doc-card { width:170px; text-decoration:none; color:#0F172A; border:1px solid #E2E8F0; border-radius:10px; overflow:hidden; background:#fff; display:block; transition:box-shadow .15s, border-color .15s; }
+        .doc-card:hover { border-color:#0F766E; box-shadow:0 4px 14px rgba(15,118,110,.18); }
+        .doc-thumb { position:relative; height:130px; background:#F1F5F9; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+        .doc-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+        .doc-thumb iframe { width:300%; height:300%; border:0; transform:scale(.3333); transform-origin:0 0; position:absolute; top:0; left:0; pointer-events:none; background:#fff; }
+        .doc-thumb .doc-ext { font-size:1.4rem; font-weight:700; color:#64748B; letter-spacing:.04em; }
+        .doc-cap { padding:.45rem .6rem; border-top:1px solid #E2E8F0; font-size:.8rem; }
+        .doc-cap b { display:block; font-weight:600; }
+        .doc-cap span { color:#64748B; font-size:.72rem; }
     </style>
 </head>
 <body>
@@ -82,13 +93,35 @@
 
     <div class="card">
         <h2>Uploaded Documents</h2>
-        @forelse ($quotation->vendor->documents as $doc)
-            <a class="doc-link" href="{{ Storage::url($doc->file_path) }}" target="_blank">
-                {{ ucwords(str_replace('_', ' ', $doc->document_type)) }}
-            </a>
-        @empty
+        @php $docs = $quotation->vendor->documents; @endphp
+        @if ($docs->isEmpty())
             <p style="color:#64748B; font-size:.85rem;">কোনো ডকুমেন্ট আপলোড করা নেই।</p>
-        @endforelse
+        @else
+            <div class="doc-grid">
+                @foreach ($docs as $doc)
+                    @php
+                        $url = url('/api/vendor-documents/' . $doc->id . '/file');
+                        $ext = strtolower(pathinfo($doc->file_path, PATHINFO_EXTENSION));
+                        $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'], true);
+                        $isPdf = $ext === 'pdf';
+                        $label = ucwords(str_replace('_', ' ', $doc->document_type));
+                    @endphp
+                    <a class="doc-card" href="{{ $url }}" target="_blank" rel="noopener" title="Open {{ $label }} in a new tab">
+                        <div class="doc-thumb">
+                            @if ($isImage)
+                                <img src="{{ $url }}" alt="{{ $label }}" loading="lazy">
+                            @elseif ($isPdf)
+                                {{-- First page of the PDF, shrunk; clicks pass through to the link. --}}
+                                <iframe src="{{ $url }}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" loading="lazy" tabindex="-1" title="{{ $label }}"></iframe>
+                            @else
+                                <span class="doc-ext">{{ strtoupper($ext ?: 'FILE') }}</span>
+                            @endif
+                        </div>
+                        <div class="doc-cap"><b>{{ $label }}</b><span>{{ strtoupper($ext ?: 'file') }} · click to open</span></div>
+                    </a>
+                @endforeach
+            </div>
+        @endif
     </div>
 </body>
 </html>

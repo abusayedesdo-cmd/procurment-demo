@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\VendorDocument;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class VendorDocumentController extends Controller
 {
@@ -24,6 +25,25 @@ class VendorDocumentController extends Controller
                 'total' => $items->total(),
             ],
         ]);
+    }
+
+    /**
+     * Streams the uploaded file itself (inline, so PDFs and images open in the browser).
+     *
+     * Files are served through the app instead of a /storage/... link, so they open even when the
+     * "storage:link" shortcut is missing or APP_URL does not match the address in the browser.
+     */
+    public function file(VendorDocument $vendorDocument)
+    {
+        $path = (string) $vendorDocument->file_path;
+
+        foreach (['public', 'local'] as $disk) {
+            if ($path !== '' && Storage::disk($disk)->exists($path)) {
+                return response()->file(Storage::disk($disk)->path($path));
+            }
+        }
+
+        abort(404, 'This file is not on the server — it may not have been saved when it was uploaded.');
     }
 
     public function show(VendorDocument $vendorDocument)

@@ -14,11 +14,14 @@ class WorkOrder extends Model
         'category',
         'wo_number',
         'wo_date',
+        'terms',
         'file_path',
+        'created_by',
     ];
 
     protected $casts = [
         'wo_date' => 'date',
+        'terms' => 'array',
     ];
 
     public function contractAgreement()
@@ -29,6 +32,11 @@ class WorkOrder extends Model
     public function deliveryReceipts()
     {
         return $this->hasMany(DeliveryReceipt::class, 'work_order_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
 }

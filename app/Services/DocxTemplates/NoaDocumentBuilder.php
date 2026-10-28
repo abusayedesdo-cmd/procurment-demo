@@ -37,7 +37,7 @@ class NoaDocumentBuilder
                 $section->addImage($logo, ['width' => 55, 'height' => 55, 'alignment' => Jc::CENTER]);
             }
             $section->addText('Eco-Social Development Organization (ESDO)', array_merge($this->b(), ['size' => 14]), $this->c());
-            $section->addText('Collegepara (Gobindanagar), Thakurgaon, Rangpur, Bangladesh', ['size' => 9, 'color' => '555555'], $this->c());
+            $section->addText(($d['committeeAddress'] ?? 'Collegepara (Gobindanagar), Thakurgaon, Rangpur, Bangladesh'), ['size' => 9, 'color' => '555555'], $this->c());
             $section->addTextBreak(1);
         }
 

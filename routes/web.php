@@ -16,6 +16,7 @@ use App\Http\Controllers\ProcessStepPageController;
 use App\Http\Controllers\ProcurementCaseController;
 use App\Http\Controllers\PurchaseRequisitionPageController;
 use App\Http\Controllers\VendorPortalController;
+use App\Http\Controllers\WorkOrderTermsPageController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -44,6 +45,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/committee-work', [CommitteeWorkController::class, 'index'])->name('committee-work.index');
     Route::get('/budget-dashboard', [BudgetDashboardPageController::class, 'index'])->name('budget-dashboard');
     // Annual Plan module — Accountant (Budget Checker) only; Admin keeps access.
+    Route::get('/work-orders/{workOrder}/terms', [WorkOrderTermsPageController::class, 'edit'])
+        ->middleware('role:procurement_officer,admin')
+        ->name('work-orders.terms');
     Route::middleware('role:budget_checker,admin')->group(function () {
         Route::get('/annual-plans', [AnnualPlanPageController::class, 'index'])->name('annual-plans.index');
         Route::get('/annual-plans/create', [AnnualPlanPageController::class, 'create'])->name('annual-plans.create');

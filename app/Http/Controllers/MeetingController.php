@@ -6,9 +6,11 @@ use App\Http\Controllers\Api\RfqController;
 use App\Models\Meeting;
 use App\Models\ProcurementCase;
 use App\Models\ProcurementCommitteeMember;
+use App\Models\PurchaseCommittee;
 use App\Models\Rfq;
 use App\Models\Vendor;
 use App\Services\NumberGeneratorService;
+use App\Support\MeetingCommittee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +41,7 @@ class MeetingController extends Controller
             return redirect()->route('cases.show', $case)->with('ok', ucfirst($type) . ' meeting notice already sent for this case.');
         }
 
-        return view('meetings.create-notice', ['case' => $case, 'type' => $type]);
+        return view('meetings.create-notice', ['case' => $case, 'type' => $type] + $this->noticeFormData($case));
     }
 
     public function storeNotice(Request $request, ProcurementCase $case, string $type, NumberGeneratorService $numbers)
@@ -57,6 +59,7 @@ class MeetingController extends Controller
             'meeting_date' => 'required|date',
             'meeting_time' => 'nullable|string|max:40',
             'agenda' => 'required|string',
+            'office' => 'nullable|in:Dhaka,Thakurgaon',
         ]);
 
         if ($validator->fails()) {
@@ -70,11 +73,13 @@ class MeetingController extends Controller
 
         $meeting = Meeting::create([
             'procurement_case_id' => $case->id,
+            'committee_id' => MeetingCommittee::forCase($case)?->id,
             'meeting_type' => $type,
             'location' => $data['location'],
             'meeting_date' => $data['meeting_date'],
             'meeting_time' => $data['meeting_time'] ?? null,
             'agenda' => $data['agenda'],
+            'office' => $data['office'] ?? null,
             'notice_number' => $numbers->nextDocMemo('Procurement', 'Notice'),
             'notice_date' => now(),
             'recorded_by' => Auth::id(),
@@ -91,25 +96,62 @@ class MeetingController extends Controller
     /** Standalone Step 1 — Notice: no Case required up front; the form lets the user optionally pick one. */
     public function createNoticeStandalone()
     {
+        $openCases = ProcurementCase::query()
+            ->orderByDesc('id')
+            ->limit(200)
+            ->get(['id', 'ref', 'title', 'purchase_requisition_id']);
+
         return view('meetings.create-notice', [
             'case' => null,
             'type' => null,
-            'openCases' => ProcurementCase::query()
-                ->orderByDesc('id')
-                ->limit(200)
-                ->get(['id', 'ref', 'title']),
-        ]);
+            'openCases' => $openCases,
+        ] + $this->noticeFormData(null, $openCases));
+    }
+
+    /**
+     * Data for the notice form: the committees the user may send for, the live
+     * "who will receive this notice" preview, and (standalone form) which committee
+     * currently holds each case so the form can follow the chosen case.
+     */
+    private function noticeFormData(?ProcurementCase $case, $openCases = null): array
+    {
+        $options = MeetingCommittee::availableFor(Auth::user());
+        $forPreview = $options->values();
+
+        $holder = $case ? MeetingCommittee::forCase($case) : null;
+        $caseMap = $openCases ? MeetingCommittee::holderIdsForCases($openCases) : [];
+
+        // Committees that hold a case but are not in the user's own list still need preview data.
+        $needIds = array_filter(array_unique(array_merge([$holder?->id], array_values($caseMap))));
+        $missing = array_diff($needIds, $forPreview->pluck('id')->all());
+        if ($missing) {
+            $forPreview = $forPreview->concat(
+                PurchaseCommittee::withoutGlobalScopes()->with('project')->whereIn('id', $missing)->get()
+            );
+        }
+
+        return [
+            'committeeData' => MeetingCommittee::previewFor($forPreview),
+            'committeeOptions' => $options
+                ->map(fn ($c) => ['id' => $c->id, 'label' => MeetingCommittee::label($c)])
+                ->values()->all(),
+            'defaultCommitteeId' => $options->first()?->id,
+            'fixedCommitteeId' => $holder?->id,
+            'caseCommitteeMap' => $caseMap,
+        ];
     }
 
     public function storeNoticeStandalone(Request $request, NumberGeneratorService $numbers)
     {
         $validator = Validator::make($request->all(), [
             'case_id' => 'nullable|exists:procurement_cases,id',
+            'committee_id' => 'nullable|exists:purchase_committees,id',
             'meeting_type' => 'required|in:first,second',
             'location' => 'required|string|max:120',
             'meeting_date' => 'required|date',
             'meeting_time' => 'nullable|string|max:40',
             'agenda' => 'required|string',
+            'office' => 'nullable|in:Dhaka,Thakurgaon',
         ]);
 
         if ($validator->fails()) {
@@ -128,13 +170,29 @@ class MeetingController extends Controller
             );
         }
 
+        // The committee follows the case if one is picked; otherwise the one chosen on the form
+        // (default: Main). A user can only send for committees they belong to (Admin: any).
+        $committee = $case
+            ? MeetingCommittee::forCase($case)
+            : (! empty($data['committee_id'])
+                ? PurchaseCommittee::withoutGlobalScopes()->find($data['committee_id'])
+                : MeetingCommittee::main());
+
+        abort_if(
+            ! $case && $committee && ! MeetingCommittee::availableFor(Auth::user())->contains('id', $committee->id),
+            403,
+            'You cannot send a meeting notice for that committee.'
+        );
+
         $meeting = Meeting::create([
             'procurement_case_id' => $case?->id,
+            'committee_id' => $committee?->id,
             'meeting_type' => $data['meeting_type'],
             'location' => $data['location'],
             'meeting_date' => $data['meeting_date'],
             'meeting_time' => $data['meeting_time'] ?? null,
             'agenda' => $data['agenda'],
+            'office' => $data['office'] ?? null,
             'notice_number' => $numbers->nextDocMemo('Procurement', 'Notice'),
             'notice_date' => now(),
             'recorded_by' => Auth::id(),
@@ -154,9 +212,14 @@ class MeetingController extends Controller
 
         $meeting->load('procurementCase');
 
+        $committee = MeetingCommittee::forMeeting($meeting);
+        $info = MeetingCommittee::members($committee);
+
         return view('meetings.create-attendance', [
             'meeting' => $meeting,
-            'roster' => ProcurementCommitteeMember::activeRoster(),
+            'committee' => $committee,
+            'roster' => $info['rows'],
+            'rosterFallback' => $info['fallback'],
         ]);
     }
 
@@ -416,52 +479,36 @@ class MeetingController extends Controller
     /** Names of committee members who had no e-mail on file for the last emailNoticeToRoster() call. */
     private array $noticeMissingEmails = [];
 
+    /** Name of the committee the last notice was addressed to (used in the flash message). */
+    private ?string $noticeCommitteeName = null;
+
     /**
-     * Email the notice ONLY to the committee that currently holds the case:
-     *  - case with a Sub-Committee  -> that Sub-Committee's members only
-     *    (roster e-mail first, then the login account's e-mail);
-     *  - case with Main/Central (or no case picked) -> the active Central
-     *    Procurement roster members that have an e-mail.
-     * Members with no e-mail are skipped but remembered in
-     * $noticeMissingEmails so the page can say so. Several members that share
-     * one e-mail address get ONE mail addressed to all their names.
-     * Sent without a queue worker (shared hosting) — failures are logged, not
-     * thrown, and the mails go out right AFTER the response (afterResponse()).
-     * Returns how many mails were queued.
+     * Email the notice to the members of the committee this meeting belongs to
+     * (saved on the meeting; older meetings are worked out from their case):
+     *  - Sub-Committee -> that Sub-Committee's members only;
+     *  - Main/Central  -> the Main Committee's members. If the Main Committee has no
+     *    members set up yet, the old Central Procurement roster is used instead.
+     * Members with no e-mail are skipped but remembered in $noticeMissingEmails so the
+     * page can say so. Several members that share one e-mail address get ONE mail
+     * addressed to all their names. Sent without a queue worker (shared hosting) —
+     * failures are logged, not thrown, and the mails go out right AFTER the response
+     * (afterResponse()). Returns how many mails were queued.
      */
     private function emailNoticeToRoster(Meeting $meeting): int
     {
         $meeting->load('procurementCase');
         $this->noticeMissingEmails = [];
 
-        $committee = $meeting->procurementCase
-            ? \App\Support\CommitteeScope::currentCommitteeForCase($meeting->procurementCase)
-            : null;
+        $committee = MeetingCommittee::forMeeting($meeting);
+        $this->noticeCommitteeName = $committee?->name;
 
         // [email => [names...]]
         $byEmail = [];
-
-        if ($committee && $committee->type === 'sub') {
-            $subMembers = \App\Models\CommitteeMember::where('committee_id', $committee->id)
-                ->with(['user', 'procurementCommitteeMember'])
-                ->get();
-
-            foreach ($subMembers as $cm) {
-                $email = $cm->procurementCommitteeMember?->email ?: $cm->user?->email;
-                $name = $cm->member_name ?? $email ?? 'Member';
-                if ($email) {
-                    $byEmail[strtolower(trim($email))][] = $name;
-                } else {
-                    $this->noticeMissingEmails[] = $name;
-                }
-            }
-        } else {
-            foreach (ProcurementCommitteeMember::activeRoster() as $member) {
-                if ($member->email) {
-                    $byEmail[strtolower(trim($member->email))][] = $member->name;
-                } else {
-                    $this->noticeMissingEmails[] = $member->name;
-                }
+        foreach (MeetingCommittee::members($committee)['rows'] as $member) {
+            if ($member['email']) {
+                $byEmail[strtolower($member['email'])][] = $member['name'];
+            } else {
+                $this->noticeMissingEmails[] = $member['name'];
             }
         }
 
@@ -498,7 +545,8 @@ class MeetingController extends Controller
     /** Flash-message tail describing who got the notice and who could not be reached. */
     private function noticeEmailMessage(int $sentCount): string
     {
-        $msg = $sentCount > 0 ? " Notice is being emailed to {$sentCount} recipient(s)." : '';
+        $to = $this->noticeCommitteeName ? ' of ' . $this->noticeCommitteeName : '';
+        $msg = $sentCount > 0 ? " Notice is being emailed to {$sentCount} recipient(s){$to}." : '';
 
         if ($this->noticeMissingEmails) {
             $msg .= ' No email on file for: ' . implode(', ', $this->noticeMissingEmails) . ' — they were NOT notified.';

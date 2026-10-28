@@ -38,6 +38,11 @@
 </head>
 <body>
     @include('documents._pad')
+    
+    @if (!empty($committeeAddress))
+        <p style="text-align:center; margin:0 0 4px; font-size:10.5px;">{{ rtrim($committeeAddress, '.') }}.</p>
+    @endif
+    <p style="text-align:center; font-weight:bold; font-size:15px; margin:4px 0 12px;">Rezulation</p>
 
     <p><span class="bold">Rezulation/Minutes Number:</span> <i>{{ $meeting->rezulation_no }}</i></p>
 
@@ -53,7 +58,7 @@
 
     <p>
         The meeting was led by <i>{{ $signerName ?: ($convener->name ?? '[Convener Name]') }}</i>, Convener of the
-        Central Procurement Committee, {{ $committeeLocation }}. At the beginning, he welcomed all the
+        {{ $committeeName }}, {{ $committeeLocation }}. At the beginning, he welcomed all the
         members and thanked them for joining. After that, he started the meeting officially.
     </p>
 
@@ -90,7 +95,7 @@
 
     <h2 class="section">Meeting Agenda:</h2>
     <ol class="agenda">
-        <li>Reading and approval of the minutes of the previous meeting.</li>
+        <li>Reading and approval of the rezulation of the previous meeting.</li>
         @foreach (Txt::agendaItems($case, $meeting->agenda) as $item)
             <li>{{ $item }}</li>
         @endforeach
@@ -99,14 +104,14 @@
     <h2 class="section">Decisions of Today's Meeting:</h2>
     <ol class="decisions">
         <li>
-            <span class="bold">Reading and approval of the minutes of the previous meeting:</span>
-            The Member Secretary of the Central Procurement Committee, {{ $committeeLocation }},
-            <i>{{ $memberSecretaryName }}</i>, read out the rezulation/minutes of the previous meeting.
-            After review, the convener approved the rezulation/minutes without any amendment, addition, or deletion.
+            <span class="bold">Reading and approval of the rezulation of the previous meeting:</span>
+            The Member Secretary of the {{ $committeeName }}, {{ $committeeLocation }},
+            <i>{{ $signerName }}</i>, read out the rezulation of the previous meeting.
+            After review, the convener approved the rezulation without any amendment, addition, or deletion.
         </li>
         <li>
             <span class="bold">Regarding the {{ Txt::verb($case) }} {{ Txt::subCategoryName($case) }} for the {{ Txt::categoryName($case) }}:</span>
-            {{ $meeting->decisions ?: 'A requisition was submitted to the Central Procurement Committee, ' . $committeeLocation . ' for the ' . Txt::verb($case) . ' ' . Txt::subCategoryName($case) . ' for the ' . Txt::categoryName($case) . ' under the ' . (Txt::projectName($case) ?? 'N/A') . ' Project.' }}
+            {{ $meeting->decisions ?: 'A requisition was submitted to the ' . $committeeName . ', ' . $committeeLocation . ' for the ' . Txt::verb($case) . ' ' . Txt::subCategoryName($case) . ' for the ' . Txt::categoryName($case) . ' under the ' . (Txt::projectName($case) ?? 'N/A') . ' Project.' }}
             <br><br>
 
             @if ($meeting->meeting_type === 'first')
@@ -134,7 +139,7 @@
         </li>
         <li>
             <span class="bold">Miscellaneous:</span>
-            As there were no further issues for discussion, the Central Procurement Committee,
+            As there were no further issues for discussion, the {{ $committeeName }},
             {{ $committeeLocation }} thanked all members for their active participation and declared the
             meeting adjourned.
         </li>
@@ -144,7 +149,11 @@
         <p>Approved</p>
         @if ($signerName)<p class="bold" style="margin-top:24px">({{ $signerName }})</p>@endif
         @if ($signerDesignation)<p>{{ $signerDesignation }},</p>@endif
-        <p>Central Procurement Committee, {{ $committeeLocation }}.</p>
+        <p>{{ $committeeName }}, {{ $committeeLocation }}.</p>
+        @if (!empty($committeeAddress) && $committeeAddress !== $committeeLocation)
+        <p>{{ $committeeAddress }}</p>
+        @endif
+        
     </div>
 </body>
 </html>

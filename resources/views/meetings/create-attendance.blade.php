@@ -12,6 +12,10 @@
     <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)">Step 2 of 3 — Attendance</div>
     <b style="font-size:16px">{{ $meeting->typeLabel() }} — {{ $meeting->location }}, {{ $meeting->meeting_date->format('d M Y') }}@if($meeting->meeting_time), {{ $meeting->meeting_time }}@endif</b>
     <div style="font-size:12.5px;color:var(--muted);margin-top:2px">Case: {{ $meeting->procurementCase->ref }} — {{ $meeting->procurementCase->title }}</div>
+    <div style="font-size:12.5px;color:var(--muted);margin-top:2px">Committee: <b>{{ $committee?->name ?? 'Main Committee' }}</b> ({{ ($committee?->type ?? 'main') === 'sub' ? 'Sub-Committee' : 'Main / Central' }})</div>
+    @if (! empty($rosterFallback))
+      <div style="font-size:12px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:6px 10px;margin-top:6px">The Main Committee has no members set up yet, so the Central Procurement roster is shown.</div>
+    @endif
     <div style="font-size:12px;color:var(--muted);margin-top:6px">The roster below is pre-filled — remove anyone who didn't attend, or add someone extra. A confirmation email goes to every attendee who has an email address (for an extra attendee, type it in the Email box).</div>
   </div>
 
@@ -46,10 +50,10 @@
   // truncates the expression and leaves an unclosed array in the compiled
   // PHP, which breaks the parser. Passing a plain variable avoids it.
   $rosterJs = $roster->map(fn ($m) => [
-      'id' => $m->id,
-      'name' => $m->name,
-      'designation' => $m->roleLabel() . ', Central Procurement Committee',
-      'email' => $m->email,
+      'id' => $m['roster_id'] ?? '',
+      'name' => $m['name'],
+      'designation' => $m['title'],
+      'email' => $m['email'],
   ]);
 @endphp
 

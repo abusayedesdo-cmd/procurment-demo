@@ -10,7 +10,7 @@ use PhpOffice\PhpWord\SimpleType\Jc;
 /**
  * Builds the Committee Meeting Notice. Mirrors resources/views/documents/meeting-notice.blade.php.
  *
- * Expects: ['meeting', 'case', 'convener', 'committeeLocation', 'memberDesignation'].
+ * Expects: ['meeting', 'case', 'convener', 'committeeName', 'committeeLocation', 'memberDesignation'].
  */
 class MeetingNoticeDocumentBuilder
 {
@@ -21,6 +21,7 @@ class MeetingNoticeDocumentBuilder
         $meeting = $data['meeting'];
         $case = $data['case'];
         $committeeLocation = $data['committeeLocation'];
+        $committeeName = $data['committeeName'] ?? 'Central Procurement Committee';
         $memberDesignation = $data['memberDesignation'];
 
         $phpWord = $this->newPhpWord();
@@ -30,11 +31,11 @@ class MeetingNoticeDocumentBuilder
 
         return $this->buildInner(
             $phpWord, $section, $meeting, $case, $committeeLocation, $memberDesignation,
-            (string) ($data['signerName'] ?? ''), (string) ($data['signerDesignation'] ?? '')
+            (string) ($data['signerName'] ?? ''), (string) ($data['signerDesignation'] ?? ''), $committeeName
         );
     }
 
-    private function buildInner(PhpWord $phpWord, $section, $meeting, $case, string $committeeLocation, string $memberDesignation, string $signerName = '', string $signerDesignation = ''): PhpWord
+    private function buildInner(PhpWord $phpWord, $section, $meeting, $case, string $committeeLocation, string $memberDesignation, string $signerName = '', string $signerDesignation = '', string $committeeName = 'Central Procurement Committee'): PhpWord
     {
         // Replace the placeholder meta table above with a proper mixed-run version.
         $metaRun = $section->addTable(['borderSize' => 0, 'cellMargin' => 0]);
@@ -57,9 +58,9 @@ class MeetingNoticeDocumentBuilder
         $section->addTextBreak(1);
 
         $section->addText("Dear Hon'ble {$memberDesignation} of Procurement Committee,");
-        $section->addText("Greetings from Central Procurement Committee {$committeeLocation}!");
+        $section->addText("Greetings from {$committeeName}, {$committeeLocation}!");
 
-        $note = "Central Procurement Committee {$committeeLocation} has requested you to attend the " . Txt::agendaLine($case)
+        $note = "{$committeeName}, {$committeeLocation} has requested you to attend the " . Txt::agendaLine($case)
             . ' for below mentioned Purchase Requisition (PR):';
         if ($case->purchaseRequisition?->attachment_path) {
             $note .= ' (Details PR as PDF Linked)';
@@ -96,7 +97,7 @@ class MeetingNoticeDocumentBuilder
         if ($signerDesignation !== '') {
             $section->addText($signerDesignation . ',');
         }
-        $section->addText("Central Procurement Committee, {$committeeLocation}.");
+        $section->addText("{$committeeName}, {$committeeLocation}.");
 
         return $phpWord;
     }

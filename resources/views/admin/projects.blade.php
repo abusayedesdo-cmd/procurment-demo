@@ -129,6 +129,7 @@
         <div style="display:flex; gap:.6rem;">
             <a href="{{ route('admin.users.index') }}" class="btn outline">User Management</a>
             <a href="{{ route('admin.committees.index') }}" class="btn outline">Manage Committees</a>
+            <button class="btn outline" type="button" onclick="bulkOpen()">Import Annual Plans (Excel)</button>
             <button class="btn primary" id="btnNewProject">+ New Project</button>
         </div>
     </div>
@@ -221,6 +222,25 @@
         </div>
     </div>
 </div>
+<!-- Import Annual Plans (Excel) modal -->
+<div class="modal-backdrop" id="bulkBackdrop">
+    <div class="modal" style="max-width:1180px;">
+        <h2>Import Annual Plans from Excel</h2>
+        <p class="sub">One file, many projects. For each project choose an existing project, a new one, or skip it. Each project gets an Annual Plan for the fiscal year (an existing plan is reused) and its packages. Nothing is saved until you press <b>Import</b>.</p>
+        <div id="bulkError" class="error-box"></div>
+        <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+            <div class="field"><label>Excel file (.xlsx)</label><input type="file" id="bulkFile" accept=".xlsx,.xls" onchange="bulkOnFile()"></div>
+            <div class="field" style="width:170px;"><label>Fiscal year starts (July)</label><input type="number" id="bulkFy" value="2026" min="2000" max="2100" onchange="bulkPreview()"></div>
+        </div>
+        <div id="bulkNote" class="hint" style="margin-top:.5rem;"></div>
+        <div id="bulkMsg" class="hint" style="margin-top:.5rem; font-size:.85rem;"></div>
+        <div id="bulkBody" style="margin-top:.75rem;"></div>
+        <div class="modal-actions">
+            <button type="button" class="btn outline" onclick="bulkClose()">Cancel</button>
+            <button type="button" class="btn primary" id="bulkConfirm" onclick="bulkCommit()" disabled>Import</button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -228,5 +248,161 @@
     window.ADMIN_ROLES = @json($roles);
     window.ADMIN_ROLE_LABELS = @json($roleLabels);
 </script>
-<script src="{{ asset('js/admin-projects.js') }}"></script>
+<script src="{{ asset('js/admin-projects.js') }}"></script>
+<script>
+    // ---------------- Import Annual Plans (Excel) ----------------
+    let bulkCfg = {};          // project key -> { action: existing|new|skip, project_id, name }
+    let bulkGroupMap = {};     // normalised Sub-Category text -> group id | '' (no group)
+    let bulkData = null;
+
+    const bulkEsc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const bulkMoney = n => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+    function bulkOpen() {
+        bulkCfg = {}; bulkGroupMap = {}; bulkData = null;
+        document.getElementById('bulkFile').value = '';
+        document.getElementById('bulkBody').innerHTML = '';
+        document.getElementById('bulkNote').textContent = '';
+        document.getElementById('bulkConfirm').disabled = true;
+        document.getElementById('bulkConfirm').textContent = 'Import';
+        bulkShow('');
+        document.getElementById('bulkBackdrop').classList.add('open');
+    }
+
+    function bulkClose() { document.getElementById('bulkBackdrop').classList.remove('open'); }
+
+    function bulkShow(msg, isError) {
+        const box = document.getElementById('bulkError');
+        box.style.display = isError ? 'block' : 'none';
+        box.textContent = isError ? msg : '';
+        document.getElementById('bulkMsg').textContent = isError ? '' : (msg || '');
+    }
+
+    async function bulkRequest(path, extra = {}) {
+        const file = document.getElementById('bulkFile').files[0];
+        if (!file) throw new Error('Choose the Excel file first.');
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('fy_start_year', document.getElementById('bulkFy').value || '2026');
+        Object.entries(extra).forEach(([k, v]) => fd.append(k, v));
+
+        const res = await fetch(`/api/admin/annual-plan-import/${path}`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: fd,
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(json.message || (json.errors ? Object.values(json.errors).flat().join(', ') : `Request failed (${res.status})`));
+        }
+        return json;
+    }
+
+    async function bulkOnFile() {
+        bulkCfg = {}; bulkGroupMap = {};
+        await bulkPreview();
+    }
+
+    async function bulkPreview() {
+        document.getElementById('bulkConfirm').disabled = true;
+        if (!document.getElementById('bulkFile').files[0]) return;
+        bulkShow('Reading the file…');
+        try {
+            const data = await bulkRequest('preview', { config: JSON.stringify(bulkCfg), group_map: JSON.stringify(bulkGroupMap) });
+            // First time: remember the suggested choice for every project, so later edits are kept.
+            data.projects.forEach(p => { if (!bulkCfg[p.key]) bulkCfg[p.key] = { ...p.setting }; });
+            bulkData = data;
+            bulkRender();
+            bulkShow('');
+        } catch (e) {
+            bulkShow(e.message, true);
+        }
+    }
+
+    function bulkSetAction(key, v) { bulkCfg[key].action = v; bulkPreview(); }
+    function bulkSetProject(key, v) { bulkCfg[key].project_id = v ? Number(v) : null; bulkPreview(); }
+    function bulkSetName(key, v) { bulkCfg[key].name = v; }
+    function bulkGroup(key, v) {
+        if (v === '__keep') delete bulkGroupMap[key]; else bulkGroupMap[key] = v === 'none' ? '' : v;
+        bulkPreview();
+    }
+
+    function bulkRender() {
+        const d = bulkData;
+        const t = d.totals;
+        document.getElementById('bulkNote').textContent =
+            `FY ${d.fiscal_year}. ${d.skipped_no_project} rows with no project name are skipped.`;
+
+        const sysOpts = sel => '<option value="">— choose project —</option>' + d.system_projects.map(sp =>
+            `<option value="${sp.id}" ${String(sel) === String(sp.id) ? 'selected' : ''}>${bulkEsc(sp.name)}</option>`).join('');
+
+        let html = `<div style="margin-bottom:.6rem;"><b>${t.projects}</b> projects · <b>${t.packages}</b> packages · total <b>${bulkMoney(t.grand_total)}</b></div>`;
+
+        if (d.unmatched_groups.length) {
+            const opts = cat => d.groups.filter(g => String(g.category_id) === String(cat))
+                .map(g => `<option value="${g.id}">${bulkEsc(g.code)} — ${bulkEsc(g.name)}</option>`).join('');
+            html += `<div style="border:1px solid #FCD34D; background:#FFFBEB; border-radius:8px; padding:.7rem .9rem; margin-bottom:.9rem;">
+                <b>Choose a Procurement Group</b> for these Sub-Category texts, or import them without a group:
+                <table class="data" style="margin-top:.4rem;"><thead><tr><th>Text in the file</th><th>Rows</th><th>Category</th><th>Procurement Group</th></tr></thead><tbody>
+                ${d.unmatched_groups.map(u => `<tr><td>${u.text ? bulkEsc(u.text) : '<i>(blank)</i>'}</td><td>${u.count}</td><td>${bulkEsc(u.category)}</td>
+                    <td><select onchange="bulkGroup('${u.key}', this.value)"><option value="__keep">— choose —</option><option value="none">No group</option>${opts(u.category_id)}</select></td></tr>`).join('')}
+                </tbody></table></div>`;
+        }
+
+        html += `<div style="overflow-x:auto; max-height:460px; overflow-y:auto;"><table class="data"><thead><tr>
+            <th>Project in the file</th><th>Action</th><th>System project / new name</th><th>Donor · District</th><th>Rows</th><th>Total</th><th>Notes</th></tr></thead><tbody>
+            ${d.projects.map(p => {
+                const c = bulkCfg[p.key];
+                const target = c.action === 'existing'
+                    ? `<select onchange="bulkSetProject('${p.key}', this.value)">${sysOpts(c.project_id)}</select>`
+                    : c.action === 'new'
+                        ? `<input type="text" value="${bulkEsc(c.name)}" oninput="bulkSetName('${p.key}', this.value)" style="width:100%; border:1px solid var(--line); border-radius:6px; padding:.4rem .5rem;">`
+                        : '<span class="muted">—</span>';
+                const notes = [];
+                if (c.action === 'existing' && !c.project_id) notes.push('<span style="color:#B91C1C;">choose a project</span>');
+                if (p.existing_plan) notes.push(`plan #${p.existing_plan.id} exists (${p.existing_plan.packages} packages) — packages are added to it`);
+                if (p.with_warnings) notes.push(`${p.with_warnings} rows have notes`);
+                return `<tr style="${c.action === 'skip' ? 'opacity:.55;' : ''}">
+                    <td><b>${bulkEsc(p.short_name)}</b>${p.short_name !== p.name ? `<div class="hint">${bulkEsc(p.name)}</div>` : ''}</td>
+                    <td><select onchange="bulkSetAction('${p.key}', this.value)">
+                        <option value="existing" ${c.action === 'existing' ? 'selected' : ''}>Use existing</option>
+                        <option value="new" ${c.action === 'new' ? 'selected' : ''}>Create new</option>
+                        <option value="skip" ${c.action === 'skip' ? 'selected' : ''}>Skip</option></select></td>
+                    <td style="min-width:240px;">${target}</td>
+                    <td>${bulkEsc(p.donor)}${p.district ? ' · ' + bulkEsc(p.district) : ''}</td>
+                    <td>${c.action === 'skip' ? '' : p.import_rows}</td><td>${c.action === 'skip' ? '' : bulkMoney(p.import_total)}</td>
+                    <td class="hint">${notes.join('<br>')}</td></tr>`;
+            }).join('')}
+            </tbody></table></div>`;
+
+        document.getElementById('bulkBody').innerHTML = html;
+        const missing = d.projects.some(p => bulkCfg[p.key].action === 'existing' && !bulkCfg[p.key].project_id);
+        const btn = document.getElementById('bulkConfirm');
+        btn.disabled = t.packages === 0 || missing;
+        btn.textContent = `Import ${t.projects} projects / ${t.packages} packages`;
+    }
+
+    async function bulkCommit() {
+        const t = bulkData?.totals;
+        if (!t || !t.packages) return;
+        if (!confirm(`Import ${t.packages} packages for ${t.projects} projects?\nThis cannot be undone from here.`)) return;
+        const btn = document.getElementById('bulkConfirm');
+        btn.disabled = true;
+        bulkShow('Importing… please wait.');
+        try {
+            const r = await bulkRequest('commit', { config: JSON.stringify(bulkCfg), group_map: JSON.stringify(bulkGroupMap) });
+            bulkClose();
+            alert(`Done.\nNew projects: ${r.projects_created}\nNew plans: ${r.plans_created} (existing plans reused: ${r.plans_reused})\nPackages imported: ${r.packages}`);
+            location.reload();
+        } catch (e) {
+            btn.disabled = false;
+            bulkShow(e.message, true);
+        }
+    }
+</script>
 @endsection

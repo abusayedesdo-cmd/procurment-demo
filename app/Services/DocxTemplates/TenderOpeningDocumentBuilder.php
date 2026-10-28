@@ -28,7 +28,7 @@ class TenderOpeningDocumentBuilder
         $this->addLetterhead(
             $section,
             'Eco-Social Development Organization (ESDO)',
-            'Collegepara (Gobindanagar), Thakurgaon, Rangpur, Bangladesh'
+            ($data['committeeAddress'] ?? 'Collegepara (Gobindanagar), Thakurgaon, Rangpur, Bangladesh')
         );
 
         $section->addText('TENDER OPENING REPORT', array_merge($this->b(), ['size' => 14, 'underline' => 'single']), $this->c());

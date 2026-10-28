@@ -24,41 +24,56 @@
     </div>
 
     <!-- Project Info Section -->
+    <!-- Remaining project details (centered) -->
     <table style="border:none; margin: 4px auto 10px; width:auto;">
+            <tr>
+                <td style="border:none; text-align:right; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Project Location (Office)</td>
+                <td style="border:none; padding:1px 0;">:</td>
+                <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->project_location }}</td>
+            </tr>
+            <tr>
+                <td style="border:none; text-align:right; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Project Working Area</td>
+                <td style="border:none; padding:1px 0;">:</td>
+                <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->working_area }}</td>
+            </tr>
+            <tr>
+                <td style="border:none; text-align:right; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Donor Name</td>
+                <td style="border:none; padding:1px 0;">:</td>
+                <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->donor_name }}</td>
+            </tr>
+            <tr>
+                <td style="border:none; text-align:right; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Activity Summary</td>
+                <td style="border:none; padding:1px 0;">:</td>
+                <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->activity_summary }}</td>
+            </tr>
+    </table>
+
+    <!-- Left: Project Name + (below it) Project Duration | Right: Date of Agreement/Awarded -->
+    <table style="border:none; margin: 4px 0 4px; width:100%;">
         <tr>
-            <td style="border:none; text-align:right; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Project Name/Title</td>
-            <td style="border:none; padding:1px 0;">:</td>
-            <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->project_name ?? $plan->title }}</td>
-        </tr>
-        <tr>
-            <td style="border:none; text-align:right; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Project Location (Office)</td>
-            <td style="border:none; padding:1px 0;">:</td>
-            <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->project_location }}</td>
-        </tr>
-        <tr>
-            <td style="border:none; text-align:right; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Project Working Area</td>
-            <td style="border:none; padding:1px 0;">:</td>
-            <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->working_area }}</td>
-        </tr>
-        <tr>
-            <td style="border:none; text-align:right; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Project Duration</td>
-            <td style="border:none; padding:1px 0;">:</td>
-            <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->project_duration ?? (optional($plan->fiscal_year_start)->format('d M Y') . ' to ' . optional($plan->fiscal_year_end)->format('d M Y')) }}</td>
-        </tr>
-        <tr>
-            <td style="border:none; text-align:right; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Date of Agreement/Awarded</td>
-            <td style="border:none; padding:1px 0;">:</td>
-            <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ optional($plan->agreement_date)->format('d M Y') }}</td>
-        </tr>
-        <tr>
-            <td style="border:none; text-align:right; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Donor Name</td>
-            <td style="border:none; padding:1px 0;">:</td>
-            <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->donor_name }}</td>
-        </tr>
-        <tr>
-            <td style="border:none; text-align:right; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Activity Summary</td>
-            <td style="border:none; padding:1px 0;">:</td>
-            <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->activity_summary }}</td>
+            <td style="border:none; text-align:left; vertical-align:top; padding:0; width:60%;">
+                <table style="border:none; width:auto;">
+            <tr>
+                <td style="border:none; text-align:left; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Project Name/Title</td>
+                <td style="border:none; padding:1px 0;">:</td>
+                <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->project_name ?? $plan->title }}</td>
+            </tr>
+            <tr>
+                <td style="border:none; text-align:left; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Project Duration</td>
+                <td style="border:none; padding:1px 0;">:</td>
+                <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ $plan->project_duration ?? (optional($plan->fiscal_year_start)->format('d M Y') . ' to ' . optional($plan->fiscal_year_end)->format('d M Y')) }}</td>
+            </tr>
+                </table>
+            </td>
+            <td style="border:none; text-align:right; vertical-align:top; padding:0; width:40%;">
+                <table style="border:none; width:auto;" align="right">
+            <tr>
+                <td style="border:none; text-align:left; padding:1px 6px 1px 0; font-weight:bold; white-space:nowrap;">Date of Agreement/Awarded</td>
+                <td style="border:none; padding:1px 0;">:</td>
+                <td style="border:none; text-align:left; padding:1px 0 1px 6px; white-space:nowrap;">{{ optional($plan->agreement_date)->format('d M Y') }}</td>
+            </tr>
+                </table>
+            </td>
         </tr>
     </table>
 

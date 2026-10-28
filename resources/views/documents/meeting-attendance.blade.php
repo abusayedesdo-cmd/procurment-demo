@@ -34,6 +34,11 @@
 <body>
     @include('documents._pad')
 
+    @if (!empty($committeeAddress))
+        <p style="text-align:center; margin:0 0 4px; font-size:10.5px;">{{ rtrim($committeeAddress, '.') }}.</p>
+    @endif
+        <p style="text-align:center; font-weight:bold; font-size:15px; margin:4px 0 12px;">Attendance</p>
+
     <table class="plain">
         <tr>
             <td style="width:70%">
@@ -100,7 +105,7 @@
         <p>Approved</p>
         @if ($signerName)<p class="bold" style="margin-top:12px">({{ $signerName }})</p>@endif
         @if ($signerDesignation)<p>{{ $signerDesignation }},</p>@endif
-        <p>Central Procurement Committee, {{ $committeeLocation }}.</p>
+        <p>{{ $committeeName }}, {{ $committeeLocation }}.</p>
     </div>
 </body>
 </html>

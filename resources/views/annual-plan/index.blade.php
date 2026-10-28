@@ -43,16 +43,26 @@
     function renderPlans(plans) {
         document.getElementById('plansList').innerHTML = plans.map(p => `
             <div class="card row" style="align-items:center;">
-                <div><strong>${p.title}</strong><br><span class="muted">${p.plan_type} · ${p.donor_name ?? ''} · ${p.district?.name ?? ''}${p.upazila ? ', ' + p.upazila.name : ''} · ${formatDateTime(p.fiscal_year_start)} → ${formatDateTime(p.fiscal_year_end)}</span></div>
+                <div><strong>${p.title}</strong><br><span class="muted">${p.plan_type} · ${p.donor_name ?? ''} · ${p.district?.name ?? ''}${p.upazila ? ', ' + p.upazila.name : ''} · ${formatDateOnly(p.fiscal_year_start)} → ${formatDateOnly(p.fiscal_year_end)}</span></div>
                 <div><span class="badge ${p.status}">${p.status}</span></div>
                 <div><a class="btn secondary" href="/annual-plans/${p.id}">Open</a></div>
             </div>
         `).join('') || '<div class="card muted">No plans found.</div>';
     }
 
-    function formatDateTime(iso) {
-        if (!iso) return '';
-        return iso.replace('T', ' ').split('.')[0];
+    // function formatDateTime(iso) {
+    //     if (!iso) return '';
+    //     return iso.replace('T', ' ').split('.')[0];
+    // }
+    function formatDateOnly(value) {
+
+
+    
+        if (!value) return '-';
+        const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) return String(value);
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return `${m[3]} ${months[parseInt(m[2], 10) - 1]} ${m[1]}`;
     }
 
     loadPlans();

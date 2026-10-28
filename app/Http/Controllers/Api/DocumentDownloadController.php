@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Meeting;
 use App\Models\ProcurementCommitteeMember;
+use App\Models\ProcurementCase;
+use App\Models\WorkOrder;
 use App\Models\Quotation;
 use App\Models\Rfq;
 use App\Models\TenderOpening;
@@ -18,12 +20,17 @@ use App\Models\FinancialEvaluationReport;
 use App\Models\ComparativeStatement;
 use App\Models\CommitteeMember;
 use App\Support\CommitteeScope;
+use App\Support\MeetingCommittee;
 use App\Services\CommitteeDocumentText;
 use App\Services\NumberGeneratorService;
 use App\Services\DocxTemplates\RfqDocumentBuilder;
 use App\Services\DocxTemplates\TenderScheduleDocumentBuilder;
 use App\Services\DocxTemplates\Support\EsdoPadApplier;
+use App\Services\DocxTemplates\ProcurementReportDocumentBuilder;
 use App\Services\DocxTemplates\TenderOpeningDocumentBuilder;
+use App\Services\DocxTemplates\WorkOrderDocumentBuilder;
+use App\Services\WorkOrderData;
+use App\Services\ProcurementReportData;
 use App\Services\DocxTemplates\PurchaseRequisitionDocumentBuilder;
 use App\Services\DocxTemplates\MeetingNoticeDocumentBuilder;
 use App\Services\DocxTemplates\MeetingAttendanceDocumentBuilder;
@@ -197,6 +204,17 @@ class DocumentDownloadController extends Controller
      *         builder = PHPWord builder used for Word, view = Blade view used for PDF,
      *         data = variables shared by both, name = download file name (no extension)
      */
+    /**
+     * Address of the committee running this RFQ's procurement, for the letterhead line under the
+     * ESDO name (Main committee unless the case is with a Sub-Committee; falls back to the ESDO address).
+     */
+    protected function committeeAddressFor(?Rfq $rfq): string
+    {
+        $default = 'Collegepara (Gobindanagar), Thakurgaon, Rangpur, Bangladesh';
+
+        return $rfq ? MeetingCommittee::letterhead(MeetingCommittee::forRfq($rfq), $default, $rfq->office)['address'] : $default;
+    }
+
     protected function respondAs(array $spec, string $format)
     {
         if ($format === 'word') {
@@ -258,10 +276,14 @@ class DocumentDownloadController extends Controller
 
         // Older RFQs have no creator on file — keep their previous signatory.
         [$signatoryName, $signatoryTitle] = $this->creatorSigner($rfq->creator, $this->conveningOfficer());
+        // Committee running this procurement (Main, or the Sub-Committee holding the case).
+        $letterhead = MeetingCommittee::letterhead(MeetingCommittee::forRfq($rfq), 'House # 748, Baitul Aman Housing Society, Road # 8, Adabor, Dhaka-1207', $rfq->office);
 
         return [
             'rfq' => $rfq,
             'items' => $items,
+            'committeeName' => $letterhead['name'],
+            'committeeAddress' => $letterhead['address'],
             'signatoryName' => $signatoryName,
             'signatoryTitle' => $signatoryTitle,
             'termsConditions' => $rfq->termsConditions()->get(),
@@ -322,10 +344,13 @@ class DocumentDownloadController extends Controller
         $rfq->loadMissing('creator');
         [$signatoryName, $signatoryTitle, $signatoryEmail] = $this->creatorSigner($rfq->creator, $this->conveningOfficer());
         $convener = $this->committeeConvener();
+        $letterhead = MeetingCommittee::letterhead(MeetingCommittee::forRfq($rfq), 'Collegepara (Gobindanagar), Thakurgaon-5100', $rfq->office);
 
         return [
             'rfq' => $rfq,
             'case' => $case,
+            'committeeName' => $letterhead['name'],
+            'committeeAddress' => $letterhead['address'],
             'pr' => $pr,
             'itemsByCategory' => $itemsByCategory,
             'validityDays' => self::VALIDITY_DAYS,
@@ -347,6 +372,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new EligibilityReportDocumentBuilder())->build([
             'report' => $eligibilityReport,
             'rfq' => $eligibilityReport->rfq,
+            'committeeAddress' => $this->committeeAddressFor($eligibilityReport->rfq),
         ]);
 
         return $this->pdfResponse($phpWord, "Eligibility-Report-{$eligibilityReport->rfq->rfq_number}");
@@ -359,6 +385,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new EligibilityReportDocumentBuilder())->build([
             'report' => $eligibilityReport,
             'rfq' => $eligibilityReport->rfq,
+            'committeeAddress' => $this->committeeAddressFor($eligibilityReport->rfq),
         ]);
 
         return $this->pdfResponse($phpWord, "Eligibility-Report-{$eligibilityReport->rfq->rfq_number}", inline: true);
@@ -371,6 +398,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new EligibilityReportDocumentBuilder())->build([
             'report' => $eligibilityReport,
             'rfq' => $eligibilityReport->rfq,
+            'committeeAddress' => $this->committeeAddressFor($eligibilityReport->rfq),
         ]);
 
         return $this->docxResponse($phpWord, "Eligibility-Report-{$eligibilityReport->rfq->rfq_number}");
@@ -383,6 +411,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new TechnicalEvaluationReportDocumentBuilder())->build([
             'report' => $technicalEvaluationReport,
             'rfq' => $technicalEvaluationReport->rfq,
+            'committeeAddress' => $this->committeeAddressFor($technicalEvaluationReport->rfq),
         ]);
 
         return $this->pdfResponse($phpWord, "Technical-Evaluation-Report-{$technicalEvaluationReport->rfq->rfq_number}");
@@ -395,6 +424,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new TechnicalEvaluationReportDocumentBuilder())->build([
             'report' => $technicalEvaluationReport,
             'rfq' => $technicalEvaluationReport->rfq,
+            'committeeAddress' => $this->committeeAddressFor($technicalEvaluationReport->rfq),
         ]);
 
         return $this->pdfResponse($phpWord, "Technical-Evaluation-Report-{$technicalEvaluationReport->rfq->rfq_number}", inline: true);
@@ -407,6 +437,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new TechnicalEvaluationReportDocumentBuilder())->build([
             'report' => $technicalEvaluationReport,
             'rfq' => $technicalEvaluationReport->rfq,
+            'committeeAddress' => $this->committeeAddressFor($technicalEvaluationReport->rfq),
         ]);
 
         return $this->docxResponse($phpWord, "Technical-Evaluation-Report-{$technicalEvaluationReport->rfq->rfq_number}");
@@ -419,6 +450,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new FinancialEvaluationReportDocumentBuilder())->build([
             'report' => $financialEvaluationReport,
             'rfq' => $financialEvaluationReport->rfq,
+            'committeeAddress' => $this->committeeAddressFor($financialEvaluationReport->rfq),
         ]);
 
         return $this->pdfResponse($phpWord, "Financial-Evaluation-Report-{$financialEvaluationReport->rfq->rfq_number}");
@@ -431,6 +463,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new FinancialEvaluationReportDocumentBuilder())->build([
             'report' => $financialEvaluationReport,
             'rfq' => $financialEvaluationReport->rfq,
+            'committeeAddress' => $this->committeeAddressFor($financialEvaluationReport->rfq),
         ]);
 
         return $this->pdfResponse($phpWord, "Financial-Evaluation-Report-{$financialEvaluationReport->rfq->rfq_number}", inline: true);
@@ -443,6 +476,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new FinancialEvaluationReportDocumentBuilder())->build([
             'report' => $financialEvaluationReport,
             'rfq' => $financialEvaluationReport->rfq,
+            'committeeAddress' => $this->committeeAddressFor($financialEvaluationReport->rfq),
         ]);
 
         return $this->docxResponse($phpWord, "Financial-Evaluation-Report-{$financialEvaluationReport->rfq->rfq_number}");
@@ -462,6 +496,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new ComparativeStatementDocumentBuilder())->build([
             'statement' => $comparativeStatement,
             'rfq' => $comparativeStatement->rfq,
+            'committeeAddress' => $this->committeeAddressFor($comparativeStatement->rfq),
         ]);
 
         return $this->pdfResponse($phpWord, "Comparative-Statement-{$comparativeStatement->rfq->rfq_number}");
@@ -481,6 +516,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new ComparativeStatementDocumentBuilder())->build([
             'statement' => $comparativeStatement,
             'rfq' => $comparativeStatement->rfq,
+            'committeeAddress' => $this->committeeAddressFor($comparativeStatement->rfq),
         ]);
 
         return $this->pdfResponse($phpWord, "Comparative-Statement-{$comparativeStatement->rfq->rfq_number}", inline: true);
@@ -500,6 +536,7 @@ class DocumentDownloadController extends Controller
         $phpWord = (new ComparativeStatementDocumentBuilder())->build([
             'statement' => $comparativeStatement,
             'rfq' => $comparativeStatement->rfq,
+            'committeeAddress' => $this->committeeAddressFor($comparativeStatement->rfq),
         ]);
 
         return $this->docxResponse($phpWord, "Comparative-Statement-{$comparativeStatement->rfq->rfq_number}");
@@ -521,6 +558,82 @@ class DocumentDownloadController extends Controller
     public function tenderOpeningPreview(TenderOpening $tenderOpening)
     {
         return $this->respondAs($this->buildTenderOpening($tenderOpening), 'preview');
+    }
+
+    /** Work Order (Word / PDF / preview). Built from the award, PR, RFQ and the vendor's own quotation. */
+    public function workOrder(WorkOrder $workOrder)
+    {
+        return $this->respondAs($this->buildWorkOrder($workOrder), 'word');
+    }
+
+    public function workOrderPdf(WorkOrder $workOrder)
+    {
+        return $this->respondAs($this->buildWorkOrder($workOrder), 'pdf');
+    }
+
+    public function workOrderPreview(WorkOrder $workOrder)
+    {
+        return $this->respondAs($this->buildWorkOrder($workOrder), 'preview');
+    }
+
+    protected function buildWorkOrder(WorkOrder $workOrder): array
+    {
+        $workOrder->loadMissing('contractAgreement.contractAward.procurementPlan');
+        $planId = $workOrder->contractAgreement?->contractAward?->procurement_plan_id;
+        abort_unless(
+            CommitteeScope::userCanActOnPlan(request()->user(), $planId),
+            403,
+            'This case is currently with a different committee.'
+        );
+
+        $committee = CommitteeScope::currentCommitteeForPlanId($planId);
+        $isMain = ! $committee || $committee->type === 'main';
+        $workOrder->loadMissing('creator');
+        $signer = $this->creatorSigner($workOrder->creator, $this->conveningOfficer($isMain
+            ? ProcurementCommitteeMember::CENTRAL_PROCUREMENT
+            : ProcurementCommitteeMember::PURCHASE_COMMITTEE));
+
+        $data = WorkOrderData::for($workOrder, $signer);
+        $data['amountWords'] = $this->amountInWords((float) $data['total']);
+
+        return [
+            'builder' => WorkOrderDocumentBuilder::class,
+            'view' => 'documents.work-order',
+            'data' => $data,
+            'name' => 'Work-Order-' . $this->safe((string) ($workOrder->wo_number ?: $workOrder->id)),
+        ];
+    }
+
+    /** Procurement Report of a whole case (one Purchase Requisition procured): Word download. */
+    public function procurementReport(ProcurementCase $procurementCase)
+    {
+        return $this->respondAs($this->buildProcurementReport($procurementCase), 'word');
+    }
+
+    public function procurementReportPdf(ProcurementCase $procurementCase)
+    {
+        return $this->respondAs($this->buildProcurementReport($procurementCase), 'pdf');
+    }
+
+    public function procurementReportPreview(ProcurementCase $procurementCase)
+    {
+        return $this->respondAs($this->buildProcurementReport($procurementCase), 'preview');
+    }
+
+    protected function buildProcurementReport(ProcurementCase $case): array
+    {
+        abort_unless(
+            CommitteeScope::userCanActOnCase(request()->user(), $case),
+            403,
+            'This case is currently with a different committee.'
+        );
+
+        return [
+            'builder' => ProcurementReportDocumentBuilder::class,
+            'view' => 'documents.procurement-report',
+            'data' => ProcurementReportData::for($case, request()->user()?->name),
+            'name' => 'Procurement-Report-' . $this->safe((string) $case->ref),
+        ];
     }
 
     /** Data + builder/view for the Tender Opening document (see respondAs()). */
@@ -560,6 +673,7 @@ class DocumentDownloadController extends Controller
             'data' => [
                 'opening' => $tenderOpening,
                 'rfq' => $rfq,
+                'committeeAddress' => $this->committeeAddressFor($rfq),
                 'committee' => $committee,
                 'quotations' => $quotations,
                 'checkDoc' => $checkDoc,
@@ -770,6 +884,8 @@ class DocumentDownloadController extends Controller
         }
 
         $convener = $this->committeeConvener();
+        // The committee that is running this procurement — its name and address go on the paper.
+        $letterhead = MeetingCommittee::letterhead(MeetingCommittee::forMeeting($meeting), 'Dhaka', $meeting->office);
         // The person who recorded the meeting (see Meeting::recordedBy), not the viewer.
         [$signerName, $signerDesignation] = $this->creatorSigner($meeting->recordedBy);
 
@@ -781,8 +897,9 @@ class DocumentDownloadController extends Controller
                 'meeting' => $meeting,
                 'case' => $meeting->procurementCase,
                 'convener' => $convener,
-                // Central Procurement Committee is addressed as one office per notice — Dhaka by default.
-                'committeeLocation' => 'Dhaka',
+                'committeeName' => $letterhead['name'],
+                'committeeLocation' => $letterhead['location'],
+                'committeeAddress' => $letterhead['address'],
                 'memberDesignation' => 'Committee Member',
                 'signerName' => $signerName,
                 'signerDesignation' => $signerDesignation,
@@ -818,6 +935,7 @@ class DocumentDownloadController extends Controller
             ]);
         }
 
+        $letterhead = MeetingCommittee::letterhead(MeetingCommittee::forMeeting($meeting), 'Dhaka', $meeting->office);
         // The person who recorded the meeting (see Meeting::recordedBy), not the viewer.
         [$signerName, $signerDesignation] = $this->creatorSigner($meeting->recordedBy);
 
@@ -828,7 +946,9 @@ class DocumentDownloadController extends Controller
             'data' => [
                 'meeting' => $meeting,
                 'case' => $meeting->procurementCase,
-                'committeeLocation' => 'Dhaka',
+                'committeeName' => $letterhead['name'],
+                'committeeLocation' => $letterhead['location'],
+                'committeeAddress' => $letterhead['address'],
                 'convener' => $this->committeeConvener(),
                 'signerName' => $signerName,
                 'signerDesignation' => $signerDesignation,
@@ -865,6 +985,8 @@ class DocumentDownloadController extends Controller
         }
 
         [$memberSecretaryName] = $this->conveningOfficer();
+        $office = MeetingCommittee::caseOffice($meeting->procurementCase, $meeting->office);
+        $letterhead = MeetingCommittee::letterhead(MeetingCommittee::forMeeting($meeting), 'Dhaka', $office);
         // The person who recorded the meeting (see Meeting::recordedBy), not the viewer.
         [$signerName, $signerDesignation] = $this->creatorSigner($meeting->recordedBy);
 
@@ -877,7 +999,9 @@ class DocumentDownloadController extends Controller
                 'case' => $meeting->procurementCase,
                 'convener' => $this->committeeConvener(),
                 'memberSecretaryName' => $memberSecretaryName,
-                'committeeLocation' => 'Dhaka',
+                'committeeName' => $letterhead['name'],
+                'committeeLocation' => $letterhead['location'],
+                'committeeAddress' => $letterhead['address'],
                 'signerName' => $signerName,
                 'signerDesignation' => $signerDesignation,
             ],

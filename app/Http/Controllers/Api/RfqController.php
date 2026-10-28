@@ -87,6 +87,7 @@ class RfqController extends Controller
             'terms_condition_ids' => 'nullable|array',
             'terms_condition_ids.*' => 'integer|exists:rfq_terms_conditions,id',
             'distribution_process' => 'nullable|in:Email,Hand Distribution',
+            'office' => 'nullable|in:Dhaka,Thakurgaon',
             'file_path' => 'nullable|string|max:255',
         ]);
 
@@ -134,6 +135,7 @@ class RfqController extends Controller
             'terms_condition_ids' => 'nullable|array',
             'terms_condition_ids.*' => 'integer|exists:rfq_terms_conditions,id',
             'distribution_process' => 'nullable|in:Email,Hand Distribution',
+            'office' => 'nullable|in:Dhaka,Thakurgaon',
             'file_path' => 'nullable|string|max:255',
         ]);
 

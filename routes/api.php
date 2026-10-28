@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AnnualPlanBulkImportController;
 use App\Http\Controllers\Api\Admin\DatabaseTableController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BoqDetailController;
@@ -19,7 +20,6 @@ use App\Http\Controllers\Api\IndentSlipController;
 use App\Http\Controllers\Api\DispatchNoteController;
 use App\Http\Controllers\Api\DesignDrawingController;
 use App\Http\Controllers\Api\DocumentDownloadController;
-use App\Http\Controllers\Api\ContractDocumentController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\EligibilityReportController;
 use App\Http\Controllers\Api\EligibilityReportItemController;
@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\ProcurementDistrictController;
 use App\Http\Controllers\Api\ProcurementCommitteeMemberController;
 use App\Http\Controllers\Api\ProcurementUpazilaController;
 use App\Http\Controllers\Api\ProcurementPlanPackageController;
+use App\Http\Controllers\Api\AnnualPlanImportController;
 use App\Http\Controllers\Api\ProcurementCategoryController;
 use App\Http\Controllers\Api\ProcurementPlanController;
 use App\Http\Controllers\Api\PurchaseCommitteeController;
@@ -108,6 +109,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('users/{user}', [UserController::class, 'destroy']);
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
 
+        // Import the whole Annual Procurement Plan Excel (all projects at once) — Admin only.
+        Route::post('annual-plan-import/preview', [AnnualPlanBulkImportController::class, 'preview']);
+        Route::post('annual-plan-import/commit', [AnnualPlanBulkImportController::class, 'commit']);
+
         // Data Manager — generic CRUD over every table (see
         // DatabaseTableController for the exclusion list: framework/system
         // tables and 'users' are never reachable here).
@@ -121,9 +126,21 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('{table}/rows/{id}', [DatabaseTableController::class, 'destroy'])->where('table', '[a-z_]+')->where('id', '[0-9]+');
         });
     });
-    Route::apiResource('procurement-categories', ProcurementCategoryController::class);
-    Route::apiResource('chart-of-accounts', ChartOfAccountController::class);
-    Route::apiResource('items', ItemController::class);
+    // Masters: every logged-in user may READ them (dropdowns); only the right roles may change them.
+    //  - Category / Group (chart of accounts): Admin only
+    //  - Item: add by anyone who raises a PR or manages the annual plan; edit/delete by Admin only
+    Route::apiResource('procurement-categories', ProcurementCategoryController::class)->only(['index', 'show']);
+    Route::apiResource('chart-of-accounts', ChartOfAccountController::class)->only(['index', 'show']);
+    Route::apiResource('items', ItemController::class)->only(['index', 'show']);
+
+    Route::middleware('role:admin')->group(function () {
+        Route::apiResource('procurement-categories', ProcurementCategoryController::class)->only(['store', 'update', 'destroy']);
+        Route::apiResource('chart-of-accounts', ChartOfAccountController::class)->only(['store', 'update', 'destroy']);
+        Route::apiResource('items', ItemController::class)->only(['update', 'destroy']);
+    });
+    Route::post('items', [ItemController::class, 'store'])
+        ->name('items.store')
+        ->middleware('role:admin,budget_checker,requester,program_manager');
     Route::apiResource('units', UnitController::class);
     // Committees are formed by the Super Admin only (ESDO Procurement
     // Policy §9 puts committee composition under central control). Every
@@ -164,6 +181,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('tor-details', TorDetailController::class);
     Route::apiResource('design-drawings', DesignDrawingController::class);
 
+    Route::get('vendor-documents/{vendorDocument}/file', [VendorDocumentController::class, 'file']);
     Route::apiResource('vendor-documents', VendorDocumentController::class);
 
     // Budget dashboard — readable by everyone logged in, same as other masters.
@@ -211,6 +229,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('procurement-annual-plans/{procurementAnnualPlan}', [ProcurementAnnualPlanController::class, 'update']);
         Route::delete('procurement-annual-plans/{procurementAnnualPlan}', [ProcurementAnnualPlanController::class, 'destroy']);
         Route::post('procurement-annual-plans/{procurementAnnualPlan}/packages', [ProcurementPlanPackageController::class, 'store']);
+        Route::post('procurement-annual-plans/{procurementAnnualPlan}/import/preview', [AnnualPlanImportController::class, 'preview']);
+        Route::post('procurement-annual-plans/{procurementAnnualPlan}/import/commit', [AnnualPlanImportController::class, 'commit']);
         Route::put('procurement-plan-packages/{procurementPlanPackage}', [ProcurementPlanPackageController::class, 'update']);
         Route::delete('procurement-plan-packages/{procurementPlanPackage}', [ProcurementPlanPackageController::class, 'destroy']);
     });
@@ -256,17 +276,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('comparative-statements/{comparativeStatement}/document', [DocumentDownloadController::class, 'comparativeStatement']);
     Route::get('comparative-statements/{comparativeStatement}/preview', [DocumentDownloadController::class, 'comparativeStatementPreview']);
     Route::get('comparative-statements/{comparativeStatement}/word', [DocumentDownloadController::class, 'comparativeStatementWord']);
-    Route::get('contract-awards/{contractAward}/noa', [ContractDocumentController::class, 'noa']);
-    Route::get('contract-awards/{contractAward}/noa-pdf', [ContractDocumentController::class, 'noaPdf']);
-    Route::get('contract-awards/{contractAward}/noa-preview', [ContractDocumentController::class, 'noaPreview']);
-    Route::get('contract-awards/{contractAward}/agreement-draft', [ContractDocumentController::class, 'agreementDraft']);
-    Route::get('contract-awards/{contractAward}/agreement-draft-preview', [ContractDocumentController::class, 'agreementDraftPreview']);
-    Route::get('contract-agreements/{contractAgreement}/document', [ContractDocumentController::class, 'agreementPdf']);
-    Route::get('contract-agreements/{contractAgreement}/preview', [ContractDocumentController::class, 'agreementPreview']);
-    Route::get('contract-agreements/{contractAgreement}/word', [ContractDocumentController::class, 'agreement']);
     Route::get('tender-openings/{tenderOpening}/document', [DocumentDownloadController::class, 'tenderOpening']);
     Route::get('tender-openings/{tenderOpening}/pdf', [DocumentDownloadController::class, 'tenderOpeningPdf']);
     Route::get('tender-openings/{tenderOpening}/preview', [DocumentDownloadController::class, 'tenderOpeningPreview']);
+    Route::get('work-orders/{workOrder}/document', [DocumentDownloadController::class, 'workOrder']);
+    Route::get('work-orders/{workOrder}/pdf', [DocumentDownloadController::class, 'workOrderPdf']);
+    Route::get('work-orders/{workOrder}/preview', [DocumentDownloadController::class, 'workOrderPreview']);
+    Route::get('procurement-cases/{procurementCase}/report', [DocumentDownloadController::class, 'procurementReport']);
+    Route::get('procurement-cases/{procurementCase}/report-pdf', [DocumentDownloadController::class, 'procurementReportPdf']);
+    Route::get('procurement-cases/{procurementCase}/report-preview', [DocumentDownloadController::class, 'procurementReportPreview']);
 
     // B, C, D, E — Procurement Officer's desk.
     Route::middleware('role:procurement_officer,admin')->group(function () {
@@ -303,6 +321,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('comparative-statement-items', ComparativeStatementItemController::class);
         Route::apiResource('pay-orders', PayOrderController::class);
         Route::apiResource('contract-agreements', ContractAgreementController::class);
+        Route::get('work-orders/{workOrder}/terms', [WorkOrderController::class, 'terms']);
+        Route::put('work-orders/{workOrder}/terms', [WorkOrderController::class, 'updateTerms']);
+        Route::delete('work-orders/{workOrder}/terms', [WorkOrderController::class, 'resetTerms']);
         Route::apiResource('work-orders', WorkOrderController::class);
         Route::apiResource('delivery-receipts', DeliveryReceiptController::class);
 

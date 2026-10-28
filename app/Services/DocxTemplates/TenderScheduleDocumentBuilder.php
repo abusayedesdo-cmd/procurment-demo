@@ -46,7 +46,7 @@ class TenderScheduleDocumentBuilder
         foreach ([
             ['DATE:', $this->fmtDate($rfq->issue_date, 'd.m.Y')],
             ['REFERENCE:', $rfq->rfq_number],
-            ['Address:', 'Collegepara (Gobindanagar), Thakurgaon-5100'],
+            ['Address:', $data['committeeAddress'] ?? 'Collegepara (Gobindanagar), Thakurgaon-5100'],
         ] as [$label, $value]) {
             $meta->addRow();
             $meta->addCell(2500)->addText($label, $this->b());
@@ -68,9 +68,9 @@ class TenderScheduleDocumentBuilder
             . $this->fmtDate($rfq->closing_date, 'h:i A') . ' via courier/post office or directly to the address below:'
         );
         $section->addText(
-            ($data['convenerName'] ?? 'Convener') . ", Central Procurement Committee\n"
+            ($data['convenerName'] ?? 'Convener') . ', ' . ($data['committeeName'] ?? 'Central Procurement Committee') . "\n"
             . "Eco-Social Development Organization (ESDO)\n"
-            . 'Collegepara (Gobindanagar), Thakurgaon-5100',
+            . ($data['committeeAddress'] ?? 'Collegepara (Gobindanagar), Thakurgaon-5100'),
             $this->b(),
             $this->c()
         );
@@ -167,7 +167,7 @@ class TenderScheduleDocumentBuilder
         $section->addText('ANNEX-IV: TERMS & CONDITIONS', array_merge($this->b(), ['size' => 12, 'underline' => 'single']));
         $this->addNumberedList($section, [
             'Bidders must submit valid Trade License, VAT Registration Certificate, TIN Certificate, and Proof of Return Submission (PSR) with the bid.',
-            'Bids must be submitted in a sealed envelope, addressed to the Convener, Central Procurement Committee, ESDO, on or before the submission deadline above.',
+            'Bids must be submitted in a sealed envelope, addressed to the Convener, ' . ($data['committeeName'] ?? 'Central Procurement Committee') . ', ESDO, on or before the submission deadline above.',
             'Bids received after the deadline will not be accepted under any circumstances.',
             'Prices quoted must be inclusive of VAT & Tax, and must remain valid for the period stated above.',
             'The successful bidder will be required to submit a Performance Security as stated above, within 7 days of receiving the Notification of Award.',
@@ -179,7 +179,7 @@ class TenderScheduleDocumentBuilder
         $section->addText('Sincerely yours,', $this->b());
         $section->addText('(' . $data['signatoryName'] . ')');
         $section->addText($data['signatoryTitle']);
-        $section->addText('Central Procurement Committee, ESDO');
+        $section->addText(($data['committeeName'] ?? 'Central Procurement Committee') . ', ESDO');
 
         $this->addFooterDisclaimer($section);
 

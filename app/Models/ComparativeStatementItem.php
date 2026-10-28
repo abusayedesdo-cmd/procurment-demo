@@ -16,6 +16,7 @@ class ComparativeStatementItem extends Model
         'technical_evaluation_item_id',
         'financial_marks',
         'technical_marks',
+        'sample_marks',
         'total_marks',
         'rank',
         'amount',
@@ -25,6 +26,7 @@ class ComparativeStatementItem extends Model
         'amount' => 'decimal:2',
         'financial_marks' => 'decimal:2',
         'technical_marks' => 'decimal:2',
+        'sample_marks' => 'decimal:2',
         'total_marks' => 'decimal:2',
     ];
 

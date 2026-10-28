@@ -159,6 +159,58 @@
   </div>
 </div>
 
+{{-- After the meetings: the rest of the procurement, in the order the work really happens. Each button opens the
+     same page the team already uses for that step — nothing about how those pages work has changed. --}}
+@isset($flow)
+@php $byPhase = collect($flow['rows'])->groupBy('phase'); @endphp
+<div class="card card-pad" style="margin-top:16px">
+  <b style="font-size:14px">Procurement Steps</b>
+  <div style="font-size:12px;color:var(--muted);margin-top:2px">
+    What happens after the committee meeting, step by step. <b>✓</b> = a record already exists. <b>Next</b> = the first step with nothing yet.
+    @if (! $flow['meetings_ready'])
+      <span style="color:#B45309"> The 1st meeting resolution is not finalised yet — you can still open any step.</span>
+    @endif
+  </div>
+
+  @php $n = 0; @endphp
+  @foreach ($flow['phases'] as $phaseKey => $phaseDef)
+    @php
+      [$phaseTitle, $phaseText] = $phaseDef;
+      $phaseRows = $byPhase->get($phaseKey, collect());
+      $doneCount = $phaseRows->where('state', 'done')->count();
+    @endphp
+    @continue($phaseRows->isEmpty())
+    <div style="margin-top:18px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="font-size:13px;font-weight:700">{{ $loop->iteration }}. {{ $phaseTitle }}</div>
+        @if ($phaseKey !== 'report')<span style="font-size:11.5px;color:{{ $doneCount === $phaseRows->count() ? 'var(--good, #0D9488)' : 'var(--muted)' }}">{{ $doneCount }} of {{ $phaseRows->count() }} done</span>@endif
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin:2px 0 8px">{{ $phaseText }}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        @foreach ($phaseRows as $row)
+          @php $n++; @endphp
+          <div class="step-row" style="border:1px solid var(--line-soft);border-radius:10px;padding:10px 14px;{{ $row['state'] === 'next' ? 'border-color:var(--brand, #0D9488);background:#F0FDFA;' : '' }}">
+            <span class="step-no" style="color:{{ $row['state'] === 'done' ? 'var(--good, #0D9488)' : 'var(--muted)' }}">{{ $row['state'] === 'done' ? '✓' : $n }}</span>
+            <span class="step-label">
+              <b>{{ $row['label'] }}</b>
+              @if ($row['count'] > 0)<span style="color:var(--muted)"> — {{ $row['count'] }} {{ $row['count'] === 1 ? 'record' : 'records' }}</span>@endif
+              @if ($row['state'] === 'next' && empty($row['report']))<span class="chip" style="margin-left:6px;font-size:11px">Next</span>@endif
+              <span style="display:block;font-size:11.5px;color:var(--muted);margin-top:2px">{{ $row['hint'] }}</span>
+            </span>
+            <div class="doc-actions">
+              @if ($row['docs'])
+                @include('cases._doc-buttons', $row['docs'])
+              @endif
+              @if ($row['url'])<a href="{{ $row['url'] }}" class="btn {{ $row['state'] === 'next' ? 'btn-primary' : 'btn-outline' }} doc-btn">{{ $row['count'] > 0 ? 'Open' : 'Start' }}</a>@endif
+            </div>
+          </div>
+        @endforeach
+      </div>
+    </div>
+  @endforeach
+</div>
+@endisset
+
 <script>
   // Close the Download menu when clicking elsewhere or after choosing a file.
   document.addEventListener('click', function (e) {

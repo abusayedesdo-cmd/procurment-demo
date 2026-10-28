@@ -4,6 +4,6 @@
   <summary class="btn btn-outline doc-btn">Download &#9662;</summary>
   <div class="dl-pop">
     <a href="{{ $word }}" download>Word (.docx)</a>
-    <a href="{{ $pdf }}" download>PDF</a>
+    @if (!empty($pdf))<a href="{{ $pdf }}" download>PDF</a>@endif
   </div>
 </details>

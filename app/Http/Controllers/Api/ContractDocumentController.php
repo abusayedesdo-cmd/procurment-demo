@@ -11,6 +11,7 @@ use App\Services\DocxTemplates\ContractAgreementDocumentBuilder;
 use App\Services\DocxTemplates\NoaDocumentBuilder;
 use App\Services\CommitteeDocumentText;
 use App\Support\CommitteeScope;
+use App\Support\MeetingCommittee;
 
 /**
  * Word / PDF documents for the post-award steps:
@@ -205,7 +206,9 @@ class ContractDocumentController extends DocumentDownloadController
             'committeeName' => $isMain ? 'Central Procurement Committee' : $committee->name,
             'convener' => $conv ? ['name' => $conv->name, 'designation' => $conv->designation] : null,
             'secretary' => $sec ? ['name' => $sec->name, 'designation' => $sec->designation] : null,
-            'officeAddress' => self::OFFICE_ADDRESS,
+            // Address of the committee that is doing this procurement (falls back to the ESDO office).
+            'officeAddress' => MeetingCommittee::letterhead($committee, self::OFFICE_ADDRESS, $rfq?->office)['address'],
+            'committeeAddress' => MeetingCommittee::letterhead($committee, 'Collegepara (Gobindanagar), Thakurgaon, Rangpur, Bangladesh', $rfq?->office)['address'],
         ];
     }
 

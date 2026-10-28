@@ -33,7 +33,7 @@
             @endif
             <tr><td class="label">Attendance No.</td><td>{{ $meeting->attendance_number ?? '—' }}</td></tr>
             <tr><td class="label">Date</td><td>{{ optional($meeting->meeting_date)->format('d F, Y') }}</td></tr>
-            <tr><td class="label">Designation (this meeting)</td><td>{{ $designation }}</td></tr>
+            <tr><td class="label">Designation </td><td>{{ $designation }}</td></tr>
             @if (!empty($authorName))
                 <tr>
                     <td class="label">Sent by</td>

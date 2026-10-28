@@ -31,13 +31,18 @@
 <body>
     @include('documents._pad')
 
+    @if (!empty($committeeAddress))
+        <p style="text-align:center; margin:0 0 4px; font-size:10.5px;">{{ rtrim($committeeAddress, '.') }}.</p>
+    @endif
+    <p style="text-align:center; font-weight:bold; font-size:15px; margin:4px 0 12px;">Meeting Notice</p>
+
     <div class="page">
         <table class="plain">
             <tr>
-                <td style="width:50%">
+                <td style="width:60%">
                     <span class="bold">Notice Number:</span> <i>{{ $meeting->notice_number }}</i>
                 </td>
-                <td style="width:50%; text-align: right;">
+                <td style="width:40%; text-align: right;">
                     <span class="bold">Notice Date:</span> <i>{{ optional($meeting->notice_date)->format('d F, Y') }}</i>
                 </td>
             </tr>
@@ -47,10 +52,10 @@
 
         <p>Dear Hon'ble <i>{{ $memberDesignation }}</i> of Procurement Committee,</p>
 
-        <p>Greetings from Central Procurement Committee {{ $committeeLocation }}!</p>
+        <p>Greetings from {{ $committeeName }}, {{ $committeeLocation }}!</p>
 
         <p>
-            Central Procurement Committee {{ $committeeLocation }} has requested you to attend the
+            {{ $committeeName }}, {{ $committeeLocation }} has requested you to attend the
             <i>{{ Txt::agendaLine($case) }}</i> for below mentioned Purchase Requisition (PR):
             @if ($case->purchaseRequisition?->attachment_path)
                 (<i>Details PR as PDF Linked</i>)
@@ -82,7 +87,7 @@
         <div class="sig-block">
             @if ($signerName)<p class="bold">({{ $signerName }})</p>@endif
             @if ($signerDesignation)<p>{{ $signerDesignation }},</p>@endif
-            <p>Central Procurement Committee, {{ $committeeLocation }}.</p>
+            <p>{{ $committeeName }}, {{ $committeeLocation }}.</p>
         </div>
     </div>
 

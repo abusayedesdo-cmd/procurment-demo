@@ -20,8 +20,9 @@
     <span><b>Date:</b> {{ $meeting->meeting_date->format('d.m.Y') }}@if($meeting->meeting_time), Time: {{ $meeting->meeting_time }}@endif</span>
   </div>
 
+  @php $committeeName = \App\Support\MeetingCommittee::forMeeting($meeting)?->name ?? 'Central Procurement Committee'; @endphp
   <p style="font-size:13px;margin-top:16px;line-height:1.6">
-    The meeting was led by {{ $meeting->recordedBy?->name ?? 'the Convener' }}, Convener of the ESDO Central Procurement Committee.
+    The meeting was led by {{ $meeting->recordedBy?->name ?? 'the Convener' }}, Convener of the ESDO {{ $committeeName }}.
     At the beginning, he welcomed all the members and thanked them for joining. After that, he started the meeting officially.
   </p>
 
@@ -70,7 +71,7 @@
     <div>With thanks,</div>
     @if ($meeting->recordedBy?->name)<div style="margin-top:36px"><b>({{ $meeting->recordedBy->name }})</b></div>@endif
     @if ($meeting->recordedBy?->designation)<div>{{ $meeting->recordedBy->designation }},</div>@endif
-    <div>Central Procurement Committee,</div>
+    <div>{{ $committeeName }},</div>
     <div>ESDO, Dhaka.</div>
   </div>
 

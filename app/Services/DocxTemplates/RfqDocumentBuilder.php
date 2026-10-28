@@ -34,7 +34,7 @@ class RfqDocumentBuilder
         $this->addLetterhead(
             $section,
             'Eco-Social Development Organization (ESDO)',
-            'House # 748, Baitul Aman Housing Society, Road # 8, Adabor, Dhaka-1207'
+            ($data['committeeAddress'] ?? 'House # 748, Baitul Aman Housing Society, Road # 8, Adabor, Dhaka-1207')
         );
 
         $memoTable = $section->addTable(['borderSize' => 0, 'cellMargin' => 0]);
@@ -58,8 +58,8 @@ class RfqDocumentBuilder
                 . "qualified {$categoryName} vendors/consultants for \"" . ($rfq->subject ?: '[Project Name]') . '" in '
                 . ($pr?->delivery_location ?? '[Project Location]') . '. Interested Vendors/Consultants are requested to submit '
                 . 'their proposal through courier or directly according to the below mentioned terms & conditions by or before on '
-                . "{$closing} at 04:00 PM addressing to \"Convener, Central Procurement Committee, Eco-Social Development "
-                . 'Organization (ESDO), House # 748, Road# 8 Adabor, Dhaka".'
+                . "{$closing} at 04:00 PM addressing to \"Convener, " . ($data['committeeName'] ?? 'Central Procurement Committee')
+                . ', Eco-Social Development Organization (ESDO), ' . ($data['committeeAddress'] ?? 'House # 748, Road# 8 Adabor, Dhaka') . '".'
             );
         } else {
             $section->addText(
@@ -67,8 +67,8 @@ class RfqDocumentBuilder
                 . "vendors/suppliers for supplying {$categoryName} equipment under \"" . ($rfq->subject ?: '[Project Name]') . '" in '
                 . ($pr?->delivery_location ?? '[Project Location]') . '. Interested Vendors/Suppliers are requested to submit '
                 . 'quotation through courier or directly according to the below mentioned terms & conditions by or before on '
-                . "{$closing} at 04:00 PM addressing to \"Convener, Central Procurement Committee, Eco-Social Development "
-                . 'Organization (ESDO), House # 748, Road# 8 Adabor, Dhaka".'
+                . "{$closing} at 04:00 PM addressing to \"Convener, " . ($data['committeeName'] ?? 'Central Procurement Committee')
+                . ', Eco-Social Development Organization (ESDO), ' . ($data['committeeAddress'] ?? 'House # 748, Road# 8 Adabor, Dhaka') . '".'
             );
         }
 
@@ -111,17 +111,7 @@ class RfqDocumentBuilder
         // The old fixed 11-point list, used only as a fallback for RFQs
         // that don't have any item picked from the editable master list
         // below (e.g. RFQs created before this feature existed).
-        $fallbackTerms = [
-            'Legal Document PDF Copy must be Submitted with Quotation: (Trade License, VAT Registration, TIN Certificate, PSR)',
-            'Relevant Experience Certificate PDF Copy must be Submitted with Quotation.',
-            'General Experience Certificate PDF Copy must be Submitted with Quotation.',
-            'RFQ Receiving PDF Copy Need to Attach with the Quotation.',
-            'As per govt. rules and regulation vat & tax will be deducted at the time of payment.',
-            'The given price of the product must be valid for at least 15 days, and within this time frame the supplier is bound to supply products at the given price.',
-            'Mode of payment: Payment will be made through Account Payee cheque/Pay order/RTGS/BEFTN or DD in favour of the supplying vendor after successful delivery of goods.',
-            'ESDO reserves the authority to cancel — partially or fully — any quotation with or without explanation.',
-            'ESDO never allows any harassment to women and children, and never allows child labour. Any institution or organization associated with such practices is strongly discouraged from participating in the bid.',
-        ];
+        $fallbackTerms = \App\Models\Rfq::FALLBACK_TERMS;
 
         /** @var \Illuminate\Support\Collection $selectedTerms */
         $selectedTerms = $data['termsConditions'] ?? collect();
@@ -154,7 +144,7 @@ class RfqDocumentBuilder
         $left = $sigTable->addCell(5000);
         $left->addText("({$signatoryName})", $this->b());
         $left->addText($signatoryTitle);
-        $left->addText('Central Procurement Committee, ESDO, Dhaka-1207.');
+        $left->addText(($data['committeeName'] ?? 'Central Procurement Committee') . ', ESDO, ' . ($data['committeeAddress'] ?? 'Dhaka-1207') . '.');
         $sigTable->addCell(4000, ['valign' => 'bottom'])->addText('Receivers Signature & Seal', [], ['alignment' => Jc::END]);
 
         $this->addFooterDisclaimer($section);

@@ -341,16 +341,12 @@
 
             <div class="card">
                 <h2>Terms &amp; Conditions</h2>
-                @if ($rfq->terms_conditions)
-                    <p style="white-space:pre-line; font-size:.88rem;">{{ $rfq->terms_conditions }}</p>
-                    <hr style="border:none; border-top:1px solid var(--line); margin:1rem 0;">
-                @endif
-                <p style="white-space:pre-line; font-size:.85rem; color:#475569;">1. Quoted prices must be inclusive of applicable VAT and Tax.
-                2. Quantities beyond what is ordered may not be supplied without ESDO's written approval.
-                3. Goods/services must be delivered on time and to the specified quality standard.
-                4. The vendor bears liability for any loss or damage until the goods are received by ESDO.
-                5. If the vendor fails to meet the terms of the contract, ESDO may require correction, replacement, or a refund of the price.
-                6. Any dispute arising from this tender will first be addressed through discussion between the parties.</p>
+                {{-- Same list as the RFQ document: dates, delivery, the terms ticked on the RFQ, and any additional terms. --}}
+                <ol style="margin:.25rem 0 0; padding-left:1.25rem; font-size:.88rem; line-height:1.6;">
+                    @foreach ($rfq->termsList() as $term)
+                        <li>{{ $term }}</li>
+                    @endforeach
+                </ol>
             </div>
 
             <div class="card">

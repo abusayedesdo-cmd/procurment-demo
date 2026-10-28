@@ -211,7 +211,7 @@
 
         <?php if(isset($activePr)): ?>
             <div class="active-pr-banner">
-                <span>Working on <b>PR-<?php echo e($activePr->pr_number ?? $activePr->id); ?></b> </span>
+                <span>Working on <b><?php echo e($activePr->pr_number ?? ('PR-' . $activePr->id)); ?></b> </span>
                 <a href="<?php echo e(route('process-steps.show', $slug)); ?>?clear_pr=1">Change / clear &times;</a>
             </div>
         <?php endif; ?>
@@ -619,4 +619,4 @@
     }
 </script>
 <?php $__env->stopSection(); ?>
-<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\New Poject\Project_procrument\resources\views/process-steps/show.blade.php ENDPATH**/ ?>
+<?php echo $__env->make('layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\Procument_Pro\Project_procrument\resources\views/process-steps/show.blade.php ENDPATH**/ ?>

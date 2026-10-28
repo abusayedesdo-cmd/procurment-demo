@@ -22,6 +22,9 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+        // Dashboard is the root of the step flow: forget old step history so that
+        // "Back" on the first step opened from here returns to the dashboard.
+        session()->forget('process_step_stack');
         $role = $user->roleName() ?? null;
 
         $canReview = in_array($role, [\App\Models\User::REVIEWER, \App\Models\User::ADMIN]);
@@ -112,6 +115,42 @@ class DashboardController extends Controller
         // Committee -> Sub-Committee, or back to the Main Committee). Same "latest transfer
         // per plan decides who holds it" rule as My Committee Work, so an item drops out of
         // the bell automatically once it moves on to another committee.
+
+        // Center/Main Procurement (or a Main Committee member, or Admin): approved PRs
+        // that have no procurement case yet. These sit with the Main Committee by default,
+        // so there is no SubCommitteeTransfer row and nothing else would put them in the bell.
+        $isMainProcurement = $user->isAdmin()
+            || CommitteeScope::isCenterProcurement($user)
+            || CommitteeMember::where('user_id', $user->id)
+                ->whereIn('committee_id', \App\Models\PurchaseCommittee::where('type', 'main')->select('id'))
+                ->exists();
+
+        $mainPrModels = $isMainProcurement
+            ? $scopePrs(PurchaseRequisition::where('status', 'approved')
+                ->whereDoesntHave('procurementCase')
+                ->orderBy('id'))
+            : collect();
+
+        // When each PR actually reached Main Procurement = time of its final "approved" sign-off.
+        // (pr_approvals.acted_at is date-only, so use the row's created_at; fall back to updated_at.)
+        $approvedAt = $mainPrModels->isEmpty()
+            ? collect()
+            : \App\Models\PrApproval::whereIn('pr_id', $mainPrModels->pluck('id'))
+                ->where('action', 'approved')
+                ->selectRaw('pr_id, MAX(created_at) as arrived_at')
+                ->groupBy('pr_id')
+                ->pluck('arrived_at', 'pr_id');
+
+        $awaitingMainProcurement = $mainPrModels->map(function ($pr) use ($approvedAt) {
+            $arrived = \Illuminate\Support\Carbon::parse($approvedAt[$pr->id] ?? $pr->updated_at, config('app.timezone'))
+                ->timezone('Asia/Dhaka');
+
+            return (object) array_merge(
+                $pr->only(['id', 'pr_number', 'project_name', 'total_estimated_amount', 'created_at']),
+                ['arrived_at' => $arrived]
+            );
+        })->sortByDesc('arrived_at')->values();
+
         $transferredToMe = (function () use ($user) {
             $myCommitteeIds = CommitteeMember::where('user_id', $user->id)->pluck('committee_id');
             if ($myCommitteeIds->isEmpty()) {
@@ -176,6 +215,8 @@ class DashboardController extends Controller
             'awaitingApproval' => $awaitingApproval,
             'awaitingFocalReview' => $awaitingFocalReview,
             'awaitingEdApproval' => $awaitingEdApproval,
+            'isMainProcurement' => $isMainProcurement,
+            'awaitingMainProcurement' => $awaitingMainProcurement,
         ]);
     }
 }

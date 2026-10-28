@@ -31,33 +31,59 @@
                 <select id="category" onchange="onCategoryChanged()"></select>
             </div>
             <div>
-                <label for="groupSelect">Procurement Group No</label>
+                <label for="groupSelect">Procurement Group No
+                    <a href="#" id="newGroupLink" onclick="toggleNewGroup(event)" style="display:none; margin-left:.4rem; font-weight:normal;">+ New group</a>
+                </label>
                 <select id="groupSelect" onchange="onGroupChanged()">
                     <option value="">-- Select Category first --</option>
                 </select>
             </div>
-            <div>
+            <div style="position:relative;">
                 <label for="itemSelect">Item (select if exists)</label>
-                <input type="text" id="itemSelect" list="itemDatalist" placeholder="-- Select / Type New --" oninput="onItemSelected()" autocomplete="off">
-                <datalist id="itemDatalist"></datalist>
-            </div>
-            <div>
-                <label for="budgetedHead">Item Name </label>
-                <input type="text" id="budgetedHead" placeholder="e.g. Computer">
+                <input type="text" id="itemSelect" placeholder="-- Select / Type New --" oninput="onItemSelected()" onfocus="renderItemSuggest()" onblur="hideItemSuggest(event)" autocomplete="off">
+                <div id="itemSuggest" style="display:none; position:absolute; left:0; right:0; top:100%; z-index:50; max-height:240px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 6px 16px rgba(0,0,0,.12);"></div>
+                <input type="hidden" id="budgetedHead" value="">
                 <input type="hidden" id="itemId" value="">
             </div>
             <div>
                 <label for="specification">Specification</label>
                 <input type="text" id="specification">
             </div>
-            <div>
+            <div style="position:relative;">
                 <label for="unit">Unit</label>
-                <input type="text" id="unit" list="unitList" placeholder="e.g. Pcs">
-                <datalist id="unitList"></datalist>
+                <input type="text" id="unit" placeholder="e.g. Pcs" oninput="renderUnitSuggest()" onfocus="renderUnitSuggest()" onblur="hideUnitSuggest()" autocomplete="off">
+                <div id="unitSuggest" style="display:none; position:absolute; left:0; right:0; top:100%; z-index:50; max-height:240px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 6px 16px rgba(0,0,0,.12);"></div>
             </div>
             <div>
                 <label for="yearRate">Unit Rate (same across all rows)</label>
                 <input type="number" id="yearRate" value="0" oninput="onYearRateChange()">
+            </div>
+        </div>
+
+        <div id="addToListWrap" style="display:none; margin:.25rem 0 .75rem;">
+            <label id="addToListLabel" style="font-weight:normal; display:flex; gap:.4rem; align-items:center;">
+                <input type="checkbox" id="addToList" checked style="width:auto;">
+                Add this new item to the Items list
+            </label>
+            <div class="muted" id="addToListHint"></div>
+        </div>
+
+        <div id="newGroupBox" class="card" style="display:none; margin:.25rem 0 .75rem; background:#fafafa;">
+            <div class="row">
+                <div>
+                    <label for="newGroupCode">Group Code</label>
+                    <input type="text" id="newGroupCode" placeholder="e.g. COA-1299">
+                </div>
+                <div>
+                    <label for="newGroupName">Group Name</label>
+                    <input type="text" id="newGroupName" placeholder="e.g. Office Furniture">
+                </div>
+            </div>
+            <div class="muted" id="newGroupHint"></div>
+            <div style="margin-top:.5rem;">
+                <button type="button" class="btn" onclick="saveNewGroup()">Save Group</button>
+                <button type="button" class="btn secondary" onclick="toggleNewGroup()">Cancel</button>
+                <span id="newGroupMsg" class="muted" style="margin-left:.5rem;"></span>
             </div>
         </div>
 
@@ -112,8 +138,45 @@
 @endsection
 
 @section('scripts')
+<div id="importModal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(15,23,42,.55); align-items:flex-start; justify-content:center; overflow:auto; padding:2rem 1rem;">
+  <div style="background:#fff; border-radius:10px; width:min(1200px,100%); padding:1.25rem 1.5rem; box-shadow:0 12px 40px rgba(0,0,0,.3);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.75rem;">
+      <h2 style="margin:0;">Import packages from Excel</h2>
+      <button type="button" class="btn secondary" onclick="closeImport()">Close</button>
+    </div>
+    <p class="muted" style="margin:.25rem 0 .75rem;">Upload the Annual Procurement Plan Excel, pick this plan's project, check the preview, then import. Nothing is saved until you press <b>Import</b>.</p>
+    <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+      <div><label>Excel file (.xlsx)</label><input type="file" id="importFileInput" accept=".xlsx,.xls" onchange="onImportFileChosen(this)"></div>
+      <div id="importProjectWrap" style="display:none; min-width:340px; flex:1;"><label>Project in the file</label><select id="importProject" onchange="importGroupMap = {}; runImportPreview()"></select></div>
+    </div>
+    <div id="importNote" class="muted" style="margin-top:.5rem; font-size:.85rem;"></div>
+    <div id="importMsg" style="margin-top:.5rem;"></div>
+    <div id="importBody" style="margin-top:.75rem;"></div>
+    <div style="display:flex; justify-content:flex-end; gap:.5rem; margin-top:1rem;">
+      <button type="button" class="btn secondary" onclick="closeImport()">Cancel</button>
+      <button type="button" class="btn" id="importConfirmBtn" onclick="importCommit()" disabled>Import</button>
+    </div>
+  </div>
+</div>
+
 <script>
     const CAN_MANAGE_PACKAGES = window.currentUserRole === 'admin' || window.currentUserRole === 'budget_checker';
+    const CAN_ADD_GROUP = window.currentUserRole === 'admin';   // new Procurement Groups: Admin only
+
+    // Same name regardless of case / extra spaces ("Laptop " == "laptop").
+    function normName(s) { return String(s ?? '').trim().replace(/\s+/g, ' ').toLowerCase(); }
+    // "2026-07-01T00:00:00.000000Z" -> "01 Jul 2026" (date only, no time, no timezone shift).
+    function formatDateOnly(value) {
+        if (!value) return '-';
+        const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) return String(value);
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return `${m[3]} ${months[parseInt(m[2], 10) - 1]} ${m[1]}`;
+    }
+
+    function escHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
     const planId = {{ (int) $id }};
     
     const errorBox = document.getElementById('errorBox');
@@ -279,12 +342,185 @@
         }
     }
 
+    function renderItemSuggest() {
+        const box = document.getElementById('itemSuggest');
+        if (!box || window.__itemAddMode) return;
+        const typed = document.getElementById('itemSelect').value.trim().toLowerCase();
+        const list = (window.__currentGroupItems || [])
+            .filter(i => typed === '' || String(i.name).toLowerCase().includes(typed));
+
+        if (list.length === 0) {
+            box.innerHTML = `<div style="padding:.5rem .75rem; color:#64748b; font-size:.85rem;">${
+                typed ? 'No match. This will be saved as a new item.' : 'No existing items here. Type a new item name.'}</div>`;
+        } else {
+            box.innerHTML = list.map(i =>
+                `<div data-id="${i.id}" onmousedown="pickItem(${i.id})" style="padding:.45rem .75rem; cursor:pointer; border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">${escHtml(i.name)}</div>`
+            ).join('');
+        }
+        // Footer action: add a new item right from the dropdown.
+        const rawTyped = document.getElementById('itemSelect').value.trim();
+        const exact = (window.__currentGroupItems || []).some(i => normName(i.name) === normName(rawTyped));
+        if (CAN_MANAGE_PACKAGES && !exact) {
+            const label = rawTyped ? `+ Add "${escHtml(rawTyped)}" as a new item` : '+ Add a new item (type the name first)';
+            box.innerHTML += `<div onmousedown="addNewItemFromDropdown(event)" style="padding:.5rem .75rem; cursor:pointer; font-weight:600; color:#0f766e; background:#f0fdfa; position:sticky; bottom:0;">${label}</div>`;
+        }
+        box.style.display = 'block';
+    }
+
+    // Click on "+ Add ... new item" in the dropdown.
+    function addNewItemFromDropdown(e) {
+        if (e) e.preventDefault();               // keep focus so the input does not blur first
+        const name = document.getElementById('itemSelect').value.trim();
+        if (name) { createItem(name); return; }
+        showNewItemPanel();                      // nothing typed yet -> ask for the name right here
+    }
+
+    // Small panel inside the dropdown: type the new item's name and save it.
+    function showNewItemPanel(message) {
+        const box = document.getElementById('itemSuggest');
+        window.__itemAddMode = true;
+        box.innerHTML = `
+            <div style="padding:.6rem .75rem;">
+                <div style="font-weight:600; margin-bottom:.35rem;">New item name</div>
+                <input type="text" id="newItemName" placeholder="e.g. Training materials" autocomplete="off"
+                       style="width:100%; box-sizing:border-box;"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();saveNewItemPanel();} else if(event.key==='Escape'){cancelNewItemPanel();}"
+                       onblur="hideItemSuggest(event)">
+                <div id="newItemMsg" style="color:#b91c1c; font-size:.85rem; margin-top:.3rem;">${message ? escHtml(message) : ''}</div>
+                <div style="display:flex; gap:.4rem; margin-top:.5rem;">
+                    <button type="button" onmousedown="event.preventDefault(); saveNewItemPanel()">Save item</button>
+                    <button type="button" onmousedown="event.preventDefault(); cancelNewItemPanel()">Cancel</button>
+                </div>
+            </div>`;
+        box.style.display = 'block';
+        document.getElementById('newItemName').focus();
+    }
+
+    function saveNewItemPanel() {
+        const name = document.getElementById('newItemName').value.trim();
+        if (!name) { document.getElementById('newItemMsg').textContent = 'Please type the item name.'; return; }
+        createItem(name);
+    }
+
+    function cancelNewItemPanel() {
+        window.__itemAddMode = false;
+        hideItemSuggest();
+        document.getElementById('itemSelect').focus();
+    }
+
+    // Saves a new item under the selected Group and puts it in the Item field.
+    async function createItem(name) {
+        const input = document.getElementById('itemSelect');
+        const groupId = document.getElementById('groupSelect').value;
+        const inPanel = !!window.__itemAddMode;
+        const fail = msg => {
+            if (inPanel) { const m = document.getElementById('newItemMsg'); if (m) m.textContent = msg; return; }
+            showNewItemPanel(msg);               // show the message inside the dropdown, not far up the page
+        };
+
+        if (!groupId) { fail('Select a Procurement Group first, then add the new item.'); return; }
+
+        try {
+            const { data: created } = await api.post('/items', {
+                chart_of_account_id: groupId,
+                name,
+                specification: document.getElementById('specification').value.trim() || null,
+            });
+            items.push(created);
+            window.__itemAddMode = false;
+            onGroupChanged();                    // rebuild the list so the new item appears
+            input.value = created.name;
+            onItemSelected();
+            hideItemSuggest();
+        } catch (err) {
+            fail(err.message);
+        }
+    }
+
+    // ---- Unit dropdown (with "+ Add new unit") ----
+    function renderUnitSuggest() {
+        const box = document.getElementById('unitSuggest');
+        if (!box) return;
+        const raw = document.getElementById('unit').value.trim();
+        const typed = raw.toLowerCase();
+        const list = units.filter(u => typed === '' || String(u.name).toLowerCase().includes(typed));
+
+        let html = list.map(u =>
+            `<div onmousedown="pickUnit(${u.id})" style="padding:.45rem .75rem; cursor:pointer; border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">${escHtml(u.name)}</div>`
+        ).join('');
+        if (!list.length) {
+            html = '<div style="padding:.5rem .75rem; color:#64748b; font-size:.85rem;">No units found.</div>';
+        }
+        const exact = units.some(u => normName(u.name) === normName(raw));
+        if (raw && !exact) {
+            html += `<div onmousedown="addNewUnit(event)" style="padding:.5rem .75rem; cursor:pointer; font-weight:600; color:#0f766e; background:#f0fdfa; position:sticky; bottom:0;">+ Add "${escHtml(raw)}" as a new unit</div>`;
+        }
+        box.innerHTML = html;
+        box.style.display = 'block';
+    }
+
+    function hideUnitSuggest() {
+        const box = document.getElementById('unitSuggest');
+        if (box) box.style.display = 'none';
+    }
+
+    function pickUnit(id) {
+        const u = units.find(x => String(x.id) === String(id));
+        if (u) document.getElementById('unit').value = u.name;
+        hideUnitSuggest();
+    }
+
+    async function addNewUnit(e) {
+        if (e) e.preventDefault();
+        const input = document.getElementById('unit');
+        const name = input.value.trim();
+        const errorBox = document.getElementById('errorBox');
+        errorBox.style.display = 'none';
+        if (!name) return;
+        try {
+            const { data: created } = await api.post('/units', { name });
+            units.push(created);
+            input.value = created.name;
+            hideUnitSuggest();
+        } catch (err) {
+            errorBox.textContent = err.message;
+            errorBox.style.display = 'block';
+            hideUnitSuggest();
+        }
+    }
+
+    function hideItemSuggest(ev) {
+        const box = document.getElementById('itemSuggest');
+        if (!box) return;
+        // Focus moving between the Item field and the "new item" panel must not close it.
+        const to = ev && ev.relatedTarget;
+        if (to && (box.contains(to) || to.id === 'itemSelect')) return;
+        window.__itemAddMode = false;
+        box.style.display = 'none';
+    }
+
+    function pickItem(id) {
+        const item = (window.__currentGroupItems || []).find(i => String(i.id) === String(id));
+        if (!item) return;
+        document.getElementById('itemSelect').value = item.name;
+        onItemSelected();
+        hideItemSuggest();
+    }
+
     function onItemSelected() {
         const typed = document.getElementById('itemSelect').value.trim();
         const list = window.__currentGroupItems || [];
-        const match = list.find(i => i.name.toLowerCase() === typed.toLowerCase());
+        const match = list.find(i => normName(i.name) === normName(typed));
 
         if (match) {
+            // Item picked while only the Category is selected -> fill the matching Group automatically.
+            const groupEl = document.getElementById('groupSelect');
+            const matchGroupId = match.chart_of_account_id ?? match.chart_of_account?.id;
+            if (!groupEl.value && matchGroupId) {
+                groupEl.value = String(matchGroupId);
+                onGroupChanged();
+                document.getElementById('itemSelect').value = match.name;
+            }
             document.getElementById('itemId').value = match.id;
             document.getElementById('budgetedHead').value = match.name;
         } else {
@@ -292,6 +528,98 @@
             document.getElementById('itemId').value = '';
             document.getElementById('budgetedHead').value = typed;
         }
+        if (document.activeElement === document.getElementById('itemSelect')) renderItemSuggest();
+        refreshAddToList();
+    }
+
+    // Shows the "Add this new item to the Items list" box only when the typed item is new.
+    function refreshAddToList() {
+        const wrap = document.getElementById('addToListWrap');
+        if (!wrap) return;
+
+        const name = document.getElementById('budgetedHead').value.trim();
+        const groupId = document.getElementById('groupSelect').value;
+        const hasItem = !!document.getElementById('itemId').value;
+        const label = document.getElementById('addToListLabel');
+        const hint = document.getElementById('addToListHint');
+        const box = document.getElementById('addToList');
+
+        if (!CAN_MANAGE_PACKAGES || name === '' || hasItem) { wrap.style.display = 'none'; return; }
+
+        const existing = groupId && items.find(i =>
+            String(i.chart_of_account_id ?? i.chart_of_account?.id) === String(groupId) && normName(i.name) === normName(name));
+
+        wrap.style.display = 'block';
+        if (existing) {
+            label.style.display = 'none';
+            hint.textContent = 'This item already exists in the list. It will be linked automatically, no duplicate will be created.';
+            return;
+        }
+
+        label.style.display = 'flex';
+        box.disabled = !groupId;
+        hint.textContent = groupId
+            ? 'Next time it will appear in the "Item" dropdown for this group.'
+            : 'Select a Procurement Group first to add this item to the Items list.';
+    }
+
+    function toggleNewGroup(e) {
+        if (e) e.preventDefault();
+        const box = document.getElementById('newGroupBox');
+        const open = box.style.display === 'none';
+        box.style.display = open ? 'block' : 'none';
+        if (open) {
+            const cat = categories.find(c => String(c.id) === String(document.getElementById('category').value));
+            document.getElementById('newGroupHint').textContent = `It will be added under the category: ${cat ? cat.name : '(none selected)'}.`;
+            document.getElementById('newGroupMsg').textContent = '';
+            document.getElementById('newGroupCode').focus();
+        }
+    }
+
+    async function saveNewGroup() {
+        const msg = document.getElementById('newGroupMsg');
+        const categoryId = document.getElementById('category').value;
+        const code = document.getElementById('newGroupCode').value.trim();
+        const name = document.getElementById('newGroupName').value.trim();
+        msg.style.color = '';
+
+        if (!categoryId || !code || !name) {
+            msg.textContent = 'Category, Group Code and Group Name are all required.';
+            msg.style.color = '#b91c1c';
+            return;
+        }
+
+        const keepHead = document.getElementById('budgetedHead').value;
+        const dup = chartOfAccounts.find(g => String(g.category_id) === String(categoryId) && normName(g.code) === normName(code));
+        let groupId;
+
+        if (dup) {
+            groupId = dup.id;
+            msg.textContent = 'That group code already exists, so it was selected for you.';
+        } else {
+            try {
+                const { data: created } = await api.post('/chart-of-accounts', { category_id: categoryId, code, name });
+                chartOfAccounts.push(created);
+                groupId = created.id;
+                msg.textContent = `Group ${created.code} added.`;
+            } catch (err) {
+                msg.textContent = err.message;
+                msg.style.color = '#b91c1c';
+                return;
+            }
+        }
+
+        onCategoryChanged();                       // rebuild the Group list (includes the new one)
+        document.getElementById('groupSelect').value = groupId;
+        onGroupChanged();
+        if (keepHead) {                            // keep an item name the user had already typed
+            document.getElementById('itemSelect').value = keepHead;
+            onItemSelected();
+        }
+
+        document.getElementById('newGroupCode').value = '';
+        document.getElementById('newGroupName').value = '';
+        document.getElementById('newGroupBox').style.display = 'none';
     }
 
     async function loadCategories() {
@@ -307,8 +635,6 @@
         chartOfAccounts = coaRes.data;
 
         document.getElementById('category').innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-        document.getElementById('unitList').innerHTML =
-            units.map(u => `<option value="${u.name}"></option>`).join('');
 
         onCategoryChanged();
     }
@@ -321,21 +647,30 @@
 
         document.getElementById('groupSelect').innerHTML =
             '<option value="">-- Select Group --</option>' +
-            groups.map(g => `<option value="${g.id}">${g.code} — ${g.name}</option>`).join('');
+            groups.map(g => `<option value="${g.id}" title="${escHtml(g.name)}">${escHtml(g.code)}</option>`).join('');
 
         onGroupChanged();
     }
 
     function onGroupChanged() {
         const groupId = document.getElementById('groupSelect').value;
-        const filteredItems = groupId ? items.filter(i => String(i.chart_of_account_id) === String(groupId)) : [];
+        let filteredItems = [];
+        if (groupId) {
+            filteredItems = items.filter(i => String(i.chart_of_account_id) === String(groupId));
+        } else {
+            // Only the Category is selected: offer every item under that category's groups.
+            const categoryId = document.getElementById('category').value;
+            const groupIds = chartOfAccounts
+                .filter(g => String(g.category_id) === String(categoryId))
+                .map(g => String(g.id));
+            filteredItems = items.filter(i => groupIds.includes(String(i.chart_of_account_id ?? i.chart_of_account?.id)));
+        }
 
-        document.getElementById('itemDatalist').innerHTML =
-            filteredItems.map(i => `<option value="${i.name}" data-id="${i.id}"></option>`).join('');
         document.getElementById('itemSelect').value = '';
         document.getElementById('itemId').value = '';
 
         window.__currentGroupItems = filteredItems; // keep for lookup in onItemSelected
+        refreshAddToList();
     }
 
     async function load() {
@@ -373,6 +708,7 @@
                     <span class="muted">${plan.plan_type} · ${plan.donor_name ?? ''}</span>
                 </div>
                 <div style="display:flex; gap:.5rem;">
+                    ${CAN_MANAGE_PACKAGES ? '<button type="button" class="btn secondary" onclick="openImport()">Import Excel</button>' : ''}
                     <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/pdf/preview" target="_blank">Preview</a>
                     <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/word" target="_blank">Download Word</a>
                     <a class="btn secondary" href="/api/procurement-annual-plans/${planId}/pdf" target="_blank">Download PDF</a>
@@ -384,7 +720,7 @@
                 <div><span class="muted">Project Location (Office)</span><br>${plan.project_location ?? '-'}</div>
                 <div><span class="muted">Project Working Area</span><br>${plan.working_area ?? '-'}</div>
                 <div><span class="muted">Project Duration</span><br>${plan.project_duration ?? (plan.fiscal_year_start + ' → ' + plan.fiscal_year_end)}</div>
-                <div><span class="muted">Date of Agreement/Awarded</span><br>${plan.agreement_date ?? '-'}</div>
+                <div><span class="muted">Date of Agreement/Awarded</span><br>${formatDateOnly(plan.agreement_date)}</div>
                 <div><span class="muted">Donor Name</span><br>${plan.donor_name ?? '-'}</div>
             </div>
             ${plan.activity_summary ? `<div class="card" style="margin-top:1rem;"><span class="muted">Activity Summary</span><p style="margin:.4rem 0 0;">${plan.activity_summary}</p></div>` : ''}
@@ -539,9 +875,10 @@
         document.getElementById('groupSelect').value = groupId;
         onGroupChanged();
 
-        document.getElementById('itemSelect').value = pkg.item?.name ?? '';
+        document.getElementById('itemSelect').value = pkg.item?.name ?? pkg.budgeted_head ?? '';
         document.getElementById('itemId').value = pkg.item_id ?? '';
         document.getElementById('budgetedHead').value = pkg.budgeted_head;
+        refreshAddToList();
         document.getElementById('specification').value = pkg.specification ?? '';
         document.getElementById('unit').value = pkg.unit ?? '';
         document.getElementById('remarks').value = pkg.remarks ?? '';
@@ -583,16 +920,47 @@
         const budgetedHead = document.getElementById('budgetedHead').value.trim();
 
         if (!categoryId || !budgetedHead) {
-            errorBox.textContent = 'Please provide Category and Item Name.';
+            errorBox.textContent = 'Please select a Category and enter the Item.';
             errorBox.style.display = 'block';
             return;
         }
 
+        // Resolve the item: reuse an identical existing item in this group, or (if ticked)
+        // add the new one to the Items list so it shows up in the dropdown next time.
+        let headName = budgetedHead;
+        let itemId = document.getElementById('itemId').value || null;
+        const groupId = document.getElementById('groupSelect').value || null;
+
+        if (!itemId && groupId) {
+            const existing = items.find(i =>
+                String(i.chart_of_account_id ?? i.chart_of_account?.id) === String(groupId) && normName(i.name) === normName(budgetedHead));
+
+            if (existing) {
+                itemId = existing.id;
+                headName = existing.name;
+            } else if (CAN_MANAGE_PACKAGES && document.getElementById('addToList').checked) {
+                try {
+                    const { data: created } = await api.post('/items', {
+                        chart_of_account_id: groupId,
+                        name: budgetedHead,
+                        specification: document.getElementById('specification').value.trim() || null,
+                    });
+                    items.push(created);
+                    itemId = created.id;
+                    headName = created.name;
+                } catch (err) {
+                    errorBox.textContent = err.message;
+                    errorBox.style.display = 'block';
+                    return;
+                }
+            }
+        }
+
         const payload = {
             procurement_category_id: categoryId,
-            chart_of_account_id: document.getElementById('groupSelect').value || null,
-            budgeted_head: budgetedHead,
-            item_id: document.getElementById('itemId').value || null,
+            chart_of_account_id: groupId,
+            budgeted_head: headName,
+            item_id: itemId,
             specification: document.getElementById('specification').value || null,
             unit: document.getElementById('unit').value || null,
             remarks: document.getElementById('remarks').value || null,
@@ -625,6 +993,168 @@
     load();
 
 
+    if (CAN_ADD_GROUP) document.getElementById('newGroupLink').style.display = 'inline';
+
+
+    // ---------------- Import Excel ----------------
+    let importFile = null;
+    let importGroupMap = {};
+    let importData = null;
+
+    function openImport() {
+        importFile = null; importGroupMap = {}; importData = null;
+        document.getElementById('importFileInput').value = '';
+        document.getElementById('importProjectWrap').style.display = 'none';
+        document.getElementById('importBody').innerHTML = '';
+        document.getElementById('importNote').textContent = '';
+        document.getElementById('importConfirmBtn').disabled = true;
+        document.getElementById('importConfirmBtn').textContent = 'Import';
+        setImportMsg('');
+        document.getElementById('importModal').style.display = 'flex';
+    }
+
+    function closeImport() {
+        document.getElementById('importModal').style.display = 'none';
+    }
+
+    function setImportMsg(text, isError) {
+        const el = document.getElementById('importMsg');
+        el.textContent = text || '';
+        el.style.color = isError ? '#b91c1c' : '#475569';
+    }
+
+    async function importRequest(path, extra = {}) {
+        const fd = new FormData();
+        fd.append('file', importFile);
+        Object.entries(extra).forEach(([k, v]) => fd.append(k, v));
+
+        const res = await fetch(`/api/procurement-annual-plans/${planId}${path}`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: fd,
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(json.message || (json.errors ? Object.values(json.errors).flat().join(', ') : `Request failed (${res.status})`));
+        }
+        return json;
+    }
+
+    async function onImportFileChosen(input) {
+        importFile = input.files[0] || null;
+        importGroupMap = {};
+        document.getElementById('importBody').innerHTML = '';
+        document.getElementById('importConfirmBtn').disabled = true;
+        if (!importFile) return;
+
+        setImportMsg('Reading the file...');
+        try {
+            const data = await importRequest('/import/preview');
+            importData = data;
+            const sel = document.getElementById('importProject');
+            sel.innerHTML = '<option value="">— choose a project —</option>' + data.projects.map(p =>
+                `<option value="${escHtml(p.key)}">${escHtml(p.name)} — ${p.rows} rows</option>`).join('');
+            if (data.suggested) sel.value = data.suggested;
+            document.getElementById('importProjectWrap').style.display = 'block';
+
+            const notes = [];
+            if (data.skipped_no_project) notes.push(`${data.skipped_no_project} rows with no project name are skipped.`);
+            if (data.existing_packages) notes.push(`This plan already has ${data.existing_packages} packages; imported ones are added after them.`);
+            document.getElementById('importNote').textContent = notes.join(' ');
+
+            if (sel.value) await runImportPreview();
+            else setImportMsg('Choose the project to import.');
+        } catch (e) {
+            setImportMsg(e.message, true);
+        }
+    }
+
+    async function runImportPreview() {
+        const project = document.getElementById('importProject').value;
+        document.getElementById('importConfirmBtn').disabled = true;
+        if (!project || !importFile) { document.getElementById('importBody').innerHTML = ''; return; }
+
+        setImportMsg('Preparing the preview...');
+        try {
+            const data = await importRequest('/import/preview', { project, group_map: JSON.stringify(importGroupMap) });
+            importData = { ...importData, ...data };
+            renderImportPreview(data);
+            setImportMsg('');
+        } catch (e) {
+            setImportMsg(e.message, true);
+        }
+    }
+
+    function onImportGroupChosen(key, value) {
+        if (value === '__keep') delete importGroupMap[key];
+        else importGroupMap[key] = value === 'none' ? '' : value;
+        runImportPreview();
+    }
+
+    function renderImportPreview(data) {
+        const money = n => Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+        const sm = data.summary;
+        let html = `<div style="margin-bottom:.5rem;"><b>${sm.rows}</b> packages ready · total <b>${money(sm.grand_total)}</b>`
+            + ` · <span style="color:#b45309;">${sm.with_warnings} with notes</span>`
+            + (sm.skipped_no_item ? ` · ${sm.skipped_no_item} skipped (no item name)` : '') + `</div>`;
+
+        if (data.unmatched_groups.length) {
+            const opts = cat => data.groups
+                .filter(g => String(g.category_id) === String(cat))
+                .map(g => `<option value="${g.id}">${escHtml(g.code)} — ${escHtml(g.name)}</option>`).join('');
+            html += `<div style="border:1px solid #fcd34d; background:#fffbeb; border-radius:8px; padding:.6rem .8rem; margin:.5rem 0;">
+                <b>Choose a Procurement Group</b> for these Sub-Category texts (or import them without a group):
+                <table style="width:100%; margin-top:.4rem;"><tr><th style="text-align:left;">Text in the file</th><th>Rows</th><th>Category</th><th style="text-align:left;">Procurement Group</th></tr>
+                ${data.unmatched_groups.map(u => `<tr>
+                    <td>${u.text ? escHtml(u.text) : '<i>(blank)</i>'}</td><td style="text-align:center;">${u.count}</td><td>${escHtml(u.category)}</td>
+                    <td><select onchange="onImportGroupChosen('${u.key}', this.value)">
+                        <option value="__keep">— choose —</option><option value="none">No group</option>${opts(u.category_id)}</select></td></tr>`).join('')}
+                </table></div>`;
+        }
+
+        const months = ['Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun'];
+        html += `<div style="overflow-x:auto; max-height:420px; overflow-y:auto;"><table style="font-size:.82rem; width:100%;">
+            <tr><th>#</th><th style="text-align:left;">Item</th><th>Category</th><th style="text-align:left;">Group</th><th>Unit</th><th>Rate</th>
+            ${months.map(m => `<th>${m}</th>`).join('')}<th>Total</th><th style="text-align:left;">Notes</th></tr>
+            ${data.rows.map(r => `<tr style="${r.warnings.length ? 'background:#fffbeb;' : ''}">
+                <td>${r.sl_no}</td><td>${escHtml(r.item)}</td><td>${escHtml(r.category)}</td>
+                <td>${r.group ? escHtml(r.group) : '<span style="color:#b91c1c;">—</span>'}</td><td>${escHtml(r.unit || '')}</td><td style="text-align:right;">${money(r.rate)}</td>
+                ${r.units.map(u => `<td style="text-align:right;">${u ? money(u * r.rate) : ''}</td>`).join('')}
+                <td style="text-align:right;"><b>${money(r.import_total)}</b></td>
+                <td style="color:#b45309;">${r.warnings.map(escHtml).join('; ')}</td></tr>`).join('')}
+            </table></div>`;
+
+        document.getElementById('importBody').innerHTML = html;
+        const btn = document.getElementById('importConfirmBtn');
+        btn.disabled = sm.rows === 0;
+        btn.textContent = `Import ${sm.rows} packages`;
+    }
+
+    async function importCommit() {
+        const project = document.getElementById('importProject').value;
+        const count = importData?.summary?.rows ?? 0;
+        if (!project || !count) return;
+        if (!confirm(`Import ${count} packages into this plan?`)) return;
+
+        const btn = document.getElementById('importConfirmBtn');
+        btn.disabled = true;
+        setImportMsg('Importing...');
+        try {
+            const res = await importRequest('/import/commit', { project, group_map: JSON.stringify(importGroupMap) });
+            closeImport();
+            alert(`Imported ${res.imported} packages.`);
+            load();
+        } catch (e) {
+            btn.disabled = false;
+            setImportMsg(e.message, true);
+        }
+    }
+
     (function gatePackageForm() {
         if (CAN_MANAGE_PACKAGES) return;
         document.getElementById('packageFormCard').style.display = 'none';

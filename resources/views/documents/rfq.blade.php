@@ -9,7 +9,7 @@
     @endif
         <div style="text-align: center; width: 100%;">
             <div style="font-size: 15px; font-weight: bold; margin-top: 2px;">Eco-Social Development Organization (ESDO)</div>
-            <div style="font-size: 13px; font-weight: bold; line-height: 1.3;">House # 748, Baitul Aman Housing Society, Road # 8, Adabor, Dhaka-1207</div>
+            <div style="font-size: 13px; font-weight: bold; line-height: 1.3;">{{ $committeeAddress }}</div>
             <!-- <div style="font-size: 13px; font-weight: bold; line-height: 1.3;">Gobindanagar (Collegepara), Thakurgaon-5100</div> -->
             
         </div>
@@ -33,8 +33,8 @@
         <strong>{{ $rfq->procurementCase->purchaseRequisition->delivery_location ?? '[Project Location]' }}</strong>. Interested Vendors/Suppliers are requested to submit
         quotation through courier or directly according to the below mentioned terms &amp; conditions by
         or before on {{ optional($rfq->closing_date)->format('d F, Y') }} at 04:00 PM addressing to
-        "Convener, Central Procurement Committee, Eco-Social Development Organization (ESDO),
-        House # 748, Road# 8 Adabor, Dhaka".
+        "Convener, {{ $committeeName }}, Eco-Social Development Organization (ESDO),
+        {{ $committeeAddress }}".
     </p>
 
     <p class="bold">Items Details:</p>
@@ -77,17 +77,7 @@
     @php
         // Same rule as the Word builder: the terms the officer ticked on the RFQ form;
         // RFQs with nothing ticked (created before the feature) keep the old standard list.
-        $fallbackTerms = [
-            'Legal Document PDF Copy must be Submitted with Quotation: (Trade License, VAT Registration, TIN Certificate, PSR)',
-            'Relevant Experience Certificate PDF Copy must be Submitted with Quotation.',
-            'General Experience Certificate PDF Copy must be Submitted with Quotation.',
-            'RFQ Receiving PDF Copy Need to Attach with the Quotation.',
-            'As per govt. rules and regulation vat & tax will be deducted at the time of payment.',
-            'The given price of the product must be valid for at least 15 days, and within this time frame the supplier is bound to supply products at the given price.',
-            'Mode of payment: Payment will be made through Account Payee cheque/Pay order/RTGS/BEFTN or DD in favour of the supplying vendor after successful delivery of goods.',
-            'ESDO reserves the authority to cancel — partially or fully — any quotation with or without explanation.',
-            'ESDO never allows any harassment to women and children, and never allows child labour. Any institution or organization associated with such practices is strongly discouraged from participating in the bid.',
-        ];
+        $fallbackTerms = \App\Models\Rfq::FALLBACK_TERMS;
         $pickedTerms = ($termsConditions ?? collect())->isNotEmpty()
             ? $termsConditions->pluck('text')->all()
             : $fallbackTerms;
@@ -109,7 +99,7 @@
             <td style="width:50%; vertical-align:top;">
                 <p class="bold">({{ $signatoryName }})</p>
                 <p>{{ $signatoryTitle }}</p>
-                <p>Central Procurement Committee, ESDO, Dhaka-1207.</p>
+                <p>{{ $committeeName }}, ESDO, {{ $committeeAddress }}.</p>
             </td>
             <td style="width:50%; vertical-align:top; text-align:right;">
                 <p>Receivers Signature &amp; Seal</p>

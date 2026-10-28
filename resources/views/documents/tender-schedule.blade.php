@@ -21,7 +21,7 @@
     <table class="bordered" style="margin-top:6px">
         <tr><td class="bold">DATE:</td><td>{{ optional($rfq->issue_date)->format('d.m.Y') }}</td></tr>
         <tr><td class="bold">REFERENCE:</td><td>{{ $rfq->rfq_number }}</td></tr>
-        <tr><td class="bold">Address:</td><td>Collegepara (Gobindanagar), Thakurgaon-5100</td></tr>
+        <tr><td class="bold">Address:</td><td>{{ $committeeAddress }}</td></tr>
     </table>
 
     <p style="margin-top:10px">
@@ -42,9 +42,9 @@
         via courier/post office or directly to the address below:
     </p>
     <p class="center bold" style="margin:4px 0">
-        {{ $convenerName }}, Central Procurement Committee<br>
+        {{ $convenerName }}, {{ $committeeName }}<br>
         Eco-Social Development Organization (ESDO)<br>
-        Collegepara (Gobindanagar), Thakurgaon-5100
+        {{ $committeeAddress }}
     </p>
 
     <p>
@@ -108,8 +108,8 @@
             <td class="bold">Contact Person for Inquiries (Written inquiries only)</td>
             <td>
                 {{ $signatoryName }}<br>
-                {{ $signatoryTitle ? $signatoryTitle . ', ' : '' }}Central Procurement Committee<br>
-                Collegepara (Gobindanagar), Thakurgaon-5100<br>
+                {{ $signatoryTitle ? $signatoryTitle . ', ' : '' }}{{ $committeeName }}<br>
+                {{ $committeeAddress }}<br>
                 Email: {{ $signatoryEmail ?: '[email not on file]' }}
             </td>
         </tr>
@@ -161,7 +161,7 @@
     <h2>ANNEX-IV: TERMS &amp; CONDITIONS</h2>
     <ol class="terms">
         <li>Bidders must submit valid Trade License, VAT Registration Certificate, TIN Certificate, and Proof of Return Submission (PSR) with the bid.</li>
-        <li>Bids must be submitted in a sealed envelope, addressed to the Convener, Central Procurement Committee, ESDO, on or before the submission deadline above.</li>
+        <li>Bids must be submitted in a sealed envelope, addressed to the Convener, {{ $committeeName }}, ESDO, on or before the submission deadline above.</li>
         <li>Bids received after the deadline will not be accepted under any circumstances.</li>
         <li>Prices quoted must be inclusive of VAT &amp; Tax, and must remain valid for the period stated above.</li>
         <li>The successful bidder will be required to submit a Performance Security as stated above, within 7 days of receiving the Notification of Award.</li>
@@ -175,7 +175,7 @@
                 <p class="bold">Sincerely yours,</p>
                 <p>({{ $signatoryName }})</p>
                 <p>{{ $signatoryTitle }}</p>
-                <p>Central Procurement Committee, ESDO</p>
+                <p>{{ $committeeName }}, ESDO</p>
             </td>
         </tr>
     </table>

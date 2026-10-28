@@ -9,7 +9,7 @@
     @endif
         <div style="text-align: center; width: 100%;">
             <div style="font-size: 16px; font-weight: bold; line-height: 1.2;">Eco-Social Development Organization (ESDO)</div>
-            <div style="font-size: 10px; color: #555; margin-top: 2px;">Collegepara(Gobindanagar),Thakurgaon, Rangpur, Bangladesh</div>
+            <div style="font-size: 10px; color: #555; margin-top: 2px;">{{ $committeeAddress ?? 'Collegepara(Gobindanagar),Thakurgaon, Rangpur, Bangladesh' }}</div>
         </div>
     </div>
 

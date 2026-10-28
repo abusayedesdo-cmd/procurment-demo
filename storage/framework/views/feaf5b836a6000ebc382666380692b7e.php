@@ -33,4 +33,4 @@
     </form>
 </body>
 </html>
-<?php /**PATH D:\New Poject\Project_procrument\resources\views/auth/login.blade.php ENDPATH**/ ?>
+<?php /**PATH D:\Procument_Pro\Project_procrument\resources\views/auth/login.blade.php ENDPATH**/ ?>

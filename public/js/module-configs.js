@@ -203,6 +203,7 @@ const MODULE_CONFIGS = {
             { name: 'subject', label: 'Subject', type: 'text', required: true, autofillFrom: { field: 'procurement_case_id', property: 'project_name_hint' } },
             { name: 'type', label: 'Type', type: 'enum', options: ['RFQ', 'OTM', 'RFP'], required: true, autofillFrom: { field: 'procurement_case_id', property: 'rfq_type_hint' } },
             { name: 'distribution_process', label: 'Distribution Process', type: 'enum', options: ['Email', 'Hand Distribution'] },
+            { name: 'office', label: 'Office (address shown on documents — Main committee)', type: 'enum', options: ['Dhaka', 'Thakurgaon'] },
             { name: 'issue_date', label: 'Issue Date', type: 'date', required: true, autofillFrom: { field: 'procurement_case_id', property: 'issue_date_hint' } },
             { name: 'closing_date', label: 'Closing Date (RFQ: 5–7 days; RFP: 3–7 days after issue date)', type: 'date', required: true, autofillFrom: { field: 'procurement_case_id', property: 'closing_date_hint' } },
             { name: 'terms_condition_ids', label: 'Select Terms & Conditions', type: 'multi_checkbox', source: '/rfq-terms-conditions?active=1', labelField: 'text' },
@@ -689,6 +690,7 @@ const MODULE_CONFIGS = {
             { key: 'vendor.name', label: 'Vendor' },
             { key: 'financial_marks', label: 'Financial Marks' },
             { key: 'technical_marks', label: 'Technical Marks' },
+            { key: 'sample_marks', label: 'Sample Verification Marks' },
             { key: 'total_marks', label: 'Total Marks' },
             { key: 'rank', label: 'Rank' },
             { key: 'amount', label: 'Amount' },
@@ -699,6 +701,7 @@ const MODULE_CONFIGS = {
             { name: 'financial_evaluation_item_id', label: 'Financial Evaluation Row', type: 'select', source: '/financial-evaluation-items', labelField: r => `${r.vendor?.name ?? '-'} — Amt ${r.quoted_amount}` },
             { name: 'technical_evaluation_item_id', label: 'Technical Evaluation Row', type: 'select', source: '/technical-evaluation-items', labelField: r => `${r.vendor?.name ?? '-'} — Score ${r.score}` },
             { name: 'amount', label: 'Amount', type: 'number', step: '0.01', required: true, autofillFrom: { field: 'financial_evaluation_item_id', property: 'quoted_amount' } },
+            { name: 'sample_marks', label: 'Sample Verification Mark (0–100, optional — added to the total)', type: 'number', step: '0.01', min: 0, max: 100 },
         ],
     },
 
@@ -785,6 +788,12 @@ const MODULE_CONFIGS = {
             { name: 'wo_number', label: 'WO Number', type: 'text', required: true },
             { name: 'wo_date', label: 'WO Date', type: 'date', required: true },
             { name: 'file_path', label: 'File (path/URL)', type: 'file' },
+        ],
+        rowActions: [
+            { label: 'Edit Terms', hrefBuilder: r => `/work-orders/${r.id}/terms` },
+            { label: 'Preview', hrefBuilder: r => `/api/work-orders/${r.id}/preview` },
+            { label: 'Download (Word)', hrefBuilder: r => `/api/work-orders/${r.id}/document`, download: true },
+            { label: 'Download (PDF)', hrefBuilder: r => `/api/work-orders/${r.id}/pdf`, download: true },
         ],
     },
 

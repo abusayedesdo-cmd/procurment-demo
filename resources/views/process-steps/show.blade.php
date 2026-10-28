@@ -211,7 +211,7 @@
 
         @isset($activePr)
             <div class="active-pr-banner">
-                <span>Working on <b>PR-{{ $activePr->pr_number ?? $activePr->id }}</b> </span>
+                <span>Working on <b>{{ $activePr->pr_number ?? ('PR-' . $activePr->id) }}</b> </span>
                 <a href="{{ route('process-steps.show', $slug) }}?clear_pr=1">Change / clear &times;</a>
             </div>
         @endisset
